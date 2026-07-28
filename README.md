@@ -61,5 +61,6 @@ python3 -m http.server 8000   # then open http://localhost:8000/indy.html
 node test.mjs
 ```
 
-16 checks covering the progression engine, the reducers, and the fact that every screen renders.
-CI runs the same command on pull requests and blocks the deploy if it fails.
+19 checks covering the progression engine, the reducers, and the fact that every screen renders.
+CI runs the same command on pushes and pull requests. It reports; it cannot hold back a deploy,
+so run it yourself before pushing to `main`.

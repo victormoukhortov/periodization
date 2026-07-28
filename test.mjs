@@ -275,6 +275,46 @@ check("the first-ever session does not autofill a zero weight", () => {
   eq(row.done, true, "set marked done");
 });
 
+check("you can look ahead through the block and come back", () => {
+  const app = boot();
+  app.runSession(load, topOfRange, 3, () => ({ s: 1, p: 1, v: 1 })); // now on pull
+  const { state, ctx } = app.api();
+  const here = state.index;
+
+  app.click({ a: "peeknext" });
+  app.click({ a: "peeknext" });
+  eq(state.index, here, "looking ahead does not move you");
+  eq(ctx().day.id, "pull", "the live session is still the next one you owe");
+
+  app.click({ a: "peekat", i: String(here + 5) }); // straight from the plan
+  app.click({ a: "peektoday" });
+  eq(state.index, here, "and coming back leaves you where you were");
+});
+
+check("a session you are only looking at cannot be logged", () => {
+  const app = boot();
+  app.click({ a: "peeknext" });
+  app.click({ a: "start" });          // the button the home screen hides while peeking
+  const { state } = app.api();
+  eq(state.draft.index, 0, "the draft belongs to the live session, not the peeked one");
+
+  // and the engine never hands a peeked index to anything that writes
+  app.type("p1", 0, "w", 100);
+  app.click({ a: "toggle", ex: "p1", i: "0" });
+  eq(state.draft.sets.p1[0].w, "100", "logging still lands on the live session");
+  eq(state.history.length, 0, "nothing committed by looking around");
+});
+
+check("looking ahead never runs off the end of the block", () => {
+  const app = boot();
+  const { state, ctx } = app.api();
+  for (let i = 0; i < 40; i++) app.click({ a: "peeknext" });
+  eq(state.index, 0, "still session 1");
+  app.click({ a: "peekat", i: "999" });
+  app.click({ a: "peektoday" });
+  eq(ctx().idx, 0, "clamped, and home again");
+});
+
 check("every screen renders without throwing", () => {
   const app = boot();
   app.runSession(load, topOfRange, 3, () => ({ s: 1, p: 1, v: 1 }));

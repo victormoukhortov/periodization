@@ -48,8 +48,9 @@ Section banners in the script mark the regions:
 - `ENGINE` — the pure progression logic. See below.
 - `STORAGE` — `localStorage` under key `ppl-block-v1`, with an in-memory fallback when storage
   is blocked (private browsing, some `file://` contexts). Never let a storage failure throw.
-- `STATE` — the single `state` object plus `ctx()`, which computes the current session's day,
-  week, set counts, and targets.
+- `STATE` — the single `state` object plus `ctx(absIndex)`, which computes a session's day, week,
+  set counts, and targets. Called with no argument it describes the live session; called with an
+  absolute index it describes any session, which is what browsing the block uses.
 - `VIEWS` — each screen is a function returning an HTML string.
 - `RENDER` — `render(keepScroll)` replaces `#app.innerHTML` wholesale.
 - `ACTIONS` — one delegated `click` listener keyed on `data-a`, one delegated `input` listener.
@@ -67,6 +68,24 @@ Re-rendering blows away focus and dismisses the keyboard. Therefore:
 
 If you add a control that lives near a text field, keep it on the no-render path or the user
 loses their keyboard mid-set.
+
+### Peeking
+
+`peek` holds the absolute index of the session the home screen is showing, or `null` for the
+live one. It is view state, never persisted, and it is bounded to
+`[state.index, state.index + SESSIONS_PER_BLOCK - 1]` — you browse forward, never into the past,
+because a past session rendered from today's history would show targets that were never
+prescribed.
+
+**Only the live session is writable, and the mechanism is that every action calls `ctx()` with
+no argument.** `render` is the one place that passes an index, and only to `viewHome`. Keep it
+that way: an action that reaches for `ctx(peekIndex())` would let a user log sets against a
+workout they have not arrived at, and `state.draft` would end up stamped with the wrong index.
+Anything that moves `state.index` — starting, committing, skipping, erasing — clears `peek`.
+
+Targets for a peeked session are a projection: `prescribe` runs against the history that exists
+now, so the numbers move as the user trains. The home screen says so when `peek` is set; if you
+surface them anywhere else, say it there too.
 
 ## Progression rules
 
@@ -117,7 +136,7 @@ node test.mjs
 `test.mjs` extracts the `<script>` body from the HTML, stubs the handful of browser APIs the app
 touches, and drives it by firing the same synthetic `click` and `input` events the real UI
 fires. It runs whole simulated blocks, so it covers the engine, the reducers, and the fact that
-every screen renders without throwing. 16 checks, all passing at handoff.
+every screen renders without throwing. 19 checks, all passing at handoff.
 
 Add a check for any progression rule you change. The suite is fast enough to run on every edit.
 

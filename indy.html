@@ -53,6 +53,7 @@
   .rail i.done{background:#065f46}
   .rail i.now{background:var(--go)}
   .rail i.dl{background:#0c4a6e}
+  .rail i.peek{background:var(--ink)}
 
   /* blocks */
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px}
@@ -75,6 +76,11 @@
   .btn.ghost{background:#262626;color:var(--ink)}
   .chip{border:1px solid var(--line);border-radius:99px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--muted)}
   .chip.on{border-color:var(--go);background:var(--go);color:#062a1c}
+  .chip[disabled]{opacity:.3}
+  .cell-day{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 4px;text-align:center}
+  .cell-day.now{border-color:rgba(52,211,153,.5);background:rgba(52,211,153,.08)}
+  .cell-day.peek{border-color:var(--ink)}
+  .cell-day.past{opacity:.35}
 
   /* exercise */
   .ex{background:var(--card);padding:18px 16px;margin-bottom:8px}
@@ -375,8 +381,21 @@ function saveState(){
 var state = loadState();
 var tab = "workout", view = "home", summary = null, openWhy = null, selEx = null, confirmErase = false;
 
-function ctx(){
-  var idx = state.index % SESSIONS_PER_BLOCK;
+/* Which session the home screen is looking at. null means the live one. Only
+   the live session is ever writable — peeking is read-only by construction,
+   because every action reads ctx() with no argument. */
+var peek = null;
+
+function peekIndex(){ return peek == null ? state.index : peek; }
+function peekLast(){ return state.index + SESSIONS_PER_BLOCK - 1; }
+function peeking(){ return peekIndex() !== state.index; }
+
+/* Absolute session index, not the position inside the block. Pass one to look
+   at a future session; targets come out of the same engine the live session
+   uses, so they are a projection from everything logged so far. */
+function ctx(absIndex){
+  var abs = absIndex == null ? state.index : absIndex;
+  var idx = abs % SESSIONS_PER_BLOCK;
   var day = dayOf(idx);
   var counts = setCountsForDay(day.id, state.history);
   var targets = {};
@@ -384,7 +403,7 @@ function ctx(){
     targets[ex.id] = prescribe(ex, idx, state.history, lastSorenessFor(ex.muscle, state.history));
   });
   return {
-    idx: idx, block: Math.floor(state.index / SESSIONS_PER_BLOCK) + 1,
+    abs: abs, idx: idx, block: Math.floor(abs / SESSIONS_PER_BLOCK) + 1,
     week: weekOf(idx), day: day, dl: isDeload(idx), counts: counts, targets: targets
   };
 }
@@ -398,10 +417,16 @@ function tagHTML(m){
   return '<span class="tag" style="--c:' + (HUE[m] || "#a3a3a3") + '"><b><s></s><s></s><s></s></b>' + m + '</span>';
 }
 
-function headerHTML(c){
+function headerHTML(c, live){
+  /* Progress is always drawn from the live session; the peeked one gets its own
+     marker, but only inside the same block, where the rail can place it. */
+  var at = live ? live.idx : c.idx;
+  var mark = live && c.block === live.block ? c.idx : -1;
   var rail = "";
   for (var i = 0; i < SESSIONS_PER_BLOCK; i++){
-    rail += '<i class="' + (i === c.idx ? "now" : i < c.idx ? "done" : isDeload(i) ? "dl" : "") + '"></i>';
+    var cls = i === at ? "now" : i < at ? "done" : isDeload(i) ? "dl" : "";
+    if (i === mark && i !== at) cls += " peek";
+    rail += '<i class="' + cls + '"></i>';
   }
   return '<header><div class="htop"><h1>' +
     (c.dl ? "<em>DELOAD</em>" : "WEEK " + c.week) + ' <span>DAY ' + (c.idx % 4 + 1) + '</span></h1>' +
@@ -410,9 +435,21 @@ function headerHTML(c){
     '<div class="rail">' + rail + '</div></header>';
 }
 
-function viewHome(c){
+function viewHome(c, live){
   var total = c.day.exercises.reduce(function(a, e){ return a + plannedSets(c, e); }, 0);
-  var h = headerHTML(c) + '<div class="wrap">';
+  var ahead = c.abs - live.abs;
+  var h = headerHTML(c, live) + '<div class="wrap">';
+
+  h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">' +
+    '<button class="chip" data-a="peekprev"' + (ahead ? "" : " disabled") + ' style="flex-shrink:0">‹</button>' +
+    '<p class="eyebrow" style="flex:1;text-align:center">' +
+    (ahead ? ahead + " session" + (ahead === 1 ? "" : "s") + " ahead" : "Up next") + '</p>' +
+    '<button class="chip" data-a="peeknext"' + (c.abs >= peekLast() ? " disabled" : "") + ' style="flex-shrink:0">›</button></div>';
+
+  if (ahead){
+    h += '<div class="card" style="padding:12px;margin-bottom:16px">' +
+      '<p class="muted" style="font-size:14px">Looking ahead. These numbers are projected from what you have logged so far — they move as you train and answer feedback. Nothing here can be logged until it is the session in front of you.</p></div>';
+  }
 
   if (c.dl){
     h += '<div class="card" style="border-color:rgba(56,189,248,.3);background:rgba(56,189,248,.08);padding:14px;margin-bottom:16px">' +
@@ -439,8 +476,10 @@ function viewHome(c){
     h += '</div></div>';
   });
 
-  h += '<button class="btn go" data-a="' + (state.draft ? "resume" : "start") + '">' +
-    (state.draft ? "Resume workout" : "Start workout") + '</button></div>';
+  h += ahead
+    ? '<button class="btn ghost" data-a="peektoday">Back to the session in front of you</button></div>'
+    : '<button class="btn go" data-a="' + (state.draft ? "resume" : "start") + '">' +
+      (state.draft ? "Resume workout" : "Start workout") + '</button></div>';
   return h;
 }
 
@@ -669,16 +708,33 @@ function viewPlan(c){
       '<span class="num dim" style="font-size:12px">' + RIR_BY_WEEK[wk] + ' RIR</span></div>' +
       '<p class="muted" style="font-size:14px;margin-top:4px">' + WEEK_COPY[wk] + '</p></div>';
   }
-  h += '</div><p class="eyebrow" style="margin:26px 0 8px">Weekly sequence</p><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">';
-  DAYS.forEach(function(d, i){
-    var on = c.idx % 4 === i;
-    var counts = setCountsForDay(d.id, state.history);
-    var tot = Object.keys(counts).reduce(function(a, k){ return a + counts[k]; }, 0);
-    h += '<div class="card center" style="padding:12px 6px' + (on ? ";border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.05)" : "") + '">' +
-      '<p style="font-size:12px;font-weight:800;text-transform:uppercase">' + d.name + '</p>' +
-      '<p class="dim num" style="font-size:11px;margin-top:3px">' + tot + ' sets</p></div>';
-  });
-  h += '</div><p class="eyebrow" style="margin:26px 0 8px">How targets are chosen</p>' +
+  h += '</div><p class="eyebrow" style="margin:26px 0 8px">Every session in this block</p>' +
+    '<p class="muted" style="font-size:14px;margin-bottom:10px">Tap one to see its exercises and targets. Sets are what your feedback has tuned them to; a deload halves them.</p>';
+
+  var countsByDay = {};
+  DAYS.forEach(function(d){ countsByDay[d.id] = setCountsForDay(d.id, state.history); });
+  var blockStart = state.index - (state.index % SESSIONS_PER_BLOCK);
+
+  for (var wk = 1; wk <= WEEKS_PER_BLOCK; wk++){
+    var dl = wk === DELOAD_WEEK;
+    h += '<div style="display:grid;grid-template-columns:34px repeat(4,1fr);gap:6px;margin-bottom:6px;align-items:center">' +
+      '<span class="eyebrow" style="text-align:center">' + (dl ? "DL" : "W" + wk) + '</span>';
+    /* plannedSets only reads .dl and .counts, so a bare shape is enough here. */
+    DAYS.forEach(function(d, i){
+      var abs = blockStart + (wk - 1) * DAYS.length + i;
+      var shape = {dl: dl, counts: countsByDay[d.id]};
+      var tot = d.exercises.reduce(function(a, ex){ return a + plannedSets(shape, ex); }, 0);
+      var cls = abs < state.index ? "past" : abs === state.index ? "now" : abs === peekIndex() ? "peek" : "";
+      var body = '<p style="font-size:12px;font-weight:800;text-transform:uppercase">' + d.name.split(" ")[0] + '</p>' +
+        '<p class="dim num" style="font-size:11px;margin-top:2px">' + tot + ' sets</p>';
+      h += abs < state.index
+        ? '<div class="cell-day past">' + body + '</div>'
+        : '<button class="cell-day ' + cls + '" data-a="peekat" data-i="' + abs + '">' + body + '</button>';
+    });
+    h += '</div>';
+  }
+
+  h += '<p class="eyebrow" style="margin:26px 0 8px">How targets are chosen</p>' +
     '<ul class="muted" style="font-size:14px;padding-left:18px;margin:0">' +
     '<li style="margin-bottom:6px">Hit the top of the rep range \u2192 add 5 lb (10 on lower body), reps reset to the bottom.</li>' +
     '<li style="margin-bottom:6px">Landed inside the range \u2192 same weight, one more rep.</li>' +
@@ -735,7 +791,8 @@ function render(keepScroll){
     if (view === "session" && state.draft) html = viewSession(c);
     else if (view === "feedback" && state.draft) html = viewFeedback(c);
     else if (view === "summary" && summary) html = viewSummary();
-    else html = viewHome(c);
+    /* the only screen that may show a session other than the live one */
+    else html = viewHome(ctx(peekIndex()), c);
   } else if (tab === "progress") html = viewProgress();
   else if (tab === "plan") html = viewPlan(c);
   else html = viewSettings(c);
@@ -774,6 +831,7 @@ function commit(feedback){
   });
   state.index += 1;
   state.draft = null;
+  peek = null;
   saveState();
 
   var n = ctx();
@@ -796,10 +854,20 @@ document.addEventListener("click", function(e){
   if (a === "nav"){
     tab = el.dataset.tab;
     if (tab === "workout" && view === "summary") view = "home";
-    confirmErase = false;
+    confirmErase = false; peek = null;
     render(); return;
   }
-  if (a === "start"){ startSession(); return; }
+
+  /* Looking around the block. Nothing here writes to a session. */
+  if (a === "peekprev"){ peek = Math.max(state.index, peekIndex() - 1); render(); return; }
+  if (a === "peeknext"){ peek = Math.min(peekLast(), peekIndex() + 1); render(); return; }
+  if (a === "peektoday"){ peek = null; render(); return; }
+  if (a === "peekat"){
+    peek = clamp(Number(el.dataset.i), state.index, peekLast());
+    tab = "workout"; view = "home"; render(); return;
+  }
+
+  if (a === "start"){ peek = null; startSession(); return; }
   if (a === "resume"){ view = "session"; render(); return; }
   if (a === "back"){ view = "home"; render(); return; }
   if (a === "why"){ openWhy = openWhy === exId ? null : exId; render(true); return; }
@@ -835,13 +903,13 @@ document.addEventListener("click", function(e){
   if (a === "summarydone"){ view = "home"; render(); return; }
   if (a === "selex"){ selEx = exId; render(true); return; }
 
-  if (a === "skipback"){ state.index = Math.max(0, state.index - 1); state.draft = null; saveState(); render(); return; }
-  if (a === "skipahead"){ state.index += 1; state.draft = null; saveState(); render(); return; }
+  if (a === "skipback"){ state.index = Math.max(0, state.index - 1); state.draft = null; peek = null; saveState(); render(); return; }
+  if (a === "skipahead"){ state.index += 1; state.draft = null; peek = null; saveState(); render(); return; }
   if (a === "erase-ask"){ confirmErase = true; render(true); return; }
   if (a === "erase-no"){ confirmErase = false; render(true); return; }
   if (a === "erase-yes"){
     state = {index:0, history:[], draft:null};
-    confirmErase = false; saveState(); tab = "workout"; view = "home"; render(); return;
+    confirmErase = false; peek = null; saveState(); tab = "workout"; view = "home"; render(); return;
   }
   if (a === "install" && deferredPrompt){ deferredPrompt.prompt(); deferredPrompt = null; return; }
 });
