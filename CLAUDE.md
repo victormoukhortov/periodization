@@ -93,6 +93,24 @@ below it that is not already logged, as real values rather than a placeholder hi
 Logged sets keep what they were logged with, and blurring a lower row carries nothing. The
 trigger is blur on purpose: carrying per keystroke flickers 1, 13, 135 down the column.
 
+### Feedback timing
+
+The RP questions are asked during the session, per muscle, by `pendingFor`:
+
+- **soreness** when the first set of that muscle is logged. It asks about *last* time, so asking
+  it before the work is done keeps the answer from drifting into how today went.
+- **pump and volume** when the last planned set of every exercise for that muscle is logged,
+  while the muscle still remembers.
+
+Both arrive in one sheet if they fall together (a one-exercise, one-set muscle). Answers live on
+`state.draft.fb`, not a module global, so they survive a reload mid-session; `loadState`
+backfills `fb` on drafts written before this existed.
+
+Finish then commits straight to the summary when nothing is outstanding. `missingFeedback` is
+what decides, and the end-of-session screen still exists for whatever was waved away with "Not
+now" — it lists only the unanswered questions. Deloads ask nothing at all, in the sheet or at
+the end.
+
 ### Peeking
 
 `peek` holds the absolute index of the session the home screen is showing, or `null` for the
@@ -163,7 +181,7 @@ node test.mjs
 `test.mjs` extracts the `<script>` body from the HTML, stubs the handful of browser APIs the app
 touches, and drives it by firing the same synthetic `click` and `input` events the real UI
 fires. It runs whole simulated blocks, so it covers the engine, the reducers, and the fact that
-every screen renders without throwing. 23 checks, all passing at handoff.
+every screen renders without throwing. 27 checks, all passing at handoff.
 
 Add a check for any progression rule you change. The suite is fast enough to run on every edit.
 

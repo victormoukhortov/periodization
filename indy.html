@@ -115,6 +115,15 @@
     border-radius:10px;padding:13px 8px;font-size:14px;font-weight:700;line-height:1.2}
   .opts button.on{background:var(--ask);border-color:#f87171;color:#fff}
   .rule{height:1px;background:var(--line);margin:26px 0 0}
+
+  /* mid-session question sheet */
+  .scrim{position:fixed;inset:0;z-index:40;background:rgba(10,10,10,.75);
+    backdrop-filter:blur(3px);display:flex;align-items:flex-end}
+  .sheet{width:100%;max-height:88vh;overflow-y:auto;background:var(--card);
+    border-top:1px solid var(--line);border-radius:18px 18px 0 0;
+    padding:20px 20px calc(24px + env(safe-area-inset-bottom))}
+  .sheet h3{font-size:18px;font-weight:700;text-transform:capitalize;margin-top:18px}
+  .sheet .q{color:var(--muted);font-size:14px;margin:4px 0 10px}
   .save{background:var(--ask);color:#fff;border-radius:10px;padding:13px 30px;font-size:17px;font-weight:800}
   .save[disabled]{background:#262626;color:#525252}
 
@@ -383,7 +392,12 @@ var memory = null;
 function loadState(){
   try {
     var raw = localStorage.getItem(KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw){
+      var s = JSON.parse(raw);
+      /* drafts saved before feedback moved into the session */
+      if (s.draft && !s.draft.fb) s.draft.fb = {};
+      return s;
+    }
   } catch (e) { /* storage blocked \u2014 fall through */ }
   return memory || {index:0, history:[], draft:null};
 }
@@ -397,6 +411,7 @@ function saveState(){
 var state = loadState();
 var tab = "workout", view = "home", summary = null, openWhy = null, selEx = null, confirmErase = false;
 var needWeight = null;  /* "exId:i" of a set that was tapped with no weight in it */
+var ask = null;         /* {m:muscle, kinds:["s"|"p"|"v"]} — the sheet asking mid-session */
 
 /* Which session the home screen is looking at. null means the live one. Only
    the live session is ever writable — peeking is read-only by construction,
@@ -572,11 +587,10 @@ function viewSession(c){
 
   h += '<div class="wrap"><p class="muted center" style="font-size:14px;margin-bottom:12px">' +
     '<b class="num" style="color:var(--ink)">' + doneSets + '</b> of ' + totalSets + ' sets logged</p>' +
-    '<button class="btn go" data-a="finish">' + (c.dl ? "Finish deload session" : "Finish and give feedback") + '</button></div>';
+    '<button class="btn go" data-a="finish">' + (c.dl ? "Finish deload session" : "Finish session") + '</button></div>';
+  if (ask) h += viewAsk();
   return h;
 }
-
-var fbDraft = null;
 
 function trainedBefore(m){
   return state.history.some(function(h){
@@ -586,34 +600,93 @@ function trainedBefore(m){
   });
 }
 
-function viewFeedback(c){
-  var muscles = musclesOf(c.day);
-  if (!fbDraft){
-    fbDraft = {};
-    muscles.forEach(function(m){ fbDraft[m] = {s:null, p:null, v:null}; });
-  }
-  var complete = muscles.every(function(m){
-    return fbDraft[m].p != null && fbDraft[m].v != null && (!trainedBefore(m) || fbDraft[m].s != null);
+/* Answers live on the draft, so they survive a reload mid-session. */
+function fbFor(m){
+  if (!state.draft.fb[m]) state.draft.fb[m] = {s:null, p:null, v:null};
+  return state.draft.fb[m];
+}
+function exercisesFor(day, m){
+  return day.exercises.filter(function(e){ return e.muscle === m; });
+}
+function groupStarted(c, m){
+  return exercisesFor(c.day, m).some(function(ex){
+    return (state.draft.sets[ex.id] || []).some(function(r){ return r.done; });
   });
+}
+function groupDone(c, m){
+  return exercisesFor(c.day, m).every(function(ex){
+    var rows = state.draft.sets[ex.id] || [];
+    return rows.length > 0 && rows.every(function(r){ return r.done; });
+  });
+}
 
-  function opts(list, m, k){
-    var h = '<div class="opts" style="grid-template-columns:repeat(' + (list.length === 3 ? 3 : 2) + ',1fr)">';
-    list.forEach(function(label, i){
-      h += '<button class="' + (fbDraft[m][k] === i ? "on" : "") + '" data-a="fb" data-m="' + m + '" data-k="' + k + '" data-v="' + i + '">' + label + '</button>';
-    });
-    return h + '</div>';
+/* Soreness goes with the first set of a muscle — it is about last time, and
+   asking once the work is done invites you to answer about today. Pump and
+   volume go with the last set, while the muscle still remembers. */
+function pendingFor(c, m){
+  var fb = fbFor(m), kinds = [];
+  if (fb.s == null && trainedBefore(m) && groupStarted(c, m)) kinds.push("s");
+  if (groupDone(c, m)){
+    if (fb.p == null) kinds.push("p");
+    if (fb.v == null) kinds.push("v");
   }
+  return kinds;
+}
+function missingFeedback(c){
+  return musclesOf(c.day).filter(function(m){
+    var fb = fbFor(m);
+    return fb.p == null || fb.v == null || (trainedBefore(m) && fb.s == null);
+  });
+}
+
+var QUESTION = {
+  s: {list: SORENESS, head: " soreness", q: function(m){ return "How sore did you get in your " + m + " AFTER training them LAST TIME?"; }},
+  p: {list: PUMP, head: " pump", q: function(m){ return "How much of a pump did you get today in your " + m + "?"; }},
+  v: {list: WORKLOAD, head: " volume", q: function(m){ return "How was the volume of work (number of hard sets) for your " + m + "?"; }}
+};
+
+function optsHTML(m, k, action){
+  var list = QUESTION[k].list, cur = fbFor(m)[k];
+  var h = '<div class="opts" style="grid-template-columns:repeat(' + (list.length === 3 ? 3 : 2) + ',1fr)">';
+  list.forEach(function(label, i){
+    h += '<button class="' + (cur === i ? "on" : "") + '" data-a="' + action + '" data-m="' + m + '" data-k="' + k + '" data-v="' + i + '">' + label + '</button>';
+  });
+  return h + '</div>';
+}
+
+/* The sheet that interrupts the session for one muscle's questions. */
+function viewAsk(){
+  var m = ask.m, kinds = ask.kinds;
+  var ready = kinds.every(function(k){ return fbFor(m)[k] != null; });
+  var h = '<div class="scrim"><div class="sheet"><p class="eyebrow">' +
+    (kinds[0] === "s" ? "Before your first set" : "That is your " + m + " done") + '</p>' +
+    '<div style="margin:10px 0 4px">' + tagHTML(m) + '</div>';
+  kinds.forEach(function(k){
+    h += '<h3>' + m + QUESTION[k].head + '</h3><p class="q">' + QUESTION[k].q(m) + '</p>' + optsHTML(m, k, "ask");
+  });
+  return h + '<div style="display:flex;justify-content:flex-end;align-items:center;gap:22px;margin-top:22px">' +
+    '<button style="font-size:15px;font-weight:700;color:var(--muted)" data-a="asklater">Not now</button>' +
+    '<button class="save" data-a="asksave"' + (ready ? "" : " disabled") + '>Save</button></div></div></div>';
+}
+
+function viewFeedback(c){
+  var muscles = missingFeedback(c);
+  var complete = !muscles.length;
+
+  function opts(list, m, k){ return optsHTML(m, k, "fb"); }
 
   var h = '<div class="fb"><div style="display:flex;justify-content:space-between;align-items:flex-start">' +
     '<h2>Feedback</h2><button style="font-size:30px;color:var(--muted);line-height:1" data-a="fbcancel">\u00d7</button></div>' +
-    '<p class="muted" style="font-size:14px;margin-top:6px">This is what sets next session\u2019s sets, weight, and reps.</p>';
+    '<p class="muted" style="font-size:14px;margin-top:6px">' +
+    'What you skipped during the session. This is what sets next session\u2019s sets, weight, and reps.</p>';
 
   muscles.forEach(function(m){
-    if (trainedBefore(m)){
-      h += '<h3>' + m + ' soreness</h3><p class="q">How sore did you get in your ' + m + ' AFTER training them LAST TIME?</p>' + opts(SORENESS, m, "s");
+    var fb = fbFor(m);
+    if (trainedBefore(m) && fb.s == null){
+      h += '<h3>' + m + QUESTION.s.head + '</h3><p class="q">' + QUESTION.s.q(m) + '</p>' + opts(SORENESS, m, "s");
     }
-    h += '<h3>' + m + ' pump</h3><p class="q">How much of a pump did you get today in your ' + m + '?</p>' + opts(PUMP, m, "p");
-    h += '<h3>' + m + ' volume</h3><p class="q">How was the volume of work (number of hard sets) for your ' + m + '?</p>' + opts(WORKLOAD, m, "v");
+    if (fb.p == null) h += '<h3>' + m + QUESTION.p.head + '</h3><p class="q">' + QUESTION.p.q(m) + '</p>' + opts(PUMP, m, "p");
+    if (fb.v == null) h += '<h3>' + m + QUESTION.v.head + '</h3><p class="q">' + QUESTION.v.q(m) + '</p>' + opts(WORKLOAD, m, "v");
     h += '<div class="rule"></div>';
   });
 
@@ -843,9 +916,9 @@ function startSession(){
     for (var i = 0; i < n; i++) arr.push({w:"", r:"", done:false});
     sets[ex.id] = arr;
   });
-  state.draft = {index:state.index, sets:sets, rir:{}};
+  state.draft = {index:state.index, sets:sets, rir:{}, fb:{}};
   saveState();
-  view = "session"; openWhy = null; render();
+  view = "session"; openWhy = null; ask = null; render();
 }
 
 function commit(feedback){
@@ -858,6 +931,7 @@ function commit(feedback){
     var d = setsDelta(feedback[m]);
     return {muscle:m, d:d, why:reasonForDelta(feedback[m], d)};
   });
+  ask = null;
   state.index += 1;
   state.draft = null;
   peek = null;
@@ -915,6 +989,12 @@ document.addEventListener("click", function(e){
     if (row.done){
       if (row.w === "") row.w = String(t.weight == null ? 0 : t.weight);
       if (row.r === "") row.r = String(t.reps);
+      /* first set of a muscle asks about last time's soreness, last set asks
+         about pump and volume. Deloads collect nothing. */
+      if (!c.dl){
+        var kinds = pendingFor(c, ex.muscle);
+        if (kinds.length) ask = {m: ex.muscle, kinds: kinds};
+      }
     }
     saveState(); render(true); return;
   }
@@ -925,17 +1005,22 @@ document.addEventListener("click", function(e){
   }
   if (a === "rir"){ state.draft.rir[exId] = Number(el.dataset.v); saveState(); render(true); return; }
 
+  if (a === "ask"){ fbFor(el.dataset.m)[el.dataset.k] = Number(el.dataset.v); saveState(); render(true); return; }
+  if (a === "asksave" || a === "asklater"){ ask = null; saveState(); render(true); return; }
+
   if (a === "finish"){
+    ask = null;
     if (c.dl) commit({});
-    else { fbDraft = null; view = "feedback"; render(); }
+    else if (!missingFeedback(c).length) commit(state.draft.fb);
+    else { view = "feedback"; render(); }
     return;
   }
   if (a === "fb"){
-    fbDraft[el.dataset.m][el.dataset.k] = Number(el.dataset.v);
-    render(true); return;
+    fbFor(el.dataset.m)[el.dataset.k] = Number(el.dataset.v);
+    saveState(); render(true); return;
   }
   if (a === "fbcancel"){ view = "session"; render(); return; }
-  if (a === "fbsave"){ commit(fbDraft); return; }
+  if (a === "fbsave"){ commit(state.draft.fb); return; }
   if (a === "summarydone"){ view = "home"; render(); return; }
   if (a === "selex"){ selEx = exId; render(true); return; }
 

@@ -57,6 +57,14 @@ function fill(exId, i, f, val){
  *   rir                 -> reps-in-reserve tapped for each exercise
  *   pickFb(muscle)      -> {s,p,v} feedback
  */
+/* Answer whatever sheet the session just opened, the way a thumb would. */
+function answerSheet(pickFb){
+  while (ask){
+    var m = ask.m, f = pickFb(m);
+    ask.kinds.forEach(function(k){ click({a:"ask", m:m, k:k, v:String(f[k])}); });
+    click({a:"asksave"});
+  }
+}
 function runSession(pickLoad, pickReps, rir, pickFb){
   var c = ctx();
   click({a:"start"});
@@ -67,11 +75,13 @@ function runSession(pickLoad, pickReps, rir, pickFb){
       type(ex.id, i, "w", t.weight == null ? pickLoad(ex) : t.weight);
       type(ex.id, i, "r", pickReps(ex, t));
       click({a:"toggle", ex:ex.id, i:String(i)});
+      answerSheet(pickFb);
     });
     if (!ex.time) click({a:"rir", ex:ex.id, v:String(rir)});
   });
   click({a:"finish"});
-  if (!c.dl){
+  /* a still-open draft means something went unanswered and the end screen asked */
+  if (state.draft){
     musclesOf(c.day).forEach(function(m){
       var f = pickFb(m);
       if (trainedBefore(m)) click({a:"fb", m:m, k:"s", v:String(f.s)});
@@ -86,7 +96,8 @@ function runSession(pickLoad, pickReps, rir, pickFb){
 return {
   click: click, type: type, fill: fill, runSession: runSession,
   api: function(){ return {
-    state: state, ctx: ctx, setsDelta: setsDelta, roundLoad: roundLoad,
+    state: state, ctx: ctx, ask: ask, view: view,
+    setsDelta: setsDelta, roundLoad: roundLoad,
     platesPerSide: platesPerSide, setCountsForDay: setCountsForDay,
     prescribe: prescribe, plannedSets: plannedSets, DAYS: DAYS,
     weekOf: weekOf, isDeload: isDeload, RIR_BY_WEEK: RIR_BY_WEEK,
@@ -413,6 +424,90 @@ check("looking ahead never runs off the end of the block", () => {
   app.click({ a: "peekat", i: "999" });
   app.click({ a: "peektoday" });
   eq(ctx().idx, 0, "clamped, and home again");
+});
+
+/* Log every set of a session, handing each sheet to `onSheet`. */
+function playSession(app, onSheet) {
+  const { state, ctx } = app.api();
+  app.click({ a: "start" });
+  ctx().day.exercises.forEach((ex) => {
+    state.draft.sets[ex.id].forEach((r, i) => {
+      app.fill(ex.id, i, "w", 100);
+      app.click({ a: "toggle", ex: ex.id, i: String(i) });
+      while (app.api().ask) onSheet(app.api().ask);
+    });
+  });
+}
+
+check("the first set of a muscle asks how sore it got last time", () => {
+  const app = boot();
+  app.runSession(load, topOfRange, 3, () => ({ s: 1, p: 1, v: 1 })); // a push session on the books
+  const { state } = app.api();
+  state.index = 0; // back to push, so chest has a last time to ask about
+  state.draft = null;
+
+  app.click({ a: "start" });
+  ok(!app.api().ask, "nothing asked before a set is logged");
+  app.fill("p1", 0, "w", 135);
+  app.click({ a: "toggle", ex: "p1", i: "0" });
+
+  const q = app.api().ask;
+  eq(q.m, "chest", "about the muscle just worked");
+  eq(q.kinds, ["s"], "soreness only — the chest work is not finished yet");
+
+  app.click({ a: "ask", m: "chest", k: "s", v: "2" });
+  app.click({ a: "asksave" });
+  ok(!app.api().ask, "sheet closes");
+  eq(state.draft.fb.chest.s, 2, "and the answer is on the draft");
+});
+
+check("the last set of a muscle asks about pump and volume", () => {
+  const app = boot();
+  const { state, ctx } = app.api();
+  app.click({ a: "start" }); // first ever session: no soreness to ask about
+  const chest = ctx().day.exercises.filter((e) => e.muscle === "chest");
+  const total = chest.reduce((a, ex) => a + state.draft.sets[ex.id].length, 0);
+
+  let logged = 0;
+  chest.forEach((ex) => {
+    state.draft.sets[ex.id].forEach((r, i) => {
+      app.fill(ex.id, i, "w", 100);
+      app.click({ a: "toggle", ex: ex.id, i: String(i) });
+      logged++;
+      if (logged < total) ok(!app.api().ask, "nothing asked with chest sets still to do");
+    });
+  });
+
+  const q = app.api().ask;
+  eq([q.m, q.kinds], ["chest", ["p", "v"]], "pump and volume once the last chest set is in");
+});
+
+check("answering as you go leaves nothing for the end screen", () => {
+  const app = boot();
+  playSession(app, (q) => {
+    q.kinds.forEach((k) => app.click({ a: "ask", m: q.m, k: k, v: "1" }));
+    app.click({ a: "asksave" });
+  });
+  app.click({ a: "finish" });
+
+  eq(app.api().state.draft, null, "committed on the spot");
+  eq(app.api().view, "summary", "straight to the summary, no feedback screen");
+  eq(app.api().state.history[0].feedback.chest, { s: null, p: 1, v: 1 }, "answers reached history");
+});
+
+check("what you wave away is still asked at the end", () => {
+  const app = boot();
+  playSession(app, () => app.click({ a: "asklater" }));
+  app.click({ a: "finish" });
+
+  eq(app.api().view, "feedback", "the end screen catches the skipped questions");
+  ok(app.api().state.draft, "session still open until they are answered");
+  ["chest", "delts", "triceps"].forEach((m) => {
+    app.click({ a: "fb", m: m, k: "p", v: "1" });
+    app.click({ a: "fb", m: m, k: "v", v: "1" });
+  });
+  app.click({ a: "fbsave" });
+  eq(app.api().state.history.length, 1, "and saving commits the session");
 });
 
 check("every screen renders without throwing", () => {
