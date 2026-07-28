@@ -1,0 +1,139 @@
+# PPL Block
+
+A single-file workout tracker for a 4-day Push / Pull / Legs / Full Body split. It logs sets,
+asks the RP-style soreness / pump / volume questions after each session, and derives the next
+session's sets, weight, and reps from the answers. Installable to an iPhone home screen as a PWA.
+Deployed to GitHub Pages from the repo root.
+
+## Files
+
+| File | Role |
+| --- | --- |
+| `indy.html` | The entire application. No dependencies, no build step. |
+| `index.html` | Redirect from the site root to `indy.html`. |
+| `sw.js` | Service worker for the hosted copy. Network first, cache fallback. |
+| `manifest.webmanifest` | PWA manifest for the hosted copy. Icons are inline data URIs. |
+| `.nojekyll` | Keeps Pages from running the files through Jekyll. |
+| `.github/workflows/pages.yml` | `node test.mjs`, then publish the repo root. |
+| `test.mjs` | Headless regression suite. `node test.mjs`. No test framework. |
+| `CLAUDE.md` | This file. |
+
+## Hard constraints
+
+These are not preferences. Breaking any of them breaks the deployment model.
+
+1. **One file.** `indy.html` ships as a single artifact: inline CSS, inline JS, base64 icons.
+   No npm, no bundler, no CDN. It must run correctly when opened directly from disk — that is the
+   test for whether a change belongs in the file or beside it. `sw.js` and `manifest.webmanifest`
+   are the only siblings, they exist purely for the hosted copy, and the app degrades cleanly to
+   its inline fallbacks when they are missing. Do not grow that list.
+2. **No framework.** Vanilla ES5-flavoured JS, `var` and `function`, so it parses on old
+   WebKit without transpilation. Do not introduce React, JSX, or module syntax.
+3. **Pounds only.** 45 lb bar, plates down to 2.5. Every prescribed load passes through
+   `roundLoad()` so it is always something you can actually build on a US rack.
+4. **The engine is pure.** Everything from `weekOf` down to `prescribe` takes arguments and
+   returns values. It touches no DOM, no globals, no clock. This is what makes `test.mjs`
+   possible — keep new logic on that side of the line.
+5. **History is the source of truth.** Set counts and loads are *derived* from `state.history`
+   on every render, never cached in state. `setCountsForDay` replays feedback from scratch each
+   time. Do not add a mutable `plan` object; it will drift.
+
+## Layout of `indy.html`
+
+Section banners in the script mark the regions:
+
+- `PROGRAM` — `DAYS`, the hardcoded workout. Exercise ids (`p1`, `l3`, `g2`, `f7`) are the
+  primary key for everything and appear in saved history. **Never renumber or reuse an id**;
+  doing so silently rewrites a user's training log. Add new exercises with fresh ids.
+- `ENGINE` — the pure progression logic. See below.
+- `STORAGE` — `localStorage` under key `ppl-block-v1`, with an in-memory fallback when storage
+  is blocked (private browsing, some `file://` contexts). Never let a storage failure throw.
+- `STATE` — the single `state` object plus `ctx()`, which computes the current session's day,
+  week, set counts, and targets.
+- `VIEWS` — each screen is a function returning an HTML string.
+- `RENDER` — `render(keepScroll)` replaces `#app.innerHTML` wholesale.
+- `ACTIONS` — one delegated `click` listener keyed on `data-a`, one delegated `input` listener.
+- `PWA` — `beforeinstallprompt`, plus an `ONDISK` split: served over http(s) the page uses the
+  real `manifest.webmanifest` linked in `<head>` and registers `sw.js`; opened from `file://`
+  that link 404s, so it builds the manifest as a blob instead and registers nothing.
+
+### Render discipline
+
+Re-rendering blows away focus and dismisses the keyboard. Therefore:
+
+- The `input` handler writes into `state.draft` and **never** calls `render()`.
+- Everything else re-renders; taps that happen mid-session pass `render(true)` to preserve
+  scroll position.
+
+If you add a control that lives near a text field, keep it on the no-render path or the user
+loses their keyboard mid-set.
+
+## Progression rules
+
+Two independent mechanisms. Do not entangle them.
+
+**Load and reps, per exercise**, from the last non-deload performance of that exercise:
+
+- reps at or above the top of the range → +5 lb, or +10 on lower body (`ex.lower`), reps reset to the bottom
+- same, with 2+ reps in reserve still logged → double the jump
+- reps inside the range → same load, one more rep
+- reps below the range → one step down
+- muscle rated "still sore" last time → repeat the load, no increase
+- failure logged in week 1 → repeat, do not chase
+- bodyweight movements with no added load chase reps until the top of the range, then suggest a belt
+
+**Sets, per muscle**, from `setsDelta(fb)`:
+
+- volume "too much" → −1
+- still sore, with volume at "pushed my limits" or above → −1; otherwise hold
+- "pushed my limits" → hold
+- otherwise base 2 (or 1 if soreness healed just on time), +1 for light volume, +1 for a low
+  pump, −1 for an amazing pump, clamped to 0–3
+
+Deltas are distributed by `applyDelta`, which adds to the least-loaded exercise for that muscle
+and removes from the most-loaded. Caps: 10 sets per muscle per session, 6 per exercise, floor of
+1 per exercise.
+
+**Block shape:** 12 sessions. Week 1 at 3 RIR, week 2 at 2 RIR, then four deload sessions at
+half sets and 60% load. Deload sessions collect no feedback and are excluded from
+`lastPerformance`, so the next block resumes from the last real working set. Then it repeats,
+carrying tuned set counts forward. `SESSIONS_PER_BLOCK`, `RIR_BY_WEEK`, `weekOf`, and
+`isDeload` define this together — change one and check the others.
+
+## Testing
+
+```
+node test.mjs
+```
+
+`test.mjs` extracts the `<script>` body from the HTML, stubs the handful of browser APIs the app
+touches, and drives it by firing the same synthetic `click` and `input` events the real UI
+fires. It runs whole simulated blocks, so it covers the engine, the reducers, and the fact that
+every screen renders without throwing. 16 checks, all passing at handoff.
+
+Add a check for any progression rule you change. The suite is fast enough to run on every edit.
+
+## Deploying
+
+GitHub Pages, source **GitHub Actions** (Settings → Pages). `.github/workflows/pages.yml` runs
+the suite and publishes the repo root on every push to `main`; a red test blocks the deploy.
+The app lands at `https://<owner>.github.io/periodization/indy.html`, and `/` redirects there.
+
+Every URL in the deployment is relative — `start_url`, `scope`, the manifest link, the worker
+registration, the worker's precache list. Nothing knows the repo name, so a rename or a fork
+keeps working. Do not introduce a root-absolute path; on Pages the site lives under a project
+subpath and `/sw.js` would resolve off the site.
+
+Home-screen install needs `https://`. Opened over `file://` it still runs and still saves, but
+iOS may treat that storage as ephemeral, so real training logs should be hosted.
+
+## Backlog
+
+- Export / import of `state` as JSON. There is currently no way off the device, and a browser
+  data clear takes the whole training history with it. Highest-value missing feature.
+- Rest timer between sets.
+- Exercise substitution — the program is hardcoded by design, but a swap that preserves the
+  exercise id and muscle would keep history intact.
+- Per-muscle weekly volume chart, not just per-exercise e1RM.
+- The engine trusts the reps-in-reserve tap. Consider flagging when logged reps and reported RIR
+  disagree across several sessions.
