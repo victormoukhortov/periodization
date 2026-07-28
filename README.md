@@ -5,13 +5,13 @@ Pages. It logs sets, asks the RP-style soreness / pump / volume questions after 
 derives the next session's sets, weight, and reps from the answers. Training runs in five-week
 blocks: four weeks of work at 3, 2, 1, then 0 reps in reserve, followed by a deload week.
 
-**The app is [`indy.html`](indy.html).** Everything else in this repo is deployment plumbing or
+**The app is [`indie.html`](indie.html).** Everything else in this repo is deployment plumbing or
 tests.
 
 | File | Role |
 | --- | --- |
-| `indy.html` | The entire application. No dependencies, no build step. |
-| `index.html` | Redirect so the site root lands on `indy.html`. |
+| `indie.html` | The entire application. No dependencies, no build step. |
+| `index.html` | Redirect so the site root lands on `indie.html`. |
 | `sw.js` | Service worker: network first, cache fallback, so the app opens offline. |
 | `manifest.webmanifest` | PWA manifest for home-screen install. Icons are inline data URIs. |
 | `.nojekyll` | Serve the files verbatim; no Jekyll processing. |
@@ -26,7 +26,7 @@ Pages serves the branch directly — **Settings → Pages → Source: Deploy fro
 the repo root to the site a moment later. There is no build step and no deploy workflow.
 
 The site is at <https://victormoukhortov.github.io/periodization/>, and the app itself at
-<https://victormoukhortov.github.io/periodization/indy.html>.
+<https://victormoukhortov.github.io/periodization/indie.html>.
 
 Because publishing is GitHub's job and not a workflow's, **a red test does not stop a deploy.**
 `test.yml` tells you whether what you just shipped is sound; it cannot hold it back. Run
@@ -45,14 +45,14 @@ Open the Pages URL in Safari → Share → Add to Home Screen. It launches full 
 
 ## Running it locally
 
-`indy.html` opens straight off disk with no server — double-click it. Over `file://` the manifest
+`indie.html` opens straight off disk with no server — double-click it. Over `file://` the manifest
 file and service worker are skipped (the page falls back to an inline blob manifest) and iOS may
 treat that storage as ephemeral, so real training logs belong on the hosted copy.
 
 For a hosted-equivalent local run:
 
 ```
-python3 -m http.server 8000   # then open http://localhost:8000/indy.html
+python3 -m http.server 8000   # then open http://localhost:8000/indie.html
 ```
 
 ## Tests

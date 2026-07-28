@@ -1,5 +1,5 @@
 /**
- * Headless regression tests for indy.html.
+ * Headless regression tests for indie.html.
  *
  * The app is a single HTML file with no build step, so there is nothing to
  * import. This extracts the <script> body, stubs the handful of browser APIs
@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const html = readFileSync(join(here, "indy.html"), "utf8");
+const html = readFileSync(join(here, "indie.html"), "utf8");
 const js = html.match(/<script>\n([\s\S]*)\n<\/script>/)[1];
 
 const STUB = `

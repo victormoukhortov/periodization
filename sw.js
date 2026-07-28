@@ -1,14 +1,14 @@
 /**
- * Offline shell for indy.html.
+ * Offline shell for indie.html.
  *
  * Network first so a fresh deploy is picked up as soon as you are online, cache
  * fallback so a session logged in a basement gym still opens. Registered by
- * indy.html only when it is served over http(s); from file:// there is nothing
+ * indie.html only when it is served over http(s); from file:// there is nothing
  * to register and the page runs uncached.
  */
 
 var CACHE = "ppl-block-v1";
-var SHELL = ["./", "./index.html", "./indy.html", "./manifest.webmanifest"];
+var SHELL = ["./", "./index.html", "./indie.html", "./manifest.webmanifest"];
 
 self.addEventListener("install", function(e){
   e.waitUntil(
@@ -38,7 +38,7 @@ self.addEventListener("fetch", function(e){
       return res;
     }).catch(function(){
       return caches.match(e.request).then(function(hit){
-        return hit || caches.match("./indy.html");
+        return hit || caches.match("./indie.html");
       });
     })
   );

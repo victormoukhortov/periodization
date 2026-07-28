@@ -9,8 +9,8 @@ Deployed to GitHub Pages from the repo root.
 
 | File | Role |
 | --- | --- |
-| `indy.html` | The entire application. No dependencies, no build step. |
-| `index.html` | Redirect from the site root to `indy.html`. |
+| `indie.html` | The entire application. No dependencies, no build step. |
+| `index.html` | Redirect from the site root to `indie.html`. |
 | `sw.js` | Service worker for the hosted copy. Network first, cache fallback. |
 | `manifest.webmanifest` | PWA manifest for the hosted copy. Icons are inline data URIs. |
 | `.nojekyll` | Keeps Pages from running the files through Jekyll. |
@@ -22,7 +22,7 @@ Deployed to GitHub Pages from the repo root.
 
 These are not preferences. Breaking any of them breaks the deployment model.
 
-1. **One file.** `indy.html` ships as a single artifact: inline CSS, inline JS, base64 icons.
+1. **One file.** `indie.html` ships as a single artifact: inline CSS, inline JS, base64 icons.
    No npm, no bundler, no CDN. It must run correctly when opened directly from disk — that is the
    test for whether a change belongs in the file or beside it. `sw.js` and `manifest.webmanifest`
    are the only siblings, they exist purely for the hosted copy, and the app degrades cleanly to
@@ -38,7 +38,7 @@ These are not preferences. Breaking any of them breaks the deployment model.
    on every render, never cached in state. `setCountsForDay` replays feedback from scratch each
    time. Do not add a mutable `plan` object; it will drift.
 
-## Layout of `indy.html`
+## Layout of `indie.html`
 
 Section banners in the script mark the regions:
 
@@ -196,7 +196,7 @@ GitHub Pages, source **Deploy from a branch** — `main`, `/ (root)`. A push to 
 deploy: GitHub's own `pages-build-deployment` run copies the repo root to the site. There is no
 deploy workflow, and `.github/workflows/test.yml` only runs the suite — **it cannot block a
 publish**, so run `node test.mjs` before you push. The app lands at
-`https://<owner>.github.io/periodization/indy.html`, and `/` redirects there.
+`https://<owner>.github.io/periodization/indie.html`, and `/` redirects there.
 
 Do not add an `actions/deploy-pages` workflow back. With a branch source it cannot work:
 `configure-pages` wants the site's build type to be `workflow`, and switching that is an

@@ -2,7 +2,7 @@
   "name": "PPL Block",
   "short_name": "PPL Block",
   "description": "Push / Pull / Legs / Full Body tracker with RP-style autoregulation.",
-  "start_url": "indy.html",
+  "start_url": "indie.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0a0a0a",
