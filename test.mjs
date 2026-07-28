@@ -115,7 +115,7 @@ function ok(cond, label) {
 
 const STARTING = {
   p1:135, p2:75, p3:50, p4:15, p5:60, p6:40,
-  l1:0, l2:115, l3:100, l4:30, l5:25, l6:25,
+  l7:120, l2:115, l3:100, l4:30, l5:25, l6:25,
   g7:270, g2:155, g3:35, g4:70, g5:135, g6:0,
   f1:225, f2:0, f3:110, f4:270, f5:15, f6:40, f7:45, f8:0
 };
@@ -180,8 +180,21 @@ check("a retired lift does not hand its loads to whatever replaced it", () => {
   const app = boot();
   const { state, ctx, DAYS } = app.api();
   const legs = DAYS.filter((d) => d.id === "legs")[0];
+  const pull = DAYS.filter((d) => d.id === "pull")[0];
   ok(!legs.exercises.some((e) => e.id === "g1"), "the squat is off the program");
   eq(legs.exercises[0].id, "g7", "leg press took the slot");
+  ok(!pull.exercises.some((e) => e.id === "l1"), "the pull-up is off the program");
+  eq(pull.exercises[0].id, "l7", "lat pulldown took the slot");
+
+  // the pulldown must not inherit a pull-up's rep count either
+  state.history.push({
+    ts: 0, block: 1, week: 1, dayId: "pull", deload: false,
+    sets: { l1: [{ w: "0", r: "12", done: true }] }, rir: { l1: 2 }, feedback: {}
+  });
+  state.index = 1;
+  eq(ctx().targets.l7.weight, null, "pulldown starts by picking a load");
+  eq(ctx().targets.l7.reps, 6, "at the bottom of its range, not the pull-up's 13");
+  state.history.length = 0;
 
   // a log from back when the squat was programmed
   state.history.push({
@@ -208,6 +221,33 @@ check("still sore holds the load instead of climbing", () => {
   for (let i = 0; i < 4; i++) app.runSession(load, topOfRange, 3, () => ({ s: 3, p: 1, v: 1 }));
   const c = app.api().ctx();
   eq(c.targets.p1.weight, 135, "bench repeats");
+});
+
+check("bodyweight work progresses in reps and never asks for a load", () => {
+  const { prescribe, DAYS } = boot().api();
+  const dips = DAYS[3].exercises.filter((e) => e.id === "f2")[0]; // 8-12, bodyweight
+  const log = (reps, rir) => [{
+    deload: false, dayId: "full", sets: { f2: [{ w: "0", r: String(reps), done: true }] }, rir: { f2: rir }
+  }];
+
+  const first = prescribe(dips, 0, [], null);
+  eq(first.weight, 0, "no load to pick, even on day one");
+  eq(first.reps, 8, "start at the bottom of the range");
+
+  const mid = prescribe(dips, 0, log(9, 2), null);
+  eq([mid.weight, mid.reps], [0, 10], "inside the range: one more rep");
+
+  // the old rule stalled reps at the top and told you to hang a plate on a belt
+  const top = prescribe(dips, 0, log(12, 2), null);
+  eq([top.weight, top.reps], [0, 13], "past the top of the range it keeps climbing");
+  ok(!/belt|plate|lb/i.test(top.why), "and never mentions adding weight: " + top.why);
+
+  const sore = prescribe(dips, 0, log(12, 2), 3);
+  eq([sore.weight, sore.reps], [0, 12], "still sore repeats instead of adding");
+
+  const dl = prescribe(dips, 16, log(12, 2), null); // week 5
+  eq([dl.weight, dl.reps], [0, 8], "deload drops back to the bottom, still no load");
+  ok(!/60%/.test(dl.why), "no talk of 60% of nothing: " + dl.why);
 });
 
 console.log("\nblock structure");
@@ -298,14 +338,15 @@ check("a set will not log without a weight behind it", () => {
   eq(row.r, "5", "reps prefilled from the target");
 });
 
-check("bodyweight movements log with the field left empty", () => {
+check("bodyweight movements log with no weight at all", () => {
   const app = boot();
-  app.runSession(load, topOfRange, 3, () => ({ s: 1, p: 1, v: 1 })); // push, so pull is live
+  const { state } = app.api();
+  state.index = 2; // legs, which carries the Hanging Leg Raise
   app.click({ a: "start" });
-  app.click({ a: "toggle", ex: "l1", i: "0" }); // Pull-Up, first time, no target load
-  const row = app.api().state.draft.sets.l1[0];
+  app.click({ a: "toggle", ex: "g6", i: "0" });
+  const row = app.api().state.draft.sets.g6[0];
   eq(row.done, true, "logged");
-  eq(row.w, "0", "recorded as bodyweight");
+  eq(row.w, "0", "recorded as carrying nothing");
 });
 
 check("the top set's weight carries down the exercise", () => {

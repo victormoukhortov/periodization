@@ -47,8 +47,9 @@ Section banners in the script mark the regions:
   doing so silently rewrites a user's training log. Add new exercises with fresh ids.
   Swapping a movement out is the same rule: give the replacement a fresh id and move the old
   definition to `RETIRED`, which is off the program but still read by Progress so the old lift
-  keeps its curve. `g1` Back Squat is there, replaced by `g7` Leg Press. Set counts survive a
-  swap on their own, because they are tracked per muscle rather than per exercise.
+  keeps its curve. `g1` Back Squat (replaced by `g7` Leg Press) and `l1` Pull-Up (replaced by
+  `l7` Lat Pulldown) are both there. Set counts survive a swap on their own, because they are
+  tracked per muscle rather than per exercise.
 - `ENGINE` — the pure progression logic. See below.
 - `STORAGE` — `localStorage` under key `ppl-block-v1`, with an in-memory fallback when storage
   is blocked (private browsing, some `file://` contexts). Never let a storage failure throw.
@@ -79,8 +80,12 @@ inputs' `.value` directly. Never re-render from the `input` handler.
 
 A set cannot be marked done with an empty weight — `roundLoad` and `lastPerformance` would take
 the blank as 0 and quietly wreck the next prescription. The toggle refuses, flags the field, and
-sets `needWeight`. Two exceptions log at 0 rather than nagging: bodyweight movements (`ex.bw`),
-where the body *is* the load, and anything with a target already, which fills from the target.
+sets `needWeight`. Anything with a target already fills from the target instead of nagging.
+
+`loadless(ex)` — bodyweight or timed — is the exception, and it goes further than not nagging:
+those rows render a static **N/A** in place of the weight input, so there is nothing to type,
+and `loadLabel` prints N/A wherever a load would otherwise appear. They log at 0 and progress on
+reps or seconds alone. If you add a movement that *can* be loaded, leave `bw` off it.
 
 Typing in the first set carries the weight into every set below it that is not already logged.
 Logged sets keep what they were logged with.
@@ -115,7 +120,10 @@ Two independent mechanisms. Do not entangle them.
 - reps below the range → one step down
 - muscle rated "still sore" last time → repeat the load, no increase
 - failure logged in week 1 → repeat, do not chase
-- bodyweight movements with no added load chase reps until the top of the range, then suggest a belt
+- bodyweight movements (`ex.bw`) never carry a load at all: no first-load prompt, no belt
+  suggestion, no deload percentage. Reps go up by one each session and keep going past the top
+  of the range; "still sore" and week-1 failure repeat, same as loaded work. Timed work
+  (`ex.time`) is the same idea in seconds.
 
 **Sets, per muscle**, from `setsDelta(fb)`:
 
@@ -152,7 +160,7 @@ node test.mjs
 `test.mjs` extracts the `<script>` body from the HTML, stubs the handful of browser APIs the app
 touches, and drives it by firing the same synthetic `click` and `input` events the real UI
 fires. It runs whole simulated blocks, so it covers the engine, the reducers, and the fact that
-every screen renders without throwing. 22 checks, all passing at handoff.
+every screen renders without throwing. 23 checks, all passing at handoff.
 
 Add a check for any progression rule you change. The suite is fast enough to run on every edit.
 

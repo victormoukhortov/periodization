@@ -150,7 +150,7 @@ var DAYS = [
     {id:"p6",name:"Triceps Pushdown",gear:"Cable",muscle:"triceps",sets:2,lo:12,hi:15}
   ]},
   { id:"pull", name:"Pull", exercises:[
-    {id:"l1",name:"Pull-Up",gear:"Bodyweight",muscle:"back",sets:4,lo:6,hi:10,bw:true},
+    {id:"l7",name:"Lat Pulldown",gear:"Cable",muscle:"back",sets:4,lo:6,hi:10},
     {id:"l2",name:"Barbell Row",gear:"Barbell",muscle:"back",sets:3,lo:6,hi:10},
     {id:"l3",name:"Seated Cable Row",gear:"Cable",muscle:"back",sets:3,lo:10,hi:12},
     {id:"l4",name:"Face Pull",gear:"Cable",muscle:"rear delts",sets:3,lo:15,hi:20},
@@ -183,7 +183,8 @@ var DAYS = [
    this so a retired lift keeps its curve. Never put one of these ids back on a
    day — the log would resume under a movement it was never trained on. */
 var RETIRED = [
-  {id:"g1",name:"Back Squat",gear:"Barbell",muscle:"quads",sets:4,lo:5,hi:8,lower:true}
+  {id:"g1",name:"Back Squat",gear:"Barbell",muscle:"quads",sets:4,lo:5,hi:8,lower:true},
+  {id:"l1",name:"Pull-Up",gear:"Bodyweight",muscle:"back",sets:4,lo:6,hi:10,bw:true}
 ];
 
 var WEEKS_PER_BLOCK = 5;
@@ -317,6 +318,16 @@ function prescribe(ex, idx, history, lastSore){
     if (!last) return {weight:0, reps:ex.lo, why:"First time \u2014 start at 30s and build."};
     return {weight:0, reps:base + 5, why:"Last time " + base + "s \u2014 add 5s."};
   }
+  /* Bodyweight movements carry no load, ever. There is nothing to add plates
+     to, so the only thing that can go up is reps, and it keeps going up past
+     the top of the range rather than stalling there waiting for a belt. */
+  if (ex.bw){
+    if (dl) return {weight:0, reps:ex.lo, why:"Deload \u2014 half the sets, back to " + ex.lo + " easy reps."};
+    if (!last) return {weight:0, reps:ex.lo, why:"First time in. Bodyweight only \u2014 get " + ex.lo + " clean reps."};
+    if (lastSore === 3) return {weight:0, reps:last.bestReps, why:"You were still sore going in last time \u2014 repeat " + last.bestReps + " instead of adding."};
+    if (last.rir === 0 && week === 1) return {weight:0, reps:last.bestReps, why:"You hit failure last time and it's only week 1 \u2014 repeat, don't chase."};
+    return {weight:0, reps:last.bestReps + 1, why:"Last time " + last.bestReps + " reps \u2014 add one. Bodyweight keeps climbing in reps."};
+  }
   if (!last){
     return {weight:null, reps:ex.lo,
       why:"First time in. Pick a load you could stop " + RIR_BY_WEEK[week] + " reps short of failure at " + ex.lo + "\u2013" + ex.hi + " reps."};
@@ -324,10 +335,6 @@ function prescribe(ex, idx, history, lastSore){
   if (dl){
     return {weight: last.weight > 0 ? roundLoad(ex, last.weight * 0.6) : 0, reps: ex.lo,
       why:"Deload \u2014 about 60% of " + fmt(last.weight) + " lb, half the sets, stop 5 reps short."};
-  }
-  if (ex.bw && last.weight === 0){
-    if (last.bestReps >= ex.hi) return {weight:0, reps:ex.hi, why:"You hit " + last.bestReps + " at bodyweight \u2014 time to hang a " + step + " lb plate on a belt."};
-    return {weight:0, reps:last.bestReps + 1, why:"Last time " + last.bestReps + " reps \u2014 add one."};
   }
 
   var tRIR = RIR_BY_WEEK[week], rir = last.rir;
@@ -422,6 +429,16 @@ function plannedSets(c, ex){
 
 /* ============================== VIEWS ============================== */
 
+/* Bodyweight and timed work has no load to show, enter, or progress. */
+function loadless(ex){ return !!(ex.bw || ex.time); }
+
+/* What goes wherever a load would otherwise be printed. */
+function loadLabel(ex, w, blank){
+  if (loadless(ex)) return "N/A";
+  if (w == null) return blank || "—";
+  return fmt(w) + " lb";
+}
+
 function tagHTML(m){
   return '<span class="tag" style="--c:' + (HUE[m] || "#a3a3a3") + '"><b><s></s><s></s><s></s></b>' + m + '</span>';
 }
@@ -478,9 +495,7 @@ function viewHome(c, live){
         '<p class="dim" style="font-size:12px">' + ex.gear + '</p></div>' +
         '<div style="text-align:right;flex-shrink:0"><p class="num" style="font-size:14px">' +
         plannedSets(c, ex) + ' \u00d7 ' + t.reps + (ex.time ? "s" : "") + '</p>' +
-        '<p class="num dim" style="font-size:12px">' +
-        (t.weight == null ? "pick a load" : t.weight === 0 ? "bodyweight" : fmt(t.weight) + " lb") +
-        '</p></div></div>';
+        '<p class="num dim" style="font-size:12px">' + loadLabel(ex, t.weight, "pick a load") + '</p></div></div>';
     });
     h += '</div></div>';
   });
@@ -507,8 +522,7 @@ function viewSession(c){
         '<p class="dim" style="font-size:14px">' + ex.gear + '</p></div>' +
         '<button class="chip" data-a="why" data-ex="' + ex.id + '">Why?</button></div>';
 
-      h += '<div class="target"><span>Target</span><b>' +
-        (t.weight == null ? "\u2014" : t.weight === 0 ? "BW" : fmt(t.weight) + " lb") +
+      h += '<div class="target"><span>Target</span><b>' + loadLabel(ex, t.weight) +
         ' \u00d7 ' + t.reps + (ex.time ? "s" : "") + '</b><span class="dim">(' + ex.lo + "\u2013" + ex.hi + (ex.time ? "s" : "") + ')</span></div>';
 
       if (ex.gear === "Barbell" && t.weight > 0){
@@ -523,10 +537,12 @@ function viewSession(c){
         '<span class="eyebrow">Log</span></div>';
 
       rows.forEach(function(r, i){
-        var ph = t.weight == null ? (i ? "same" : "lb") : t.weight === 0 ? "BW" : fmt(t.weight);
+        var ph = t.weight == null ? (i ? "same" : "lb") : fmt(t.weight);
         var nag = needWeight === ex.id + ":" + i;
         h += '<div class="grid" style="margin-top:8px"><span class="num dim" style="text-align:center;font-size:14px">' + (i + 1) + '</span>' +
-          '<input class="cell' + (nag ? " need" : "") + '" inputmode="decimal" data-ex="' + ex.id + '" data-i="' + i + '" data-f="w" value="' + r.w + '" placeholder="' + ph + '">' +
+          (loadless(ex)
+            ? '<div class="cell dim" style="border-style:dashed">N/A</div>'
+            : '<input class="cell' + (nag ? " need" : "") + '" inputmode="decimal" data-ex="' + ex.id + '" data-i="' + i + '" data-f="w" value="' + r.w + '" placeholder="' + ph + '">') +
           '<input class="cell" inputmode="numeric" data-ex="' + ex.id + '" data-i="' + i + '" data-f="r" value="' + r.r + '" placeholder="' + t.reps + '">' +
           '<button class="log' + (r.done ? " on" : "") + '" data-a="toggle" data-ex="' + ex.id + '" data-i="' + i + '">\u2713</button></div>';
         if (nag) h += '<p style="color:var(--ask);font-size:12px;margin-top:6px">Put in the weight you used and this set will log.</p>';
@@ -630,7 +646,7 @@ function viewSummary(){
   s.targets.forEach(function(t){
     h += '<div><div class="rowline"><p class="name">' + t.ex.name + '</p>' +
       '<p class="num" style="font-size:14px;color:var(--go);flex-shrink:0">' + t.sets + ' \u00d7 ' + t.reps + (t.ex.time ? "s" : "") + ' ' +
-      (t.weight == null ? "" : t.weight === 0 ? "BW" : "@ " + fmt(t.weight) + " lb") + '</p></div>' +
+      (loadless(t.ex) ? "N/A" : t.weight == null ? "" : "@ " + fmt(t.weight) + " lb") + '</p></div>' +
       '<p class="dim" style="font-size:12px;margin-top:4px">' + t.why + '</p></div>';
   });
   h += '</div><button class="btn ghost" style="margin-top:22px" data-a="summarydone">Done</button></div>';
@@ -675,7 +691,7 @@ function viewProgress(){
       });
       pts.push({v:best, deload:!!hh.deload});
     });
-    if (pts.length) h += spark(pts, (ex.bw && pts.every(function(p){ return p.v < 40; })) ? "reps" : "lb");
+    if (pts.length) h += spark(pts, ex.time ? "s" : ex.bw ? "reps" : "lb");
   }
 
   h += '<p class="eyebrow" style="margin:26px 0 8px">Session log</p><div class="stack">';
