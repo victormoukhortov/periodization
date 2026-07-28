@@ -116,7 +116,7 @@ function ok(cond, label) {
 const STARTING = {
   p1:135, p2:75, p3:50, p4:15, p5:60, p6:40,
   l1:0, l2:115, l3:100, l4:30, l5:25, l6:25,
-  g1:185, g2:155, g3:35, g4:70, g5:135, g6:0,
+  g7:270, g2:155, g3:35, g4:70, g5:135, g6:0,
   f1:225, f2:0, f3:110, f4:270, f5:15, f6:40, f7:45, f8:0
 };
 const load = (ex) => STARTING[ex.id];
@@ -170,10 +170,27 @@ check("lower body moves in 10 lb steps", () => {
   app.runSession(load, topOfRange, 3, fb); // push
   app.runSession(load, topOfRange, 3, fb); // pull
   eq(app.api().ctx().day.id, "legs", "third day of the week is legs");
-  app.runSession(load, topOfRange, 3, fb); // legs, squat topped out at 185
+  app.runSession(load, topOfRange, 3, fb); // legs, leg press topped out at 270
   for (let i = 0; i < 3; i++) app.runSession(load, topOfRange, 3, fb); // full, push, pull
   eq(app.api().ctx().day.id, "legs", "back around to legs");
-  eq(app.api().ctx().targets.g1.weight, 195, "squat +10");
+  eq(app.api().ctx().targets.g7.weight, 280, "leg press +10");
+});
+
+check("a retired lift does not hand its loads to whatever replaced it", () => {
+  const app = boot();
+  const { state, ctx, DAYS } = app.api();
+  const legs = DAYS.filter((d) => d.id === "legs")[0];
+  ok(!legs.exercises.some((e) => e.id === "g1"), "the squat is off the program");
+  eq(legs.exercises[0].id, "g7", "leg press took the slot");
+
+  // a log from back when the squat was programmed
+  state.history.push({
+    ts: 0, block: 1, week: 1, dayId: "legs", deload: false,
+    sets: { g1: [{ w: "185", r: "8", done: true }] }, rir: { g1: 3 }, feedback: {}
+  });
+  state.index = 2; // legs
+  eq(ctx().targets.g7.weight, null, "leg press starts from scratch, not from 185");
+  eq(ctx().targets.g1 === undefined, true, "and nothing prescribes the squat any more");
 });
 
 check("staying inside the range keeps the load and adds a rep", () => {

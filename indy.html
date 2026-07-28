@@ -158,7 +158,7 @@ var DAYS = [
     {id:"l6",name:"Hammer Curl",gear:"Dumbbell",muscle:"biceps",sets:2,lo:10,hi:12}
   ]},
   { id:"legs", name:"Legs", exercises:[
-    {id:"g1",name:"Back Squat",gear:"Barbell",muscle:"quads",sets:4,lo:5,hi:8,lower:true},
+    {id:"g7",name:"Leg Press",gear:"Machine",muscle:"quads",sets:4,lo:5,hi:8,lower:true},
     {id:"g2",name:"Romanian Deadlift",gear:"Barbell",muscle:"hamstrings",sets:3,lo:8,hi:10,lower:true},
     {id:"g3",name:"Bulgarian Split Squat",gear:"Dumbbell",muscle:"quads",sets:3,lo:8,hi:10},
     {id:"g4",name:"Seated Leg Curl",gear:"Machine",muscle:"hamstrings",sets:3,lo:10,hi:12},
@@ -179,6 +179,13 @@ var DAYS = [
 
 /* Five weeks: four of work, then a deload. Everything about the shape of the
    block derives from these three, so there is one place to change it. */
+/* Dropped from the program but still sitting in people's logs. Progress reads
+   this so a retired lift keeps its curve. Never put one of these ids back on a
+   day — the log would resume under a movement it was never trained on. */
+var RETIRED = [
+  {id:"g1",name:"Back Squat",gear:"Barbell",muscle:"quads",sets:4,lo:5,hi:8,lower:true}
+];
+
 var WEEKS_PER_BLOCK = 5;
 var DELOAD_WEEK = 5;
 var SESSIONS_PER_BLOCK = DAYS.length * WEEKS_PER_BLOCK;
@@ -637,6 +644,7 @@ function viewProgress(){
   }
   var all = [];
   DAYS.forEach(function(d){ all = all.concat(d.exercises); });
+  all = all.concat(RETIRED);
   var logged = all.filter(function(ex){
     return state.history.some(function(h){
       var r = (h.sets || {})[ex.id];

@@ -45,6 +45,10 @@ Section banners in the script mark the regions:
 - `PROGRAM` — `DAYS`, the hardcoded workout. Exercise ids (`p1`, `l3`, `g2`, `f7`) are the
   primary key for everything and appear in saved history. **Never renumber or reuse an id**;
   doing so silently rewrites a user's training log. Add new exercises with fresh ids.
+  Swapping a movement out is the same rule: give the replacement a fresh id and move the old
+  definition to `RETIRED`, which is off the program but still read by Progress so the old lift
+  keeps its curve. `g1` Back Squat is there, replaced by `g7` Leg Press. Set counts survive a
+  swap on their own, because they are tracked per muscle rather than per exercise.
 - `ENGINE` — the pure progression logic. See below.
 - `STORAGE` — `localStorage` under key `ppl-block-v1`, with an in-memory fallback when storage
   is blocked (private browsing, some `file://` contexts). Never let a storage failure throw.
@@ -148,7 +152,7 @@ node test.mjs
 `test.mjs` extracts the `<script>` body from the HTML, stubs the handful of browser APIs the app
 touches, and drives it by firing the same synthetic `click` and `input` events the real UI
 fires. It runs whole simulated blocks, so it covers the engine, the reducers, and the fact that
-every screen renders without throwing. 21 checks, all passing at handoff.
+every screen renders without throwing. 22 checks, all passing at handoff.
 
 Add a check for any progression rule you change. The suite is fast enough to run on every edit.
 
