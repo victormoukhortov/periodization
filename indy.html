@@ -77,6 +77,9 @@
   .chip{border:1px solid var(--line);border-radius:99px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--muted)}
   .chip.on{border-color:var(--go);background:var(--go);color:#062a1c}
   .chip[disabled]{opacity:.3}
+  .vid{display:inline-flex;align-items:center;justify-content:center;width:36px;height:30px;
+    border:1px solid var(--line);border-radius:99px;color:var(--muted);text-decoration:none}
+  .vid:active{color:var(--ink);border-color:var(--muted)}
   .cell-day{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 4px;text-align:center}
   .cell-day.now{border-color:rgba(52,211,153,.5);background:rgba(52,211,153,.08)}
   .cell-day.peek{border-color:var(--ink)}
@@ -445,6 +448,17 @@ function plannedSets(c, ex){
 
 /* ============================== VIEWS ============================== */
 
+/* A way out to a demo when you cannot picture the movement. Plain link, no
+   data-a, so the delegated click handler ignores it. */
+function videoHTML(ex){
+  return '<a class="vid" target="_blank" rel="noopener noreferrer"' +
+    ' aria-label="Search YouTube for ' + ex.name + '"' +
+    ' href="https://www.youtube.com/results?search_query=' + encodeURIComponent(ex.name) + '">' +
+    '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" focusable="false">' +
+    '<rect x="2" y="4.5" width="20" height="15" rx="4.5" fill="none" stroke="currentColor" stroke-width="2"/>' +
+    '<path d="M10 8.9v6.2l5.2-3.1z" fill="currentColor"/></svg></a>';
+}
+
 /* Bodyweight and timed work has no load to show, enter, or progress. */
 function loadless(ex){ return !!(ex.bw || ex.time); }
 
@@ -536,7 +550,8 @@ function viewSession(c){
       var t = c.targets[ex.id], rows = d.sets[ex.id] || [];
       h += '<div class="ex"><div class="exhead"><div><h3>' + ex.name + '</h3>' +
         '<p class="dim" style="font-size:14px">' + ex.gear + '</p></div>' +
-        '<button class="chip" data-a="why" data-ex="' + ex.id + '">Why?</button></div>';
+        '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">' + videoHTML(ex) +
+        '<button class="chip" data-a="why" data-ex="' + ex.id + '">Why?</button></div></div>';
 
       h += '<div class="target"><span>Target</span><b>' + loadLabel(ex, t.weight) +
         ' \u00d7 ' + t.reps + (ex.time ? "s" : "") + '</b><span class="dim">(' + ex.lo + "\u2013" + ex.hi + (ex.time ? "s" : "") + ')</span></div>';

@@ -96,7 +96,7 @@ function runSession(pickLoad, pickReps, rir, pickFb){
 return {
   click: click, type: type, fill: fill, runSession: runSession,
   api: function(){ return {
-    state: state, ctx: ctx, ask: ask, view: view,
+    state: state, ctx: ctx, ask: ask, view: view, html: app.innerHTML,
     setsDelta: setsDelta, roundLoad: roundLoad,
     platesPerSide: platesPerSide, setCountsForDay: setCountsForDay,
     prescribe: prescribe, plannedSets: plannedSets, DAYS: DAYS,
@@ -546,6 +546,19 @@ check("what you wave away is still asked at the end", () => {
   });
   app.click({ a: "fbsave" });
   eq(app.api().state.history.length, 1, "and saving commits the session");
+});
+
+check("every exercise offers a video search", () => {
+  const app = boot();
+  app.click({ a: "start" });
+  const { html, ctx } = app.api();
+  ctx().day.exercises.forEach((ex) => {
+    const url = "https://www.youtube.com/results?search_query=" + encodeURIComponent(ex.name);
+    ok(html.indexOf('href="' + url + '"') >= 0, ex.name + " links to a search for itself");
+  });
+  ok(html.indexOf("Overhead%20Press") >= 0, "names are encoded, not pasted raw");
+  ok(html.indexOf('rel="noopener noreferrer"') >= 0, "and open without handing over the opener");
+  ok(html.indexOf('<a class="vid" target="_blank" data-a') < 0, "no data-a, so it never fires an action");
 });
 
 check("every screen renders without throwing", () => {
