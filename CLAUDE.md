@@ -47,9 +47,9 @@ Section banners in the script mark the regions:
   doing so silently rewrites a user's training log. Add new exercises with fresh ids.
   Swapping a movement out is the same rule: give the replacement a fresh id and move the old
   definition to `RETIRED`, which is off the program but still read by Progress so the old lift
-  keeps its curve. `g1` Back Squat (replaced by `g7` Leg Press) and `l1` Pull-Up (replaced by
-  `l7` Lat Pulldown) are both there. Set counts survive a swap on their own, because they are
-  tracked per muscle rather than per exercise.
+  keeps its curve. Three are in there: `g1` Back Squat (replaced by `g7` Leg Press), `l1`
+  Pull-Up (by `l7` Lat Pulldown), and `f4` Leg Press (by `f9` Hack Squat). Set counts survive a
+  swap on their own, because they are tracked per muscle rather than per exercise.
 - `ENGINE` — the pure progression logic. See below.
 - `STORAGE` — `localStorage` under key `ppl-block-v1`, with an in-memory fallback when storage
   is blocked (private browsing, some `file://` contexts). Never let a storage failure throw.
@@ -58,7 +58,8 @@ Section banners in the script mark the regions:
   absolute index it describes any session, which is what browsing the block uses.
 - `VIEWS` — each screen is a function returning an HTML string.
 - `RENDER` — `render(keepScroll)` replaces `#app.innerHTML` wholesale.
-- `ACTIONS` — one delegated `click` listener keyed on `data-a`, one delegated `input` listener.
+- `ACTIONS` — one delegated `click` listener keyed on `data-a`, plus delegated `input` and
+  `focusout` listeners for the set fields.
 - `PWA` — `beforeinstallprompt`, plus an `ONDISK` split: served over http(s) the page uses the
   real `manifest.webmanifest` linked in `<head>` and registers `sw.js`; opened from `file://`
   that link 404s, so it builds the manifest as a blob instead and registers nothing.
@@ -87,8 +88,10 @@ those rows render a static **N/A** in place of the weight input, so there is not
 and `loadLabel` prints N/A wherever a load would otherwise appear. They log at 0 and progress on
 reps or seconds alone. If you add a movement that *can* be loaded, leave `bw` off it.
 
-Typing in the first set carries the weight into every set below it that is not already logged.
-Logged sets keep what they were logged with.
+Leaving the first weight field — `focusout`, not `input` — carries that weight into every set
+below it that is not already logged, as real values rather than a placeholder hinting at them.
+Logged sets keep what they were logged with, and blurring a lower row carries nothing. The
+trigger is blur on purpose: carrying per keystroke flickers 1, 13, 135 down the column.
 
 ### Peeking
 

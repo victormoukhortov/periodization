@@ -45,6 +45,11 @@ function click(attrs){
 function type(exId, i, f, val){
   __handlers.input({ target: {dataset:{ex:exId, i:String(i), f:f}, value:String(val)} });
 }
+/* typing then leaving the field, which is what carries a weight down */
+function fill(exId, i, f, val){
+  type(exId, i, f, val);
+  __handlers.focusout({ target: {dataset:{ex:exId, i:String(i), f:f}, value:String(val)} });
+}
 /**
  * Run one whole session.
  *   pickLoad(ex)        -> weight to use when there is no target yet
@@ -79,7 +84,7 @@ function runSession(pickLoad, pickReps, rir, pickFb){
   return c;
 }
 return {
-  click: click, type: type, runSession: runSession,
+  click: click, type: type, fill: fill, runSession: runSession,
   api: function(){ return {
     state: state, ctx: ctx, setsDelta: setsDelta, roundLoad: roundLoad,
     platesPerSide: platesPerSide, setCountsForDay: setCountsForDay,
@@ -117,7 +122,7 @@ const STARTING = {
   p1:135, p2:75, p3:50, p4:15, p5:60, p6:40,
   l7:120, l2:115, l3:100, l4:30, l5:25, l6:25,
   g7:270, g2:155, g3:35, g4:70, g5:135, g6:0,
-  f1:225, f2:0, f3:110, f4:270, f5:15, f6:40, f7:45, f8:0
+  f1:225, f2:0, f3:110, f9:200, f5:15, f6:40, f7:45, f8:0
 };
 const load = (ex) => STARTING[ex.id];
 const topOfRange = (ex, t) => (ex.time ? t.reps : Math.max(t.reps, ex.hi));
@@ -349,18 +354,25 @@ check("bodyweight movements log with no weight at all", () => {
   eq(row.w, "0", "recorded as carrying nothing");
 });
 
-check("the top set's weight carries down the exercise", () => {
+check("the top set's weight fills the rest when you leave the field", () => {
   const app = boot();
   app.click({ a: "start" });
-  app.type("p1", 0, "w", 135);
   const rows = app.api().state.draft.sets.p1;
-  eq(rows.map((r) => r.w), rows.map(() => "135"), "every set picked it up");
+
+  app.type("p1", 0, "w", 135); // mid-typing: the rows below stay untouched
+  eq(rows.map((r) => r.w), ["135", "", "", ""], "nothing flickers down while typing");
+
+  app.fill("p1", 0, "w", 135);
+  eq(rows.map((r) => r.w), rows.map(() => "135"), "leaving the field fills them for real");
 
   app.click({ a: "toggle", ex: "p1", i: "1" }); // set 2 logged at 135
-  app.type("p1", 0, "w", 140);
+  app.fill("p1", 0, "w", 140);
   eq(rows[1].w, "135", "a logged set keeps the weight it was logged with");
   eq(rows[2].w, "140", "the rest follow the top row");
   eq(rows[0].w, "140", "including the top row itself");
+
+  app.fill("p1", 2, "w", 150); // a lower row is its own business
+  eq(rows[3].w, "140", "leaving a lower row does not carry anything");
 });
 
 check("you can look ahead through the block and come back", () => {
