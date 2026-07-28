@@ -632,6 +632,21 @@ function pendingFor(c, m){
   }
   return kinds;
 }
+function askIfPending(c, m){
+  var kinds = pendingFor(c, m);
+  if (kinds.length) ask = {m: m, kinds: kinds};
+}
+
+/* Adding or dropping a set changes the amount of work, so the pump and volume
+   answers no longer describe what was done and get asked again. Soreness is
+   about last time and stands. */
+function volumeChanged(c, exId){
+  var ex = c.day.exercises.filter(function(e){ return e.id === exId; })[0];
+  var fb = fbFor(ex.muscle);
+  fb.p = null; fb.v = null;
+  askIfPending(c, ex.muscle);
+}
+
 function missingFeedback(c){
   return musclesOf(c.day).filter(function(m){
     var fb = fbFor(m);
@@ -991,16 +1006,20 @@ document.addEventListener("click", function(e){
       if (row.r === "") row.r = String(t.reps);
       /* first set of a muscle asks about last time's soreness, last set asks
          about pump and volume. Deloads collect nothing. */
-      if (!c.dl){
-        var kinds = pendingFor(c, ex.muscle);
-        if (kinds.length) ask = {m: ex.muscle, kinds: kinds};
-      }
+      if (!c.dl) askIfPending(c, ex.muscle);
     }
     saveState(); render(true); return;
   }
-  if (a === "addset"){ state.draft.sets[exId].push({w:"", r:"", done:false}); saveState(); render(true); return; }
+  if (a === "addset"){
+    state.draft.sets[exId].push({w:"", r:"", done:false});
+    if (!c.dl) volumeChanged(c, exId);
+    saveState(); render(true); return;
+  }
   if (a === "dropset"){
-    if (state.draft.sets[exId].length > 1) state.draft.sets[exId].pop();
+    if (state.draft.sets[exId].length > 1){
+      state.draft.sets[exId].pop();
+      if (!c.dl) volumeChanged(c, exId);
+    }
     saveState(); render(true); return;
   }
   if (a === "rir"){ state.draft.rir[exId] = Number(el.dataset.v); saveState(); render(true); return; }

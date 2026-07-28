@@ -106,6 +106,11 @@ Both arrive in one sheet if they fall together (a one-exercise, one-set muscle).
 `state.draft.fb`, not a module global, so they survive a reload mid-session; `loadState`
 backfills `fb` on drafts written before this existed.
 
+`+ Set` and `− Set` run `volumeChanged`, which throws away that muscle's pump and volume answers
+and asks again — they described an amount of work that is no longer what happened. Soreness is
+about last time, so it stands. Dropping a set re-asks immediately when the rest are already
+logged; adding one waits until the new set is done.
+
 Finish then commits straight to the summary when nothing is outstanding. `missingFeedback` is
 what decides, and the end-of-session screen still exists for whatever was waved away with "Not
 now" — it lists only the unanswered questions. Deloads ask nothing at all, in the sheet or at
@@ -181,7 +186,7 @@ node test.mjs
 `test.mjs` extracts the `<script>` body from the HTML, stubs the handful of browser APIs the app
 touches, and drives it by firing the same synthetic `click` and `input` events the real UI
 fires. It runs whole simulated blocks, so it covers the engine, the reducers, and the fact that
-every screen renders without throwing. 27 checks, all passing at handoff.
+every screen renders without throwing. 28 checks, all passing at handoff.
 
 Add a check for any progression rule you change. The suite is fast enough to run on every edit.
 

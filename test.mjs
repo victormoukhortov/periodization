@@ -482,6 +482,44 @@ check("the last set of a muscle asks about pump and volume", () => {
   eq([q.m, q.kinds], ["chest", ["p", "v"]], "pump and volume once the last chest set is in");
 });
 
+check("changing the number of sets asks about the volume again", () => {
+  const app = boot();
+  app.runSession(load, topOfRange, 3, () => ({ s: 1, p: 1, v: 1 }));
+  const { state, ctx } = app.api();
+  state.index = 0; // back to push, so chest has a soreness question too
+  state.draft = null;
+  app.click({ a: "start" });
+
+  const chest = ctx().day.exercises.filter((e) => e.muscle === "chest");
+  chest.forEach((ex) =>
+    state.draft.sets[ex.id].forEach((r, i) => {
+      app.fill(ex.id, i, "w", 100);
+      app.click({ a: "toggle", ex: ex.id, i: String(i) });
+      while (app.api().ask) {
+        const q = app.api().ask;
+        q.kinds.forEach((k) => app.click({ a: "ask", m: q.m, k: k, v: "1" }));
+        app.click({ a: "asksave" });
+      }
+    })
+  );
+  eq(state.draft.fb.chest, { s: 1, p: 1, v: 1 }, "answered on the way through");
+
+  app.click({ a: "addset", ex: "p1" });
+  eq(state.draft.fb.chest, { s: 1, p: null, v: null }, "volume answers dropped, soreness kept");
+  ok(!app.api().ask, "not asked until the extra set is actually done");
+
+  const last = state.draft.sets.p1.length - 1;
+  app.fill("p1", last, "w", 100);
+  app.click({ a: "toggle", ex: "p1", i: String(last) });
+  eq(app.api().ask.kinds, ["p", "v"], "asked again once the extra set is in");
+  app.click({ a: "ask", m: "chest", k: "p", v: "2" });
+  app.click({ a: "ask", m: "chest", k: "v", v: "2" });
+  app.click({ a: "asksave" });
+
+  app.click({ a: "dropset", ex: "p1" });
+  eq(app.api().ask.kinds, ["p", "v"], "dropping one asks straight away, the rest being done");
+});
+
 check("answering as you go leaves nothing for the end screen", () => {
   const app = boot();
   playSession(app, (q) => {
