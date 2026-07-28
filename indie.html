@@ -74,6 +74,7 @@
   .btn.go{background:var(--go);color:#062a1c}
   .btn.go:active{background:var(--go-deep)}
   .btn.ghost{background:#262626;color:var(--ink)}
+  .btn[disabled]{background:#1c1c1c;color:#525252}
   .chip{border:1px solid var(--line);border-radius:99px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--muted)}
   .chip.on{border-color:var(--go);background:var(--go);color:#062a1c}
   .chip[disabled]{opacity:.3}
@@ -600,9 +601,15 @@ function viewSession(c){
     doneSets += d.sets[k].filter(function(x){ return x.done; }).length;
   });
 
+  var left = totalSets - doneSets;
   h += '<div class="wrap"><p class="muted center" style="font-size:14px;margin-bottom:12px">' +
-    '<b class="num" style="color:var(--ink)">' + doneSets + '</b> of ' + totalSets + ' sets logged</p>' +
-    '<button class="btn go" data-a="finish">' + (c.dl ? "Finish deload session" : "Finish session") + '</button></div>';
+    '<b class="num" style="color:var(--ink)">' + doneSets + '</b> of ' + totalSets + ' sets logged</p>';
+  h += left
+    ? '<button class="btn ghost" disabled>' + left + ' set' + (left === 1 ? "" : "s") + ' still to log</button>' +
+      '<p class="dim center" style="font-size:12px;margin-top:10px">Every set gets logged before a session closes. ' +
+      'Use − Set on anything you are not doing.</p>'
+    : '<button class="btn go" data-a="finish">' + (c.dl ? "Finish deload session" : "Finish session") + '</button>';
+  h += '</div>';
   if (ask) h += viewAsk();
   return h;
 }
@@ -647,6 +654,16 @@ function pendingFor(c, m){
   }
   return kinds;
 }
+/* How many planned sets are still unlogged in the open session. */
+function setsLeft(){
+  if (!state.draft) return 0;
+  var n = 0;
+  Object.keys(state.draft.sets).forEach(function(k){
+    n += state.draft.sets[k].filter(function(r){ return !r.done; }).length;
+  });
+  return n;
+}
+
 function askIfPending(c, m){
   var kinds = pendingFor(c, m);
   if (kinds.length) ask = {m: m, kinds: kinds};
@@ -1043,6 +1060,9 @@ document.addEventListener("click", function(e){
   if (a === "asksave" || a === "asklater"){ ask = null; saveState(); render(true); return; }
 
   if (a === "finish"){
+    /* the button is hidden until the last set is in; this is the invariant
+       behind it — nothing reaches history half-recorded */
+    if (setsLeft()) { render(true); return; }
     ask = null;
     if (c.dl) commit({});
     else if (!missingFeedback(c).length) commit(state.draft.fb);

@@ -93,6 +93,14 @@ below it that is not already logged, as real values rather than a placeholder hi
 Logged sets keep what they were logged with, and blurring a lower row carries nothing. The
 trigger is blur on purpose: carrying per keystroke flickers 1, 13, 135 down the column.
 
+### Finishing
+
+A session closes only when every planned set is logged. Until then the Finish button is replaced
+by a dead one counting what is left, and the `finish` action checks `setsLeft()` itself, so the
+invariant does not depend on the button being rendered correctly. The way out of work you are
+not doing is `− Set`, which is why that control keeps its floor of one set per exercise — an
+exercise you skip entirely still needs one logged set to close the session.
+
 ### Feedback timing
 
 The RP questions are asked during the session, per muscle, by `pendingFor`:
@@ -186,7 +194,7 @@ node test.mjs
 `test.mjs` extracts the `<script>` body from the HTML, stubs the handful of browser APIs the app
 touches, and drives it by firing the same synthetic `click` and `input` events the real UI
 fires. It runs whole simulated blocks, so it covers the engine, the reducers, and the fact that
-every screen renders without throwing. 29 checks, all passing at handoff.
+every screen renders without throwing. 31 checks, all passing at handoff.
 
 Add a check for any progression rule you change. The suite is fast enough to run on every edit.
 

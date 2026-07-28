@@ -548,6 +548,52 @@ check("what you wave away is still asked at the end", () => {
   eq(app.api().state.history.length, 1, "and saving commits the session");
 });
 
+check("a session cannot be finished with sets outstanding", () => {
+  const app = boot();
+  const { state, ctx } = app.api();
+  app.click({ a: "start" });
+
+  app.click({ a: "finish" });
+  ok(state.draft, "finishing does nothing with everything still to do");
+  eq(state.history.length, 0, "and nothing reaches history");
+  ok(app.api().html.indexOf("still to log") >= 0, "the button says what is left instead");
+
+  // log all but the very last set
+  const ids = ctx().day.exercises.map((e) => e.id);
+  ids.forEach((id) =>
+    state.draft.sets[id].forEach((r, i) => {
+      app.fill(id, i, "w", 100);
+      app.click({ a: "toggle", ex: id, i: String(i) });
+      while (app.api().ask) app.click({ a: "asklater" });
+    })
+  );
+  const lastId = ids[ids.length - 1];
+  const lastI = state.draft.sets[lastId].length - 1;
+  app.click({ a: "toggle", ex: lastId, i: String(lastI) }); // un-log one
+
+  app.click({ a: "finish" });
+  ok(state.draft, "one unlogged set is still one too many");
+
+  app.click({ a: "toggle", ex: lastId, i: String(lastI) });
+  app.click({ a: "finish" });
+  eq(app.api().view, "feedback", "with every set in, finishing proceeds");
+});
+
+check("dropping the sets you are not doing unblocks the finish", () => {
+  const app = boot();
+  const { state, ctx } = app.api();
+  app.click({ a: "start" });
+  ctx().day.exercises.forEach((ex) => {
+    // do one set of each, then drop the rest
+    app.fill(ex.id, 0, "w", 100);
+    app.click({ a: "toggle", ex: ex.id, i: "0" });
+    while (app.api().ask) app.click({ a: "asklater" });
+    while (state.draft.sets[ex.id].length > 1) app.click({ a: "dropset", ex: ex.id });
+  });
+  app.click({ a: "finish" });
+  eq(app.api().view, "feedback", "a trimmed session is a complete one");
+});
+
 check("every exercise offers a video search", () => {
   const app = boot();
   app.click({ a: "start" });
