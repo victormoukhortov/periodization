@@ -20,9 +20,15 @@ tests.
 
 ## Deploying
 
-The workflow publishes on every push to `main`. It needs Pages pointed at Actions once:
+The workflow publishes on every push to `main`. It needs Pages pointed at Actions once, by hand:
 
 **Settings → Pages → Build and deployment → Source: GitHub Actions.**
+
+Until that is set, the `deploy` job fails at `configure-pages` with `Get Pages site failed …
+Not Found`. The workflow cannot do it for you: creating the Pages site is an admin-scoped API
+call and `GITHUB_TOKEN` is refused with `Resource not accessible by integration`, so
+`enablement: true` does not work either. Once the setting is flipped, re-run the latest run
+(or push anything to `main`) and it deploys.
 
 The site then serves at `https://<owner>.github.io/periodization/`, and the app itself at
 `https://<owner>.github.io/periodization/indy.html`.

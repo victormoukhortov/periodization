@@ -35,11 +35,10 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      # enablement turns Pages on and points it at Actions the first time this
-      # runs, so a fresh clone or fork needs no click in Settings.
+      # Needs Pages already switched on with source "GitHub Actions"; see README.
+      # enablement: true does not help — creating the site is an admin-scoped
+      # call and GITHUB_TOKEN is refused.
       - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       # The site is the repo as-is: no build step, no bundler.
       - uses: actions/upload-pages-artifact@v3
         with:
