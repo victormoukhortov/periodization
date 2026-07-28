@@ -170,8 +170,12 @@ var DAYS = [
   ]}
 ];
 
-var SESSIONS_PER_BLOCK = 12;
-var RIR_BY_WEEK = {1:3, 2:2, 3:5};
+/* Five weeks: four of work, then a deload. Everything about the shape of the
+   block derives from these three, so there is one place to change it. */
+var WEEKS_PER_BLOCK = 5;
+var DELOAD_WEEK = 5;
+var SESSIONS_PER_BLOCK = DAYS.length * WEEKS_PER_BLOCK;
+var RIR_BY_WEEK = {1:3, 2:2, 3:1, 4:0, 5:5};
 var BAR = 45, PLATES = [45,35,25,10,5,2.5];
 
 var HUE = {chest:"#fb7185", back:"#38bdf8", delts:"#fbbf24", "rear delts":"#fbbf24",
@@ -182,11 +186,20 @@ var SORENESS = ["Never got sore","Healed a while ago","Healed just on time","I'm
 var PUMP = ["Low pump","Moderate pump","Amazing pump"];
 var WORKLOAD = ["Not enough","Just right","Pushed my limits","Too much"];
 
+/* What each week of the block is for, shown on the Plan screen. */
+var WEEK_COPY = {
+  1: "Sets come from last block’s feedback. Loads pick up where you left off.",
+  2: "One notch harder: same sets plus whatever feedback added, one more rep or one more pair of plates.",
+  3: "Sets are near their peak and so is fatigue. Keep one rep in the tank on the last set.",
+  4: "The heaviest week. Take the last set of each exercise to the point where the next rep will not move.",
+  5: "Half the sets, 60% load, no feedback. Injected automatically so you don’t have to remember."
+};
+
 /* ============================== ENGINE ============================== */
 
-function weekOf(i){ return i < 4 ? 1 : i < 8 ? 2 : 3; }
-function dayOf(i){ return DAYS[i % 4]; }
-function isDeload(i){ return i >= 8; }
+function weekOf(i){ return Math.floor(i / DAYS.length) + 1; }
+function dayOf(i){ return DAYS[i % DAYS.length]; }
+function isDeload(i){ return weekOf(i) >= DELOAD_WEEK; }
 function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
 function fmt(n){ return n == null ? "\u2014" : (Number(n) % 1 === 0 ? String(n) : Number(n).toFixed(1)); }
 function stepFor(ex){ return ex.lower ? 10 : 5; }
@@ -648,17 +661,14 @@ function spark(pts, unit){
 
 function viewPlan(c){
   var h = '<div class="wrap"><h2 style="font-size:24px;font-weight:900">The block</h2>' +
-    '<p class="muted" style="font-size:14px;margin-top:4px">Two weeks of work, then a deload, then it repeats with your tuned set counts and heavier bars.</p><div class="stack mt">';
-  [1,2,3].forEach(function(wk){
+    '<p class="muted" style="font-size:14px;margin-top:4px">Four weeks of work, then a deload week, then it repeats with your tuned set counts and heavier bars.</p><div class="stack mt">';
+  for (var wk = 1; wk <= WEEKS_PER_BLOCK; wk++){
     var on = c.week === wk;
-    var copy = wk === 1 ? "Sets come from last block\u2019s feedback. Loads pick up where you left off."
-      : wk === 2 ? "One notch harder: same sets plus whatever feedback added, one more rep or one more pair of plates."
-      : "Half the sets, 60% load, no feedback. Injected automatically so you don\u2019t have to remember.";
     h += '<div class="card" style="padding:14px' + (on ? ";border-color:rgba(52,211,153,.4);background:rgba(52,211,153,.05)" : "") + '">' +
-      '<div class="rowline"><h3 style="font-size:16px;font-weight:800">' + (wk === 3 ? "Deload" : "Week " + wk) + '</h3>' +
+      '<div class="rowline"><h3 style="font-size:16px;font-weight:800">' + (wk === DELOAD_WEEK ? "Deload" : "Week " + wk) + '</h3>' +
       '<span class="num dim" style="font-size:12px">' + RIR_BY_WEEK[wk] + ' RIR</span></div>' +
-      '<p class="muted" style="font-size:14px;margin-top:4px">' + copy + '</p></div>';
-  });
+      '<p class="muted" style="font-size:14px;margin-top:4px">' + WEEK_COPY[wk] + '</p></div>';
+  }
   h += '</div><p class="eyebrow" style="margin:26px 0 8px">Weekly sequence</p><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">';
   DAYS.forEach(function(d, i){
     var on = c.idx % 4 === i;

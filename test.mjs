@@ -82,7 +82,10 @@ return {
   api: function(){ return {
     state: state, ctx: ctx, setsDelta: setsDelta, roundLoad: roundLoad,
     platesPerSide: platesPerSide, setCountsForDay: setCountsForDay,
-    prescribe: prescribe, plannedSets: plannedSets, DAYS: DAYS
+    prescribe: prescribe, plannedSets: plannedSets, DAYS: DAYS,
+    weekOf: weekOf, isDeload: isDeload, RIR_BY_WEEK: RIR_BY_WEEK,
+    SESSIONS_PER_BLOCK: SESSIONS_PER_BLOCK, WEEKS_PER_BLOCK: WEEKS_PER_BLOCK,
+    DELOAD_WEEK: DELOAD_WEEK
   };}
 };
 `;
@@ -191,12 +194,24 @@ check("still sore holds the load instead of climbing", () => {
 
 console.log("\nblock structure");
 
-check("deload lands in week 3 and halves the work", () => {
+check("the block runs four weeks of work and one deload week", () => {
+  const { weekOf, isDeload, RIR_BY_WEEK, SESSIONS_PER_BLOCK, WEEKS_PER_BLOCK, DELOAD_WEEK } = boot().api();
+  eq(SESSIONS_PER_BLOCK, 20, "four sessions a week for five weeks");
+  eq(WEEKS_PER_BLOCK, 5, "five weeks");
+  eq([0, 3, 4, 7, 8, 12, 15, 16, 19].map(weekOf), [1, 1, 2, 2, 3, 4, 4, 5, 5], "week boundaries");
+  const deloads = [];
+  for (let i = 0; i < SESSIONS_PER_BLOCK; i++) if (isDeload(i)) deloads.push(i);
+  eq(deloads, [16, 17, 18, 19], "only the fifth week deloads");
+  eq([1, 2, 3, 4].map((w) => RIR_BY_WEEK[w]), [3, 2, 1, 0], "effort ramps a rep a week");
+  eq(RIR_BY_WEEK[DELOAD_WEEK], 5, "deload stops 5 short");
+});
+
+check("deload lands in week 5 and halves the work", () => {
   const app = boot();
-  for (let i = 0; i < 8; i++) app.runSession(load, topOfRange, 3, () => ({ s: 1, p: 1, v: 1 }));
+  for (let i = 0; i < 16; i++) app.runSession(load, topOfRange, 3, () => ({ s: 1, p: 1, v: 1 }));
   const c = app.api().ctx();
-  ok(c.dl, "session 9 is a deload");
-  eq(c.week, 3, "week 3");
+  ok(c.dl, "session 17 is a deload");
+  eq(c.week, 5, "week 5");
   const { plannedSets, DAYS } = app.api();
   const bench = DAYS[0].exercises[0];
   eq(plannedSets(c, bench), Math.max(1, Math.ceil(c.counts.p1 / 2)), "sets halved");
@@ -205,19 +220,21 @@ check("deload lands in week 3 and halves the work", () => {
 
 check("the next block ignores the deload and resumes from working loads", () => {
   const app = boot();
-  for (let i = 0; i < 8; i++) app.runSession(load, topOfRange, 3, () => ({ s: 1, p: 1, v: 1 }));
-  const beforeDeload = app.api().state.history[7];
-  ok(beforeDeload, "week 2 full body logged");
+  for (let i = 0; i < 16; i++) app.runSession(load, topOfRange, 3, () => ({ s: 1, p: 1, v: 1 }));
+  const beforeDeload = app.api().state.history[15];
+  ok(beforeDeload, "week 4 full body logged");
   for (let i = 0; i < 4; i++) app.runSession(load, topOfRange, 3, () => ({ s: 1, p: 1, v: 1 }));
   const c = app.api().ctx();
   eq(c.week, 1, "back to week 1");
   eq(c.block, 2, "block 2");
-  eq(c.targets.p1.weight, 145, "bench kept climbing across the deload");
+  // 135 → 140 in week 2, then the 3 RIR logged against week 3's target of 1 and
+  // week 4's target of 0 buys double jumps: 150, 160. Week 1 adds a single 5.
+  eq(c.targets.p1.weight, 165, "bench kept climbing across the deload");
 });
 
 check("set counts never exceed the per-muscle cap", () => {
   const app = boot();
-  for (let i = 0; i < 12; i++) app.runSession(load, topOfRange, 4, () => ({ s: 0, p: 0, v: 0 }));
+  for (let i = 0; i < 20; i++) app.runSession(load, topOfRange, 4, () => ({ s: 0, p: 0, v: 0 }));
   const { setCountsForDay, state } = app.api();
   const counts = setCountsForDay("push", state.history);
   const chest = counts.p1 + counts.p3;

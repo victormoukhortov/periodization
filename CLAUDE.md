@@ -94,11 +94,19 @@ Deltas are distributed by `applyDelta`, which adds to the least-loaded exercise 
 and removes from the most-loaded. Caps: 10 sets per muscle per session, 6 per exercise, floor of
 1 per exercise.
 
-**Block shape:** 12 sessions. Week 1 at 3 RIR, week 2 at 2 RIR, then four deload sessions at
-half sets and 60% load. Deload sessions collect no feedback and are excluded from
-`lastPerformance`, so the next block resumes from the last real working set. Then it repeats,
-carrying tuned set counts forward. `SESSIONS_PER_BLOCK`, `RIR_BY_WEEK`, `weekOf`, and
-`isDeload` define this together — change one and check the others.
+**Block shape:** five weeks of four sessions, 20 in all. Weeks 1–4 are work and tighten by a rep
+a week — 3, 2, 1, then 0 RIR. Week 5 is a deload at half sets and 60% load. Deload sessions
+collect no feedback and are excluded from `lastPerformance`, so the next block resumes from the
+last real working set. Then it repeats, carrying tuned set counts forward.
+
+`WEEKS_PER_BLOCK` and `DELOAD_WEEK` are the shape; `SESSIONS_PER_BLOCK` derives from
+`DAYS.length`, and `weekOf` / `isDeload` derive from those, so a different length is a two-line
+change. `RIR_BY_WEEK` and `WEEK_COPY` must both carry an entry for every week — they are keyed
+by week number and nothing falls back.
+
+Note how the ramp interacts with the load rule: logging 3 RIR in a week that asks for 1 or 0
+trips the "2+ reps in reserve at the top of the range" branch and doubles the jump. That is
+intended — the tighter target is what makes the extra headroom mean something.
 
 ## Testing
 

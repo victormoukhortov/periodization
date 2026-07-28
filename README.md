@@ -2,7 +2,8 @@
 
 A single-file workout tracker for a 4-day Push / Pull / Legs / Full Body split, hosted on GitHub
 Pages. It logs sets, asks the RP-style soreness / pump / volume questions after each session, and
-derives the next session's sets, weight, and reps from the answers.
+derives the next session's sets, weight, and reps from the answers. Training runs in five-week
+blocks: four weeks of work at 3, 2, 1, then 0 reps in reserve, followed by a deload week.
 
 **The app is [`indy.html`](indy.html).** Everything else in this repo is deployment plumbing or
 tests.
