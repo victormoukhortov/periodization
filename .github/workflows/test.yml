@@ -1,0 +1,24 @@
+name: Tests
+
+# Publishing is not done here. Pages serves the branch directly, so a push to
+# main is live as soon as GitHub's own pages-build-deployment run finishes —
+# this workflow only tells you whether what you just published passes.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node test.mjs

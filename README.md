@@ -15,24 +15,25 @@ tests.
 | `sw.js` | Service worker: network first, cache fallback, so the app opens offline. |
 | `manifest.webmanifest` | PWA manifest for home-screen install. Icons are inline data URIs. |
 | `.nojekyll` | Serve the files verbatim; no Jekyll processing. |
-| `.github/workflows/pages.yml` | Runs `test.mjs`, then publishes the repo root to Pages. |
+| `.github/workflows/test.yml` | Runs `test.mjs` on every push and pull request. |
 | `test.mjs` | Headless regression suite. `node test.mjs`. No test framework. |
 | `CLAUDE.md` | Architecture and the constraints that hold it together. |
 
 ## Deploying
 
-The workflow publishes on every push to `main`. It needs Pages pointed at Actions once, by hand:
+Pages serves the branch directly — **Settings → Pages → Source: Deploy from a branch, `main`,
+`/ (root)`.** Pushing to `main` is deploying: GitHub's own `pages-build-deployment` run copies
+the repo root to the site a moment later. There is no build step and no deploy workflow.
 
-**Settings → Pages → Build and deployment → Source: GitHub Actions.**
+The site is at <https://victormoukhortov.github.io/periodization/>, and the app itself at
+<https://victormoukhortov.github.io/periodization/indy.html>.
 
-Until that is set, the `deploy` job fails at `configure-pages` with `Get Pages site failed …
-Not Found`. The workflow cannot do it for you: creating the Pages site is an admin-scoped API
-call and `GITHUB_TOKEN` is refused with `Resource not accessible by integration`, so
-`enablement: true` does not work either. Once the setting is flipped, re-run the latest run
-(or push anything to `main`) and it deploys.
+Because publishing is GitHub's job and not a workflow's, **a red test does not stop a deploy.**
+`test.yml` tells you whether what you just shipped is sound; it cannot hold it back. Run
+`node test.mjs` before pushing.
 
-The site then serves at `https://<owner>.github.io/periodization/`, and the app itself at
-`https://<owner>.github.io/periodization/indy.html`.
+`.nojekyll` matters in this mode: without it Pages runs the tree through Jekyll, which drops
+files and directories beginning with an underscore.
 
 Every path in the deployment is relative, so the project subpath needs no configuration and a
 fork or a rename keeps working.

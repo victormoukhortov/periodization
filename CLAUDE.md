@@ -14,7 +14,7 @@ Deployed to GitHub Pages from the repo root.
 | `sw.js` | Service worker for the hosted copy. Network first, cache fallback. |
 | `manifest.webmanifest` | PWA manifest for the hosted copy. Icons are inline data URIs. |
 | `.nojekyll` | Keeps Pages from running the files through Jekyll. |
-| `.github/workflows/pages.yml` | `node test.mjs`, then publish the repo root. |
+| `.github/workflows/test.yml` | `node test.mjs` on pushes and pull requests. |
 | `test.mjs` | Headless regression suite. `node test.mjs`. No test framework. |
 | `CLAUDE.md` | This file. |
 
@@ -123,9 +123,15 @@ Add a check for any progression rule you change. The suite is fast enough to run
 
 ## Deploying
 
-GitHub Pages, source **GitHub Actions** (Settings → Pages). `.github/workflows/pages.yml` runs
-the suite and publishes the repo root on every push to `main`; a red test blocks the deploy.
-The app lands at `https://<owner>.github.io/periodization/indy.html`, and `/` redirects there.
+GitHub Pages, source **Deploy from a branch** — `main`, `/ (root)`. A push to `main` is a
+deploy: GitHub's own `pages-build-deployment` run copies the repo root to the site. There is no
+deploy workflow, and `.github/workflows/test.yml` only runs the suite — **it cannot block a
+publish**, so run `node test.mjs` before you push. The app lands at
+`https://<owner>.github.io/periodization/indy.html`, and `/` redirects there.
+
+Do not add an `actions/deploy-pages` workflow back. With a branch source it cannot work:
+`configure-pages` wants the site's build type to be `workflow`, and switching that is an
+admin-scoped call `GITHUB_TOKEN` is refused for.
 
 Every URL in the deployment is relative — `start_url`, `scope`, the manifest link, the worker
 registration, the worker's precache list. Nothing knows the repo name, so a rename or a fork
