@@ -95,6 +95,7 @@
     padding:11px 4px;text-align:center;font-family:var(--mono);font-size:17px;
     font-variant-numeric:tabular-nums}
   .cell:focus{outline:none;border-color:var(--go)}
+  .cell.need{border-color:var(--ask)}
   .cell::placeholder{color:#525252}
   .log{height:44px;border:1px solid #333;border-radius:10px;background:var(--bg);
     color:#525252;font-size:18px;font-weight:800}
@@ -380,6 +381,7 @@ function saveState(){
 
 var state = loadState();
 var tab = "workout", view = "home", summary = null, openWhy = null, selEx = null, confirmErase = false;
+var needWeight = null;  /* "exId:i" of a set that was tapped with no weight in it */
 
 /* Which session the home screen is looking at. null means the live one. Only
    the live session is ever writable — peeking is read-only by construction,
@@ -514,11 +516,13 @@ function viewSession(c){
         '<span class="eyebrow">Log</span></div>';
 
       rows.forEach(function(r, i){
-        var ph = t.weight == null ? "\u2014" : t.weight === 0 ? "BW" : fmt(t.weight);
+        var ph = t.weight == null ? (i ? "same" : "lb") : t.weight === 0 ? "BW" : fmt(t.weight);
+        var nag = needWeight === ex.id + ":" + i;
         h += '<div class="grid" style="margin-top:8px"><span class="num dim" style="text-align:center;font-size:14px">' + (i + 1) + '</span>' +
-          '<input class="cell" inputmode="decimal" data-ex="' + ex.id + '" data-i="' + i + '" data-f="w" value="' + r.w + '" placeholder="' + ph + '">' +
+          '<input class="cell' + (nag ? " need" : "") + '" inputmode="decimal" data-ex="' + ex.id + '" data-i="' + i + '" data-f="w" value="' + r.w + '" placeholder="' + ph + '">' +
           '<input class="cell" inputmode="numeric" data-ex="' + ex.id + '" data-i="' + i + '" data-f="r" value="' + r.r + '" placeholder="' + t.reps + '">' +
           '<button class="log' + (r.done ? " on" : "") + '" data-a="toggle" data-ex="' + ex.id + '" data-i="' + i + '">\u2713</button></div>';
+        if (nag) h += '<p style="color:var(--ask);font-size:12px;margin-top:6px">Put in the weight you used and this set will log.</p>';
       });
 
       h += '<div style="display:flex;gap:10px;margin-top:14px">' +
@@ -875,9 +879,16 @@ document.addEventListener("click", function(e){
   if (a === "toggle"){
     var i = Number(el.dataset.i), row = state.draft.sets[exId][i];
     var t = c.targets[exId];
+    var ex = c.day.exercises.filter(function(e){ return e.id === exId; })[0];
+    /* Nothing gets into history without a load behind it. Bodyweight movements
+       have one already — the body — so they log at 0 with the field empty. */
+    if (!row.done && row.w === "" && t.weight == null && !ex.bw){
+      needWeight = exId + ":" + i; render(true); return;
+    }
+    needWeight = null;
     row.done = !row.done;
     if (row.done){
-      if (row.w === "" && t.weight != null) row.w = String(t.weight);
+      if (row.w === "") row.w = String(t.weight == null ? 0 : t.weight);
       if (row.r === "") row.r = String(t.reps);
     }
     saveState(); render(true); return;
@@ -914,13 +925,30 @@ document.addEventListener("click", function(e){
   if (a === "install" && deferredPrompt){ deferredPrompt.prompt(); deferredPrompt = null; return; }
 });
 
+/* The first set carries the working weight for the exercise. Sets already
+   logged keep what they were logged with; the rest follow the top row. Writes
+   straight into the sibling inputs because this path must not re-render. */
+function carryWeightDown(exId, rows, value){
+  for (var j = 1; j < rows.length; j++){
+    if (rows[j].done) continue;
+    rows[j].w = value;
+    var el = document.querySelector('input[data-ex="' + exId + '"][data-i="' + j + '"][data-f="w"]');
+    if (el) el.value = value;
+  }
+}
+
 /* typing does not re-render, so the keyboard and caret stay put */
 document.addEventListener("input", function(e){
   var t = e.target;
   if (!t.dataset || !t.dataset.ex || !state.draft) return;
   var rows = state.draft.sets[t.dataset.ex];
   if (!rows) return;
-  rows[Number(t.dataset.i)][t.dataset.f] = t.value;
+  var i = Number(t.dataset.i);
+  rows[i][t.dataset.f] = t.value;
+  if (t.dataset.f === "w"){
+    needWeight = null;
+    if (i === 0) carryWeightDown(t.dataset.ex, rows, t.value);
+  }
   clearTimeout(window.__saveT);
   window.__saveT = setTimeout(saveState, 400);
 });

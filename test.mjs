@@ -23,6 +23,7 @@ var localStorage = { _d:{}, getItem:function(k){return this._d[k]||null;}, setIt
 function mkEl(){ return {innerHTML:"", style:{}, dataset:{}, appendChild:function(){}}; }
 var document = {
   getElementById: function(){ return mkEl(); },
+  querySelector: function(){ return null; },
   addEventListener: function(t,f){ __handlers[t] = f; },
   createElement: function(){ return mkEl(); },
   head: { appendChild: function(){} }
@@ -265,14 +266,43 @@ check("an unfinished session is resumable", () => {
   ok(state.draft !== null, "draft still open");
 });
 
-check("the first-ever session does not autofill a zero weight", () => {
+check("a set will not log without a weight behind it", () => {
   const app = boot();
   app.click({ a: "start" });
   app.click({ a: "toggle", ex: "p1", i: "0" });
-  const row = app.api().state.draft.sets.p1[0];
-  eq(row.w, "", "weight left blank for the user to enter");
+  let row = app.api().state.draft.sets.p1[0];
+  eq(row.done, false, "refused — there is nothing to record");
+  eq(row.w, "", "and no zero invented on the lifter's behalf");
+
+  app.type("p1", 0, "w", 135);
+  app.click({ a: "toggle", ex: "p1", i: "0" });
+  row = app.api().state.draft.sets.p1[0];
+  eq(row.done, true, "logs once a weight is in");
   eq(row.r, "5", "reps prefilled from the target");
-  eq(row.done, true, "set marked done");
+});
+
+check("bodyweight movements log with the field left empty", () => {
+  const app = boot();
+  app.runSession(load, topOfRange, 3, () => ({ s: 1, p: 1, v: 1 })); // push, so pull is live
+  app.click({ a: "start" });
+  app.click({ a: "toggle", ex: "l1", i: "0" }); // Pull-Up, first time, no target load
+  const row = app.api().state.draft.sets.l1[0];
+  eq(row.done, true, "logged");
+  eq(row.w, "0", "recorded as bodyweight");
+});
+
+check("the top set's weight carries down the exercise", () => {
+  const app = boot();
+  app.click({ a: "start" });
+  app.type("p1", 0, "w", 135);
+  const rows = app.api().state.draft.sets.p1;
+  eq(rows.map((r) => r.w), rows.map(() => "135"), "every set picked it up");
+
+  app.click({ a: "toggle", ex: "p1", i: "1" }); // set 2 logged at 135
+  app.type("p1", 0, "w", 140);
+  eq(rows[1].w, "135", "a logged set keeps the weight it was logged with");
+  eq(rows[2].w, "140", "the rest follow the top row");
+  eq(rows[0].w, "140", "including the top row itself");
 });
 
 check("you can look ahead through the block and come back", () => {

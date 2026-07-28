@@ -67,7 +67,19 @@ Re-rendering blows away focus and dismisses the keyboard. Therefore:
   scroll position.
 
 If you add a control that lives near a text field, keep it on the no-render path or the user
-loses their keyboard mid-set.
+loses their keyboard mid-set. `carryWeightDown` is the pattern to copy when a keystroke has to
+change something other than the field being typed in: write the state, then poke the sibling
+inputs' `.value` directly. Never re-render from the `input` handler.
+
+### Logging a set
+
+A set cannot be marked done with an empty weight — `roundLoad` and `lastPerformance` would take
+the blank as 0 and quietly wreck the next prescription. The toggle refuses, flags the field, and
+sets `needWeight`. Two exceptions log at 0 rather than nagging: bodyweight movements (`ex.bw`),
+where the body *is* the load, and anything with a target already, which fills from the target.
+
+Typing in the first set carries the weight into every set below it that is not already logged.
+Logged sets keep what they were logged with.
 
 ### Peeking
 
@@ -136,7 +148,7 @@ node test.mjs
 `test.mjs` extracts the `<script>` body from the HTML, stubs the handful of browser APIs the app
 touches, and drives it by firing the same synthetic `click` and `input` events the real UI
 fires. It runs whole simulated blocks, so it covers the engine, the reducers, and the fact that
-every screen renders without throwing. 19 checks, all passing at handoff.
+every screen renders without throwing. 21 checks, all passing at handoff.
 
 Add a check for any progression rule you change. The suite is fast enough to run on every edit.
 
