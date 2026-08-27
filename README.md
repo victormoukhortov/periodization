@@ -54,7 +54,7 @@ scheduling API, and Web Push needs a server. Nor can it rely on `setTimeout` —
 locked phone stops running it. So the alarm is not a notification at all.
 
 When a rest starts, the app builds a WAV in memory — the remaining seconds as inaudible signal,
-then four seconds of tone — and plays it through an `<audio>` element. Phones keep playing media
+then a desk bell struck twice — and plays it through an `<audio>` element. Phones keep playing media
 when you switch away or lock the screen, and no code has to run at the moment the tone arrives,
 so it lands on time. On iOS it also plays with the ringer switch on silent, which Web Audio does
 not.

@@ -617,15 +617,15 @@ check("the timer bar is in the session header and nowhere else", () => {
   ok(app.api().html.indexOf('id="tmr"') < 0, "and not on the other tabs");
 });
 
-check("the alarm file is the rest in silence, then the tone", () => {
+check("the alarm file is the rest in silence, then the bell, struck twice", () => {
   const app = boot();
-  const RATE = 8000, TAIL = 4;
+  const RATE = 16000, GAP = 0.75, STRIKE = 0.75, TAIL = GAP + STRIKE;
   const buf = app.wavFor(90);
   const dv = new DataView(buf);
   const str = (o, n) => String.fromCharCode(...new Uint8Array(buf, o, n));
 
   eq([str(0, 4), str(8, 4)], ["RIFF", "WAVE"], "it is a wav");
-  eq(dv.getUint32(24, true), RATE, "8 kHz");
+  eq(dv.getUint32(24, true), RATE, "16 kHz — a 4 kHz ceiling would leave the bell a thud");
   eq(dv.getUint16(34, true), 16, "16-bit");
   eq(dv.getUint16(22, true), 1, "mono");
 
@@ -633,14 +633,33 @@ check("the alarm file is the rest in silence, then the tone", () => {
   eq(samples, (90 + TAIL) * RATE, "90 seconds of rest and then the alarm");
   eq(buf.byteLength, 44 + samples * 2, "and the header agrees with the body");
 
-  // the lead-in is inaudible, the tail is not
-  let leadPeak = 0, tailPeak = 0;
-  for (let i = 0; i < 90 * RATE; i += 37) leadPeak = Math.max(leadPeak, Math.abs(dv.getInt16(44 + i * 2, true)));
-  for (let i = 90 * RATE; i < samples; i += 7) tailPeak = Math.max(tailPeak, Math.abs(dv.getInt16(44 + i * 2, true)));
-  ok(leadPeak <= 2, "the rest itself is 84 dB down — real audio, but nothing you can hear");
-  ok(tailPeak > 8000, "and the alarm at the end is not, got " + tailPeak);
+  const at = (sec) => 44 + Math.round((90 + sec) * RATE) * 2;
+  const peak = (from, to) => {
+    let p = 0;
+    for (let o = at(from); o < at(to); o += 2) p = Math.max(p, Math.abs(dv.getInt16(o, true)));
+    return p;
+  };
 
-  eq(new DataView(app.wavFor(0)).getUint32(40, true) / 2, TAIL * RATE, "a zero rest is the tone alone");
+  // the rest itself is real audio, but nothing you can hear
+  let leadPeak = 0;
+  for (let i = 0; i < 90 * RATE; i += 37) leadPeak = Math.max(leadPeak, Math.abs(dv.getInt16(44 + i * 2, true)));
+  ok(leadPeak <= 2, "the lead-in is 84 dB down");
+
+  // two strikes, a beat apart, each decaying to nothing before the next
+  const first = peak(0, 0.05), second = peak(GAP, GAP + 0.05);
+  ok(first > 20000, "the first strike is loud, got " + first);
+  ok(second > 20000, "and so is the second, got " + second);
+  ok(peak(GAP - 0.05, GAP) < first / 8, "the first has faded out before the second lands");
+  eq(peak(TAIL - 0.002, TAIL), 0, "and the file ends on silence, not a click");
+});
+
+check("the bell decodes to exactly one trimmed strike", () => {
+  const app = boot();
+  const RATE = 16000;
+  // a zero rest is the alarm alone: gap + one strike
+  const buf = app.wavFor(0);
+  const samples = new DataView(buf).getUint32(40, true) / 2;
+  eq(samples / RATE, 1.5, "0.75s to the second strike, 0.75s of strike");
 });
 
 console.log("\nsession state");

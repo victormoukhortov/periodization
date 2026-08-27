@@ -339,8 +339,8 @@ pure and live in `ENGINE` with everything else.
 cannot schedule a future local notification — there is no such API on iOS, and Web Push needs a
 server this repo does not have — and a backgrounded or locked phone stops running timers, so
 nothing JavaScript-driven can be trusted to fire on time. What a phone does keep doing is playing
-media. So starting a rest builds a WAV of `left` seconds of inaudible dither followed by four
-seconds of tone and plays it through the one `<audio>` element in the page. The phone plays it to
+media. So starting a rest builds a WAV of `left` seconds of inaudible dither followed by the
+alarm and plays it through the one `<audio>` element in the page. The phone plays it to
 the end on its own: no callback runs when the alarm sounds, which is exactly why it survives the
 app being backgrounded and the screen locking. On iOS it also plays through the ringer switch,
 which Web Audio does not.
@@ -350,8 +350,12 @@ Consequences to keep in mind when changing any of this:
 - The lead-in is a ±2 LSB dither rather than digital silence, so the stream reads as real audio
   worth keeping alive.
 - Every timer change re-arms the file, because its length *is* the remaining rest.
-- `TIMER_MAX` bounds the file: one second of 8 kHz 16-bit mono per second of rest, so 5:00 is
-  about 4.8 MB.
+- The alarm is a desk bell sample, `BELL_B64`: 16 kHz 16-bit mono PCM, one strike trimmed to
+  0.75s with a raised-cosine fade, struck twice `BELL_GAP` apart. The rate is not negotiable
+  downward — a 4 kHz ceiling loses 60% of that bell's energy and leaves a thud. Replacing the
+  sound means replacing that constant and the two numbers around it, nothing else.
+- `TIMER_MAX` bounds the file: one second of 16 kHz 16-bit mono per second of rest, so 5:00 is
+  about 9.6 MB.
 - The first `play()` has to happen inside a user gesture. It does: `timerDo("tstart")` is called
   from the tap that logs the set.
 - Nothing sounds if the app is force-quit from the app switcher. There is no way around that
