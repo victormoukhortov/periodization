@@ -26,7 +26,13 @@
   body{
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
     font-size:16px;line-height:1.45;
-    padding-bottom:calc(76px + env(safe-area-inset-bottom));
+    /* Exactly the nav's height plus 14px of air. The two are written from the
+       same expression on purpose: 39px is the nav's own box (13 + 15 + 11) and
+       whatever follows is its bottom padding, so the content always stops just
+       above the bar instead of drifting on a device with a home indicator.
+       The first line is the fallback where max() is not understood. */
+    padding-bottom:calc(53px + env(safe-area-inset-bottom));
+    padding-bottom:calc(53px + max(10px, env(safe-area-inset-bottom) - 12px));
     -webkit-font-smoothing:antialiased;
     overscroll-behavior-y:contain;
   }
@@ -123,7 +129,8 @@
   .step p{font-size:14px;color:var(--muted)}
 
   /* feedback */
-  .fb{background:var(--card);min-height:100vh;padding:24px 20px calc(120px + env(safe-area-inset-bottom))}
+  /* body already clears the nav, so this only needs its own bottom margin */
+  .fb{background:var(--card);min-height:100vh;padding:24px 20px 24px}
   .fb h2{font-size:36px;font-weight:900}
   .fb h3{font-size:19px;font-weight:700;margin-top:22px}
   .fb .q{color:var(--muted);font-size:14px;margin:4px 0 10px}
@@ -145,10 +152,14 @@
   .save[disabled]{background:#292524;color:#57534e}
 
   /* nav */
+  /* The home indicator needs clearance, but the whole inset under a 10px label
+     reads as a dead band, so it is trimmed to what the indicator actually
+     wants. Keep this in step with body's padding-bottom above. */
   nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid;grid-template-columns:repeat(5,1fr);
     background:rgba(28,25,23,.97);backdrop-filter:blur(12px);border-top:1px solid var(--line);
-    padding-bottom:env(safe-area-inset-bottom)}
-  nav button{padding:14px 0;font-size:10px;font-weight:800;text-transform:uppercase;
+    padding-bottom:env(safe-area-inset-bottom);
+    padding-bottom:max(10px, env(safe-area-inset-bottom) - 12px)}
+  nav button{padding:13px 0 11px;font-size:10px;font-weight:800;text-transform:uppercase;
     letter-spacing:.08em;color:var(--dim)}
   nav button.on{color:var(--go)}
 
