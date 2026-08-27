@@ -1,14 +1,18 @@
 /**
- * Offline shell for indie.html.
+ * Offline shell for both apps.
  *
  * Network first so a fresh deploy is picked up as soon as you are online, cache
  * fallback so a session logged in a basement gym still opens. Registered by
- * indie.html only when it is served over http(s); from file:// there is nothing
- * to register and the page runs uncached.
+ * indie.html and victor.html only when they are served over http(s); from
+ * file:// there is nothing to register and the pages run uncached.
  */
 
-var CACHE = "ppl-block-v1";
-var SHELL = ["./", "./index.html", "./indie.html", "./manifest.webmanifest"];
+var CACHE = "periodization-v2";
+var SHELL = [
+  "./", "./index.html",
+  "./indie.html", "./manifest.webmanifest",
+  "./victor.html", "./victor.webmanifest"
+];
 
 self.addEventListener("install", function(e){
   e.waitUntil(
@@ -38,7 +42,7 @@ self.addEventListener("fetch", function(e){
       return res;
     }).catch(function(){
       return caches.match(e.request).then(function(hit){
-        return hit || caches.match("./indie.html");
+        return hit || caches.match("./index.html");
       });
     })
   );

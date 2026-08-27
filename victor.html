@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<title>Rolling Five</title>
+<meta name="theme-color" content="#0c0a09" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Rolling Five" />
+<!-- Hosted install path. Over file:// this 404s harmlessly and the script below
+     falls back to the inline blob manifest, so the page still works from disk. -->
+<link rel="manifest" href="victor.webmanifest" />
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAIAAACyr5FlAAABuElEQVR42u3SMQ3AIABEUdYSZOAWIcior7JgoAsMhMBL/nzD5YUUH+m34ALBITgEh+AQHIJDcAgOwSE4JDgEh+AQHIJDcAgOwSE4BIcEh+AQHIJDcAgOwSE4BIfgkOAQHIJDcAgOwSE4BIfgEByCQ4JDcGgPHO3N0x0zW8s33fpZOOCAAw444IADDjjggAMOOOCAAw444IADDjjggAMOOOCAAw444IADDjjggAMOOOCAAw444IADDjjggAMOOOCAAw444IADDjjggAMOOOCAAw444IADDjjggAMOOOCAAw444IADDjjggAMOOOCAAw444IADDjjggAMOOOCAAw444IADDjjggAMOOOCAAw444IADDjjggAMOOOCAAw444IADDjjggAMOOOCAAw444IADDjjggAMOOOCAAw444IADDjjggAMOOOCAAw444IADDjjggAMOOOCAAw444IADDjjggAMOOOCAAw444IADDjh0b3AIDsEhOASH4BAcgkNwCA7BIcEhOASH4BAcgkNwCA7BITgkOASH4BAcgkNwCA7BITgEhwSH4BAcgkNwCA7BITgEh+AQHBIcGqgDVXW+tOwcY+4AAAAASUVORK5CYII=" />
+<link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAIAAADdvvtQAAAB60lEQVR42u3SwQnAIBBEUa9KyrDbFGIZ9hUvthCyhMDmwT/PYXjlaFV6XHGBABJAAkgASQAJIAEkgCSABJAAEkASQAJIAAkgCSABJIAEkACSABJAAkgASQAJIAEkgCSABJAAEkASQAJIAAkgASQBJIAEkACSABJAAkgA3W3NHinr+DivSB+OAwQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAfQyIP0zgASQABJAAkgCSAAJIAEkASSABJAAkgASQAJIAEkACSABJIAEkASQABJAAkgCSAAJIAEkASSABJAAkgASQAJIAAkgCSABJIAEkASQABJAyt8GHtiKy4H/aXUAAAAASUVORK5CYII=" />
+<style>
+  :root{
+    --bg:#0c0a09; --card:#1c1917; --line:#292524; --ink:#fafaf9;
+    --muted:#a8a29e; --dim:#78716c; --go:#fbbf24; --go-deep:#b45309;
+    --skill:#a78bfa; --ask:#f43f5e; --warn:#fb923c;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink)}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    font-size:16px;line-height:1.45;
+    padding-bottom:calc(76px + env(safe-area-inset-bottom));
+    -webkit-font-smoothing:antialiased;
+    overscroll-behavior-y:contain;
+  }
+  h1,h2,h3{margin:0;letter-spacing:-0.02em}
+  p{margin:0}
+  button,input{font:inherit;color:inherit}
+  button{background:none;border:none;padding:0;cursor:pointer}
+  .wrap{padding:20px 16px}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .muted{color:var(--muted)}
+  .dim{color:var(--dim)}
+  .eyebrow{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--dim)}
+
+  /* header */
+  header{position:sticky;top:0;z-index:20;background:rgba(12,10,9,.96);
+    backdrop-filter:blur(12px);border-bottom:1px solid var(--line);
+    padding:calc(14px + env(safe-area-inset-top)) 16px 12px}
+  .htop{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  .htop h1{font-size:26px;font-weight:900}
+  .htop h1 span{color:var(--dim)}
+  .htop h1 em{font-style:normal;color:var(--skill)}
+  .rail{display:flex;gap:4px;margin-top:12px}
+  .rail i{height:4px;flex:1;border-radius:99px;background:var(--line)}
+  .rail i.done{background:#78350f}
+  .rail i.now{background:var(--go)}
+  .rail i.sk{background:#4c1d95}
+  .rail i.peek{background:var(--ink)}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px}
+  .note{padding:12px 14px;border-radius:12px;font-size:14px;border:1px solid var(--line);background:var(--card)}
+  .note b{display:block;font-size:14px;font-weight:800;margin-bottom:3px}
+  .note.rest{border-color:rgba(167,139,250,.35);background:rgba(167,139,250,.08);color:#ddd6fe}
+  .note.warn{border-color:rgba(251,146,60,.35);background:rgba(251,146,60,.08);color:#fed7aa}
+  .note.cut{border-color:rgba(244,63,94,.35);background:rgba(244,63,94,.08);color:#fecdd3}
+
+  .tag{display:inline-flex;align-items:center;gap:7px;border:1px solid color-mix(in srgb,var(--c) 35%,transparent);
+    background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);
+    border-radius:6px;padding:3px 9px 3px 7px;font-size:11px;font-weight:800;
+    text-transform:uppercase;letter-spacing:.12em}
+  .tag b{display:flex;gap:2px}
+  .tag b s{display:block;width:2px;height:11px;background:currentColor;border-radius:2px;text-decoration:none}
+  .tag b s:nth-child(2){opacity:.65} .tag b s:nth-child(3){opacity:.35}
+
+  .list>div{padding:12px 14px;border-top:1px solid var(--line)}
+  .list>div:first-child{border-top:none}
+  .rowline{display:flex;justify-content:space-between;gap:12px;align-items:center}
+  .rowline .name{font-size:14px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  .btn{display:block;width:100%;border-radius:14px;padding:16px;font-size:16px;font-weight:800;text-align:center}
+  .btn.go{background:var(--go);color:#3b2606}
+  .btn.go:active{background:var(--go-deep)}
+  .btn.ghost{background:#292524;color:var(--ink)}
+  .btn[disabled]{background:#1c1917;color:#57534e}
+  .chip{border:1px solid var(--line);border-radius:99px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--muted)}
+  .chip.on{border-color:var(--go);background:var(--go);color:#3b2606}
+  .chip[disabled]{opacity:.3}
+  .vid{display:inline-flex;align-items:center;justify-content:center;width:36px;height:30px;
+    border:1px solid var(--line);border-radius:99px;color:var(--muted);text-decoration:none}
+  .vid:active{color:var(--ink);border-color:var(--muted)}
+  .cell-slot{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 4px;text-align:center}
+  .cell-slot.now{border-color:rgba(251,191,36,.5);background:rgba(251,191,36,.08)}
+  .cell-slot.peek{border-color:var(--ink)}
+  .cell-slot.past{opacity:.35}
+
+  /* exercise */
+  .ex{background:var(--card);padding:18px 16px;margin-bottom:8px}
+  .exhead{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+  .ex h3{font-size:18px;font-weight:800;line-height:1.2}
+  .target{margin-top:8px;font-family:var(--mono);font-size:13px;color:var(--go);display:flex;gap:8px;flex-wrap:wrap}
+  .target b{color:var(--ink);font-weight:700}
+  .target.sk{color:var(--skill)}
+  .why{margin-top:10px;background:#292524;border-radius:10px;padding:12px;font-size:14px;color:#d6d3d1}
+  .cue{margin-top:8px;font-size:13px;color:var(--muted)}
+  .grid{display:grid;grid-template-columns:26px 1fr 1fr 52px;gap:8px;align-items:center}
+  .grid .eyebrow{text-align:center}
+  .cell{width:100%;background:var(--bg);border:1px solid #3f3f46;border-radius:10px;
+    padding:11px 4px;text-align:center;font-family:var(--mono);font-size:17px;
+    font-variant-numeric:tabular-nums}
+  .cell:focus{outline:none;border-color:var(--go)}
+  .cell.need{border-color:var(--ask)}
+  .cell::placeholder{color:#57534e}
+  .log{height:44px;border:1px solid #3f3f46;border-radius:10px;background:var(--bg);
+    color:#57534e;font-size:18px;font-weight:800}
+  .log.on{background:var(--go-deep);border-color:var(--go);color:#fff}
+
+  /* ladders */
+  .step{display:flex;gap:12px;padding:11px 14px;border-top:1px solid var(--line);align-items:flex-start}
+  .step:first-child{border-top:none}
+  .step i{flex-shrink:0;width:22px;height:22px;border-radius:99px;border:1px solid var(--line);
+    font-style:normal;font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;color:var(--dim)}
+  .step.on i{background:var(--skill);border-color:var(--skill);color:#1e1b4b}
+  .step.done i{border-color:var(--skill);color:var(--skill)}
+  .step.on p{color:var(--ink);font-weight:700}
+  .step p{font-size:14px;color:var(--muted)}
+
+  /* feedback */
+  .fb{background:var(--card);min-height:100vh;padding:24px 20px calc(120px + env(safe-area-inset-bottom))}
+  .fb h2{font-size:36px;font-weight:900}
+  .fb h3{font-size:19px;font-weight:700;margin-top:22px}
+  .fb .q{color:var(--muted);font-size:14px;margin:4px 0 10px}
+  .opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .opts button{border:1px solid rgba(244,63,94,.4);background:rgba(244,63,94,.1);
+    border-radius:10px;padding:13px 8px;font-size:14px;font-weight:700;line-height:1.2}
+  .opts button.on{background:var(--ask);border-color:#fb7185;color:#fff}
+  .rule{height:1px;background:var(--line);margin:26px 0 0}
+
+  /* mid-session question sheet */
+  .scrim{position:fixed;inset:0;z-index:40;background:rgba(12,10,9,.75);
+    backdrop-filter:blur(3px);display:flex;align-items:flex-end}
+  .sheet{width:100%;max-height:88vh;overflow-y:auto;background:var(--card);
+    border-top:1px solid var(--line);border-radius:18px 18px 0 0;
+    padding:20px 20px calc(24px + env(safe-area-inset-bottom))}
+  .sheet h3{font-size:18px;font-weight:700;margin-top:18px}
+  .sheet .q{color:var(--muted);font-size:14px;margin:4px 0 10px}
+  .save{background:var(--ask);color:#fff;border-radius:10px;padding:13px 30px;font-size:17px;font-weight:800}
+  .save[disabled]{background:#292524;color:#57534e}
+
+  /* nav */
+  nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid;grid-template-columns:repeat(5,1fr);
+    background:rgba(28,25,23,.97);backdrop-filter:blur(12px);border-top:1px solid var(--line);
+    padding-bottom:env(safe-area-inset-bottom)}
+  nav button{padding:14px 0;font-size:10px;font-weight:800;text-transform:uppercase;
+    letter-spacing:.08em;color:var(--dim)}
+  nav button.on{color:var(--go)}
+
+  .stack>*+*{margin-top:8px}
+  .mt{margin-top:20px}
+  .center{text-align:center}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<nav id="nav"></nav>
+
+<script>
+"use strict";
+
+/* ============================== PROGRAM ============================== */
+
+/* A five-slot rolling cycle, not a week. You advance through the slots in
+   order and drop rest days between any two of them as fatigue dictates, so
+   nothing here is keyed to a day of the week. */
+var SLOTS = [
+  { id:"push", name:"Push", kind:"lift", exercises:[
+    {id:"p1",name:"Bench Press",gear:"Barbell",muscle:"chest",sets:4,lo:5,hi:8},
+    {id:"p2",name:"Incline Dumbbell Press",gear:"Dumbbell",muscle:"chest",sets:3,lo:8,hi:12},
+    {id:"p3",name:"Standing Overhead Press",gear:"Barbell",muscle:"delts",sets:2,lo:6,hi:8,cuttable:true,
+      cue:"The first thing to cut when the handstand work is feeling heavy."},
+    {id:"p4",name:"Lateral Raise",gear:"Dumbbell",muscle:"delts",sets:3,lo:12,hi:15},
+    {id:"p5",name:"EZ-Bar Skullcrusher",gear:"EZ Bar",muscle:"triceps",sets:3,lo:8,hi:12,elbow:true}
+  ]},
+  { id:"pull", name:"Pull", kind:"lift", exercises:[
+    {id:"u1",name:"Weighted Chin-Up",gear:"Added",muscle:"back",sets:4,lo:5,hi:8,elbow:true,
+      cue:"Weighted only. At 12 clean bodyweight reps more bodyweight volume buys nothing."},
+    {id:"u2",name:"Barbell Row",gear:"Barbell",muscle:"back",sets:4,lo:6,hi:10},
+    {id:"u3",name:"Dumbbell Row",gear:"Dumbbell",muscle:"back",sets:3,lo:10,hi:12},
+    {id:"u4",name:"Rear Delt Flye",gear:"Dumbbell",muscle:"rear delts",sets:3,lo:15,hi:15},
+    {id:"u5",name:"EZ-Bar Curl",gear:"EZ Bar",muscle:"biceps",sets:3,lo:8,hi:12,elbow:true},
+    {id:"u6",name:"Hammer Curl",gear:"Dumbbell",muscle:"biceps",sets:3,lo:10,hi:10}
+  ]},
+  { id:"legs", name:"Legs", kind:"lift", exercises:[
+    {id:"g1",name:"Back Squat",gear:"Barbell",muscle:"quads",sets:3,lo:8,hi:10,lower:true,
+      cue:"Full depth, controlled descent, stopping 2–3 reps short of failure."},
+    {id:"g2",name:"Romanian Deadlift",gear:"Barbell",muscle:"hamstrings",sets:3,lo:8,hi:10,lower:true,
+      cue:"The hinge. No conventional deadlifts — they compete with front lever recovery for lats and grip."},
+    {id:"g3",name:"Bulgarian Split Squat",gear:"Dumbbell",muscle:"quads",sets:3,lo:8,hi:10,lower:true,perLeg:true,
+      cue:"Unilateral loading is the best knee insurance in the program. Keep it."},
+    {id:"g4",name:"Band Leg Curl / Nordic Negative",gear:"Band",muscle:"hamstrings",sets:3,lo:6,hi:10,bw:true},
+    {id:"g5",name:"Standing Calf Raise",gear:"Dumbbell",muscle:"calves",sets:3,lo:12,hi:15,lower:true}
+  ]},
+  { id:"skilla", name:"Skill A", kind:"skill", exercises:[
+    {id:"k1",name:"Chest-to-Wall Handstand",gear:"Bodyweight",muscle:"handstand",sets:3,lo:15,hi:60,time:true,accum:60},
+    {id:"k2",name:"HSPU Progression",gear:"Bodyweight",muscle:"handstand",sets:4,lo:3,hi:6,skill:"hspu"},
+    {id:"k3",name:"Front Lever Hold",gear:"Bodyweight",muscle:"lats",sets:6,lo:8,hi:12,time:true,skill:"fl",
+      straightArm:true,elbow:true,rest:"2 min between sets"},
+    {id:"k4",name:"Tuck Front Lever Row",gear:"Bodyweight",muscle:"lats",sets:3,lo:5,hi:8,bw:true,
+      straightArm:true,elbow:true},
+    {id:"k5",name:"Handstand Shrug",gear:"Bodyweight",muscle:"handstand",sets:3,lo:8,hi:10,bw:true,
+      cue:"The piece most people skip. It is what stops the top of the HSPU feeling like a stall."}
+  ]},
+  { id:"skillb", name:"Skill B", kind:"skill", exercises:[
+    {id:"b1",name:"Wall Handstand + Kick-Ups",gear:"Bodyweight",muscle:"handstand",sets:3,lo:15,hi:60,time:true,
+      accum:60,practice:true,cue:"Accumulate the wall time, then spend what is left on freestanding kick-up attempts."},
+    {id:"b2",name:"HSPU",gear:"Bodyweight",muscle:"handstand",sets:3,lo:3,hi:5,skill:"hspu",
+      cue:"One more rep in reserve than Skill A. Practice bias, not a second hard session."},
+    {id:"b3",name:"Front Lever Hold",gear:"Bodyweight",muscle:"lats",sets:4,lo:8,hi:12,time:true,skill:"fl",
+      straightArm:true,elbow:true},
+    {id:"b4",name:"Band Straight-Arm Pulldown",gear:"Band",muscle:"lats",sets:3,lo:10,hi:10,bw:true,
+      straightArm:true,elbow:true,band:true}
+  ]}
+];
+
+/* Off the program but still sitting in the log. Progress reads this so a
+   dropped movement keeps its curve. Never put one of these ids back on a slot,
+   and never reuse an id — it is the primary key of the whole training log. */
+var RETIRED = [];
+
+/* The two skills. Position, not load, is the progression: you stay at a step
+   until you own it, then you move up and the reps or seconds start over. */
+var SKILLS = {
+  hspu: {
+    id:"hspu", name:"Handstand pushup", unit:"", crit:8, critSets:3,
+    advance:"3 × 8 clean at the current depth or elevation",
+    entry:"Start at step 1 if max strict pike pushups are under 8 or the chest-to-wall hold is under 30s.",
+    ladder:[
+      "Elevated pike pushup, feet on a box — raise the box as you progress",
+      "Wall HSPU, back to wall",
+      "Wall HSPU, chest to wall — stricter, no arch cheat",
+      "Deficit HSPU on two plate stacks — add depth one plate at a time",
+      "Freestanding negatives"
+    ]
+  },
+  fl: {
+    id:"fl", name:"Front lever", unit:"s", crit:15, critSets:3,
+    advance:"3 × 15s clean at the current position — three sets, not one good rep",
+    entry:"Tuck is the entry. Loop a band from the bar under your hips if you need the assist.",
+    ladder:[
+      "Tuck — knees to chest, back flat, arms locked, hips at shoulder height",
+      "Advanced tuck — hips opening past 90°, back flat",
+      "One leg extended",
+      "Straddle",
+      "Full"
+    ],
+    cue:"Posterior pelvic tilt, scapula depressed and protracted, elbows locked, lats pulling the bar toward the hips. When the hips sag or the elbows bend, the set is over."
+  }
+};
+
+var SLOT_COUNT = SLOTS.length;
+var BAR = 45, EZ = 25, PLATES = [45,35,25,10,5,2.5];
+var DEFAULT_PLATES = 300;      /* total plate poundage owned; settings can move it */
+var CEILING_GAP = 40;          /* stop chasing load this close to loading everything */
+var ELBOW_DAYS = 7;            /* how long a grumpy elbow halves the straight-arm work */
+var CYCLE_FLOOR = 4;           /* cycles a month below which Skill B gets cut back */
+var DAY_MS = 86400000;
+
+var HUE = {chest:"#fb7185", back:"#38bdf8", delts:"#fbbf24", "rear delts":"#fbbf24",
+  triceps:"#e879f9", biceps:"#a78bfa", quads:"#34d399", hamstrings:"#2dd4bf",
+  calves:"#a3e635", handstand:"#a78bfa", lats:"#38bdf8"};
+
+var SKILLQ  = ["Clean","A bit ragged","It broke down"];
+var BALANCE = ["Solid","Wobbly","Off"];
+var HSLOAD  = ["Light","Normal","Heavy"];
+var ELBOWQ  = ["Fine","Grumpy","Painful"];
+var LEGSQ   = ["Strong","Ordinary","Mush"];
+
+var SLOT_COPY = {
+  push: "Bench leads. Overhead press is the release valve — it comes off the session by itself when the handstand work is reading heavy.",
+  pull: "Weighted chin-ups and rows. No straight-arm work here on purpose; that lives on the skill days and should not appear in both places.",
+  legs: "Squat and hinge with reps in reserve. The split squats are knee insurance, not filler.",
+  skilla: "The hard skill session. Handstand pushups at your current depth, front lever holds at your current position, and the shrugs that make the top of the press work.",
+  skillb: "Practice bias, roughly 70% of Skill A. It is also the first thing to give when the cycle gets heavy — the app cuts it back for you."
+};
+
+var TESTS = [
+  {id:"pike",  name:"Max strict pike pushup", unit:"reps", hint:"Feet on the floor."},
+  {id:"c2w",   name:"Chest-to-wall handstand hold", unit:"s", hint:"One unbroken hold."},
+  {id:"tuckfl",name:"Max tuck front lever hold", unit:"s", hint:"Back flat, hips at shoulder height."},
+  {id:"chin",  name:"Weighted chin-up 5RM", unit:"lb", hint:"Added load, not bodyweight."},
+  {id:"squat", name:"Squat top set × 10", unit:"lb", hint:"Ten reps, full depth."}
+];
+var RETEST_CYCLES = 5;   /* the middle of the program's every 4–6 cycles */
+
+/* ============================== ENGINE ============================== */
+
+function slotOf(i){ return SLOTS[i % SLOT_COUNT]; }
+function cycleOf(i){ return Math.floor(i / SLOT_COUNT) + 1; }
+function posOf(i){ return (i % SLOT_COUNT) + 1; }
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function fmt(n){ return n == null ? "—" : (Number(n) % 1 === 0 ? String(n) : Number(n).toFixed(1)); }
+function stepFor(ex){ return ex.lower ? 10 : 5; }
+function loadless(ex){ return !!(ex.bw || ex.time || ex.gear === "Bodyweight" || ex.gear === "Band"); }
+function unitOf(ex){ return ex.time ? "s" : ""; }
+
+var ALL_EX = (function(){
+  var out = [];
+  SLOTS.forEach(function(s){ out = out.concat(s.exercises); });
+  return out.concat(RETIRED);
+})();
+function exById(id){
+  var hit = ALL_EX.filter(function(e){ return e.id === id; });
+  return hit.length ? hit[0] : null;
+}
+
+/* Dumbbells move in 2.5 lb because the handles do; everything on a bar moves in
+   5, which is the smallest pair of plates. Bars floor at their own weight, an
+   added load floors at nothing — a clean bodyweight chin-up is 0. */
+function roundLoad(ex, w){
+  if (w == null) return null;
+  var snap = ex.gear === "Dumbbell" ? 2.5 : 5;
+  var floor = ex.gear === "Barbell" ? BAR : ex.gear === "EZ Bar" ? EZ : ex.gear === "Dumbbell" ? 5 : 0;
+  var v = Math.round(w / snap) * snap;
+  return Math.max(floor, v);
+}
+
+function barOf(ex){ return ex.gear === "EZ Bar" ? EZ : BAR; }
+function onBar(ex){ return ex.gear === "Barbell" || ex.gear === "EZ Bar"; }
+
+function platesPerSide(ex, total){
+  var per = (total - barOf(ex)) / 2, out = [];
+  if (per < 2.5) return null;
+  PLATES.forEach(function(p){
+    while (per >= p - 0.001){ out.push(p % 1 === 0 ? p : p.toFixed(1)); per -= p; }
+  });
+  return out.length ? out.join(" · ") : null;
+}
+
+/* Everything you own on the bar. The squat runs out of room here first. */
+function ceilingFor(ex, plateLb){ return onBar(ex) ? barOf(ex) + plateLb : null; }
+function nearCeiling(ex, w, plateLb){
+  var c = ceilingFor(ex, plateLb);
+  return c != null && w != null && w >= c - CEILING_GAP;
+}
+
+/* The last time this exercise was trained: the working load, and every rep
+   logged at it, in order. Double progression needs the whole row, not a best. */
+function lastPerformance(exId, history){
+  for (var i = history.length - 1; i >= 0; i--){
+    var rows = (history[i].sets || {})[exId];
+    if (!rows) continue;
+    var done = rows.filter(function(r){ return r.done && Number(r.r) > 0; });
+    if (!done.length) continue;
+    var w = Math.max.apply(null, done.map(function(r){ return Number(r.w) || 0; }));
+    var atTop = done.filter(function(r){ return (Number(r.w) || 0) === w; });
+    var reps = atTop.map(function(r){ return Number(r.r); });
+    return {
+      weight: w, reps: reps, ts: history[i].ts,
+      best: Math.max.apply(null, reps),
+      worst: Math.min.apply(null, reps),
+      total: reps.reduce(function(a,b){ return a + b; }, 0)
+    };
+  }
+  return null;
+}
+
+function latestTest(id, tests){
+  var rows = (tests || {})[id];
+  return rows && rows.length ? Number(rows[rows.length - 1].v) : null;
+}
+function firstTest(id, tests){
+  var rows = (tests || {})[id];
+  return rows && rows.length ? Number(rows[0].v) : null;
+}
+
+/* Where a skill starts before anything is logged. The handstand pushup has a
+   published entry test; the front lever always starts in a tuck. */
+function startLevel(skillId, tests){
+  if (skillId !== "hspu") return 1;
+  var pike = latestTest("pike", tests), hold = latestTest("c2w", tests);
+  return (pike != null && pike >= 8 && hold != null && hold >= 30) ? 2 : 1;
+}
+
+/* Replay the log for one skill. A position is earned by hitting the criterion
+   sets in a session you also rated clean, and given back the moment a session
+   breaks down — grinding a degraded hold teaches a compensation that takes
+   months to undo. `from` is where the current position began, which is what
+   scopes the rep and second targets so they restart on a move. */
+function levelRun(skillId, history, tests){
+  var s = SKILLS[skillId], lv = startLevel(skillId, tests), from = 0, at = [];
+  for (var i = 0; i < history.length; i++){
+    at.push(lv);
+    var h = history[i], q = (h.fb || {})["sk:" + skillId];
+    if (q == null) continue;
+    var hits = 0;
+    Object.keys(h.sets || {}).forEach(function(id){
+      var ex = exById(id);
+      if (!ex || ex.skill !== skillId) return;
+      h.sets[id].forEach(function(r){ if (r.done && Number(r.r) >= s.crit) hits++; });
+    });
+    if (q === 2 && lv > 1){ lv -= 1; from = i + 1; }
+    else if (q === 0 && hits >= s.critSets && lv < s.ladder.length){ lv += 1; from = i + 1; }
+  }
+  return {level: lv, from: from, at: at, hits: null};
+}
+
+/* How many sets of this skill reached the criterion last time it was trained,
+   which is what the app shows you as distance to the next position. */
+function critHits(skillId, history, from){
+  var s = SKILLS[skillId];
+  for (var i = history.length - 1; i >= from; i--){
+    var h = history[i], hits = 0, found = false;
+    Object.keys(h.sets || {}).forEach(function(id){
+      var ex = exById(id);
+      if (!ex || ex.skill !== skillId) return;
+      found = true;
+      h.sets[id].forEach(function(r){ if (r.done && Number(r.r) >= s.crit) hits++; });
+    });
+    if (found) return hits;
+  }
+  return null;
+}
+
+function prescribe(ex, history, opts){
+  opts = opts || {};
+  var plateLb = opts.plateLb || DEFAULT_PLATES;
+  var u = unitOf(ex);
+
+  /* Accumulated wall time. The total is the target; what improves is the size
+     of the chunks it comes in. */
+  if (ex.accum){
+    var per = Math.ceil(ex.accum / ex.sets);
+    var la = lastPerformance(ex.id, history);
+    if (!la) return {weight:0, reps:per, why:"Accumulate " + ex.accum + "s against the wall. Break it into as many sets as it takes — " + per + "s is a fair chunk."};
+    if (la.total >= ex.accum) return {weight:0, reps: la.best + 5,
+      why:"Last time " + la.total + "s across " + la.reps.length + " sets. Same " + ex.accum + "s, in longer pieces — go for " + (la.best + 5) + "s a set."};
+    return {weight:0, reps: Math.max(per, la.best),
+      why:"Last time " + la.total + "s of the " + ex.accum + "s. Same target again before the holds get longer."};
+  }
+
+  /* Skill work. Reps and seconds are scoped to the current position, so a move
+     up or down starts the count again, and they climb past the top of the
+     working range because the criterion sits above it. */
+  if (ex.skill){
+    var s = SKILLS[ex.skill];
+    var lv = opts.level || 1;
+    var name = s.ladder[lv - 1];
+    var scoped = history.slice(opts.levelFrom || 0);
+    var ls = lastPerformance(ex.id, scoped);
+    var goal = " Advance at " + s.critSets + " × " + s.crit + u + " clean.";
+    if (!ls) return {weight:0, reps:ex.lo, level:lv, position:name,
+      why:"First time here at " + name.split(" — ")[0] + ". Open at " + ex.lo + u + " a set and see how it holds." + goal};
+    return {weight:0, reps: ls.best + 1, level:lv, position:name,
+      why:"Best set last time was " + ls.best + u + " at " + name.split(" — ")[0] + ". Add one." + goal};
+  }
+
+  /* Bodyweight and band accessories. Nothing to load, so reps climb to the top
+     of the range and stop there — past that the progression is the band or the
+     position, not another rep. */
+  if (loadless(ex)){
+    var lb = lastPerformance(ex.id, history);
+    if (!lb) return {weight:0, reps:ex.lo, why:"First time in. " + ex.lo + " clean reps, no load."};
+    if (lb.best >= ex.hi) return {weight:0, reps:ex.hi,
+      why: ex.band
+        ? "Top of the range at " + lb.best + ". Step up to a thicker band and start again at " + ex.lo + "."
+        : "Top of the range at " + lb.best + ". Hold " + ex.hi + " and make every rep stricter — there is no load to add here."};
+    return {weight:0, reps: Math.min(ex.hi, lb.best + 1), why:"Last time " + lb.best + " — add one."};
+  }
+
+  /* Double progression. The load does not move until every set reaches the top
+     of the range, and then it moves by one step and the reps start again at the
+     bottom. */
+  var last = lastPerformance(ex.id, history), step = stepFor(ex);
+  if (!last){
+    return {weight:null, reps:ex.hi,
+      why: ex.gear === "Added"
+        ? "First time in. Pick an added load you can hold for " + ex.lo + "–" + ex.hi + " reps — 0 is a fine answer, that is a clean bodyweight chin-up."
+        : "First time in. Pick a load you can hold for " + ex.lo + "–" + ex.hi + " reps on every set."};
+  }
+  var list = last.reps.join(", ");
+  if (nearCeiling(ex, last.weight, plateLb)){
+    return {weight:last.weight, reps:ex.hi, tempo:true,
+      why:"Within " + CEILING_GAP + " lb of loading every plate you own. Stop chasing the number — same " + fmt(last.weight) +
+        " lb with a 3-second eccentric and a pause at the bottom."};
+  }
+  if (last.reps.length && last.reps.every(function(r){ return r >= ex.hi; })){
+    return {weight: roundLoad(ex, last.weight + step), reps: ex.lo,
+      why:"Top of the range on every set (" + list + ") — add " + step + " lb and drop back to " + ex.lo + "."};
+  }
+  /* Only a real range can be missed. A fixed prescription — 3 × 15 on the rear
+     delt flye — is one rep short, not a failed session, and repeats. */
+  if (ex.lo < ex.hi && last.reps.every(function(r){ return r < ex.lo; })){
+    return {weight: roundLoad(ex, last.weight - step), reps: ex.hi,
+      why:"Every set fell short of " + ex.lo + " (" + list + ") — take " + step + " lb off and rebuild."};
+  }
+  return {weight:last.weight, reps:ex.hi, lastReps:last.reps,
+    why:"Same " + fmt(last.weight) + " lb until every set reaches " + ex.hi + ". Last time: " + list + "."};
+}
+
+/* --- the three levers the program pulls on itself ------------------- */
+
+function lastAnswer(key, history){
+  for (var i = history.length - 1; i >= 0; i--){
+    var v = (history[i].fb || {})[key];
+    if (v != null) return {v:v, ts:history[i].ts, i:i};
+  }
+  return null;
+}
+
+/* Grumpy elbows halve the straight-arm volume for a week. Tendons want reduced
+   load, not zero, so nothing is removed — the sets are cut in half and come
+   back on their own. */
+function straightArmCut(history, now){
+  var a = lastAnswer("elbow", history);
+  if (!a || a.v === 0) return null;
+  var days = Math.floor((now - a.ts) / DAY_MS);
+  if (days >= ELBOW_DAYS) return null;
+  return {v:a.v, daysLeft: ELBOW_DAYS - days};
+}
+
+/* Cycles completed in the last thirty days. Null until there is enough log to
+   say anything, because two sessions in week one is not a rate. */
+function cyclesPerMonth(history, now){
+  if (!history.length) return null;
+  if (now - history[0].ts < 21 * DAY_MS) return null;
+  var recent = history.filter(function(h){ return now - h.ts <= 30 * DAY_MS; });
+  return recent.length / SLOT_COUNT;
+}
+
+/* When the cycle is running slow or the legs are going, Skill B is what gives:
+   fifteen minutes of wall holds and kick-ups, nothing that competes for
+   recovery. Sleep and the barbell work are not on the table. */
+function skillBTrim(history, now){
+  var cpm = cyclesPerMonth(history, now);
+  if (cpm != null && cpm < CYCLE_FLOOR)
+    return {why:"Cycles are running at " + cpm.toFixed(1) + " a month, under " + CYCLE_FLOOR + ".",
+      how:"Skill B is cut to fifteen minutes of pure practice so it stops competing for recovery."};
+  var legs = lastAnswer("legs", history);
+  if (legs && legs.v === 2)
+    return {why:"Legs went to mush last legs session.",
+      how:"Skill B is cut back to practice until legs read better — it gives before sleep or the barbell work does."};
+  return null;
+}
+
+/* Standing overhead press comes off Push when the handstand work reads heavy. */
+function ohpCut(history){
+  var a = lastAnswer("hsload", history);
+  return !!(a && a.v === 2);
+}
+
+/* The program's two rules about where the rest day goes. */
+function restAdvice(abs, history, now){
+  var slot = slotOf(abs), out = [];
+  if (slot.id === "skilla"){
+    out.push({cls:"rest", head:"Rest here if you are running the cycle straight",
+      body:"Pull → Skill A → Skill B compressed puts three lat- and elbow-loading sessions too close together. This is the gap to open first."});
+  }
+  if (slot.id === "skillb"){
+    var b = lastAnswer("balance", history);
+    if (b && b.v === 2) out.push({cls:"rest", head:"Take a rest day before this one",
+      body:"Balance was off last skill session. It degrades before you feel systemically tired, and wobbly wall time is rehearsal of bad positions, not practice."});
+    else if (b && b.v === 1) out.push({cls:"rest", head:"Watch the first few kick-ups",
+      body:"Balance was wobbly last time. If it is still wobbly on the wall, stop and take the rest day instead."});
+  }
+  var last = history.length ? history[history.length - 1] : null;
+  if (last){
+    var d = Math.floor((now - last.ts) / DAY_MS);
+    out.push({cls:"", head: d === 0 ? "Last session was today" : d === 1 ? "One day since your last session" : d + " days since your last session",
+      body:"Slots advance when you train them, not on a calendar. Put the rest days where the two rules say."});
+  }
+  return out;
+}
+
+/* Which questions this session collects, derived from what is actually in it
+   rather than from the slot, so a trimmed Skill B stops asking about elbows it
+   never loaded. */
+function questionsFor(exercises, slot){
+  var qs = [], skills = [];
+  exercises.forEach(function(ex){
+    if (ex.skill && skills.indexOf(ex.skill) < 0) skills.push(ex.skill);
+  });
+  skills.forEach(function(s){ qs.push("sk:" + s); });
+  if (exercises.some(function(e){ return e.muscle === "handstand"; })) qs.push("balance", "hsload");
+  if (exercises.some(function(e){ return e.elbow; })) qs.push("elbow");
+  if (slot.id === "legs") qs.push("legs");
+  return qs;
+}
+
+/* ============================== STORAGE ============================== */
+
+var KEY = "rolling-five-v1";
+var memory = null;
+
+function blank(){ return {index:0, history:[], draft:null, tests:{}, plates:DEFAULT_PLATES}; }
+
+function loadState(){
+  try {
+    var raw = localStorage.getItem(KEY);
+    if (raw){
+      var s = JSON.parse(raw);
+      if (!s.tests) s.tests = {};
+      if (!s.plates) s.plates = DEFAULT_PLATES;
+      if (s.draft && !s.draft.fb) s.draft.fb = {};
+      if (s.draft && !s.draft.exs) s.draft.exs = Object.keys(s.draft.sets);
+      return s;
+    }
+  } catch (e) { /* storage blocked — fall through */ }
+  return memory || blank();
+}
+function saveState(){
+  memory = state;
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+}
+
+/* ============================== STATE ============================== */
+
+var state = loadState();
+var tab = "cycle", view = "home", summary = null, openWhy = null, selEx = null, confirmErase = false;
+var needWeight = null;   /* "exId:i" of a set that was tapped with no weight in it */
+var ask = null;          /* {keys:[...]} — the sheet interrupting the session */
+var testDraft = {};      /* typed-but-unsaved baseline test numbers */
+
+/* Which session the home screen is looking at. null means the live one. Only
+   the live session is ever writable — peeking is read-only by construction,
+   because every action reads ctx() with no argument. */
+var peek = null;
+
+function peekIndex(){ return peek == null ? state.index : peek; }
+function peekLast(){ return state.index + SLOT_COUNT - 1; }
+
+/* Absolute slot index, not the position in the cycle. Pass one to look at a
+   coming session; its targets come out of the same engine the live session
+   uses, so they are a projection from everything logged so far. */
+function ctx(absIndex){
+  var abs = absIndex == null ? state.index : absIndex;
+  var now = Date.now();
+  var slot = slotOf(abs), hist = state.history;
+  var live = !!(state.draft && state.draft.index === abs);
+
+  var cut = straightArmCut(hist, now);
+  var trim = slot.id === "skillb" ? skillBTrim(hist, now) : null;
+  var drop = slot.id === "push" && ohpCut(hist);
+
+  var levels = {};
+  Object.keys(SKILLS).forEach(function(k){ levels[k] = levelRun(k, hist, state.tests); });
+
+  /* Once a session is open its shape is the draft's, so nothing can appear or
+     vanish underneath the sets already logged. */
+  var exercises = live
+    ? state.draft.exs.map(exById).filter(Boolean)
+    : slot.exercises.filter(function(ex){
+        if (trim && !ex.practice) return false;
+        if (drop && ex.cuttable) return false;
+        return true;
+      });
+
+  var counts = {}, targets = {};
+  exercises.forEach(function(ex){
+    counts[ex.id] = live ? state.draft.sets[ex.id].length
+      : (cut && ex.straightArm) ? Math.max(1, Math.ceil(ex.sets / 2)) : ex.sets;
+    var lv = ex.skill ? levels[ex.skill] : null;
+    targets[ex.id] = prescribe(ex, hist, {
+      plateLb: state.plates, level: lv ? lv.level : null, levelFrom: lv ? lv.from : 0
+    });
+  });
+
+  return {
+    abs: abs, idx: abs % SLOT_COUNT, cycle: cycleOf(abs), slot: slot, now: now,
+    exercises: exercises, counts: counts, targets: targets, levels: levels,
+    cut: cut, trim: trim, drop: drop, skill: slot.kind === "skill",
+    questions: questionsFor(exercises, slot)
+  };
+}
+function plannedSets(c, ex){ return c.counts[ex.id]; }
+
+/* ============================== VIEWS ============================== */
+
+/* A way out to a demo when you cannot picture the movement. Plain link, no
+   data-a, so the delegated click handler ignores it. */
+function videoHTML(ex){
+  return '<a class="vid" target="_blank" rel="noopener noreferrer"' +
+    ' aria-label="Search YouTube for ' + ex.name + '"' +
+    ' href="https://www.youtube.com/results?search_query=' + encodeURIComponent(ex.name) + '">' +
+    '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" focusable="false">' +
+    '<rect x="2" y="4.5" width="20" height="15" rx="4.5" fill="none" stroke="currentColor" stroke-width="2"/>' +
+    '<path d="M10 8.9v6.2l5.2-3.1z" fill="currentColor"/></svg></a>';
+}
+
+function loadLabel(ex, w, blank){
+  if (loadless(ex)) return "N/A";
+  if (w == null) return blank || "—";
+  if (ex.gear === "Added" && Number(w) === 0) return "bodyweight";
+  return fmt(w) + " lb";
+}
+function repLabel(ex, t){
+  return t.reps + unitOf(ex) + (ex.perLeg ? " / leg" : "");
+}
+function rangeLabel(ex){
+  return ex.lo === ex.hi ? String(ex.lo) + unitOf(ex) : ex.lo + "–" + ex.hi + unitOf(ex);
+}
+function tagHTML(m){
+  return '<span class="tag" style="--c:' + (HUE[m] || "#a8a29e") + '"><b><s></s><s></s><s></s></b>' + m + '</span>';
+}
+function noteHTML(n){
+  return '<div class="note ' + n.cls + '"><b>' + n.head + '</b>' + n.body + '</div>';
+}
+
+function headerHTML(c, live){
+  var at = live ? live.idx : c.idx;
+  var mark = live && c.cycle === live.cycle ? c.idx : -1;
+  var rail = "";
+  for (var i = 0; i < SLOT_COUNT; i++){
+    var cls = i === at ? "now" : i < at ? "done" : SLOTS[i].kind === "skill" ? "sk" : "";
+    if (i === mark && i !== at) cls += " peek";
+    rail += '<i class="' + cls + '"></i>';
+  }
+  return '<header><div class="htop"><h1>' +
+    (c.skill ? "<em>" + c.slot.name.toUpperCase() + "</em>" : c.slot.name.toUpperCase()) +
+    ' <span>SLOT ' + posOf(c.abs) + '</span></h1>' +
+    '<span class="eyebrow">Cycle ' + c.cycle + '</span></div>' +
+    '<p class="muted" style="font-size:14px">Push Pull Legs Skill Skill · rest goes wherever you need it</p>' +
+    '<div class="rail">' + rail + '</div></header>';
+}
+
+function exLineHTML(c, ex){
+  var t = c.targets[ex.id];
+  return '<div class="rowline"><div style="min-width:0"><p class="name">' + ex.name + '</p>' +
+    '<p class="dim" style="font-size:12px">' + ex.gear +
+    (t.position ? " · " + t.position.split(" — ")[0] : "") + '</p></div>' +
+    '<div style="text-align:right;flex-shrink:0"><p class="num" style="font-size:14px">' +
+    plannedSets(c, ex) + ' × ' + repLabel(ex, t) + '</p>' +
+    '<p class="num dim" style="font-size:12px">' + loadLabel(ex, t.weight, "pick a load") + '</p></div></div>';
+}
+
+function viewHome(c, live){
+  var total = c.exercises.reduce(function(a, e){ return a + plannedSets(c, e); }, 0);
+  var ahead = c.abs - live.abs;
+  var h = headerHTML(c, live) + '<div class="wrap">';
+
+  h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">' +
+    '<button class="chip" data-a="peekprev"' + (ahead ? "" : " disabled") + ' style="flex-shrink:0">‹</button>' +
+    '<p class="eyebrow" style="flex:1;text-align:center">' +
+    (ahead ? ahead + " slot" + (ahead === 1 ? "" : "s") + " ahead" : "Up next") + '</p>' +
+    '<button class="chip" data-a="peeknext"' + (c.abs >= peekLast() ? " disabled" : "") + ' style="flex-shrink:0">›</button></div>';
+
+  if (ahead){
+    h += '<div class="card" style="padding:12px;margin-bottom:16px">' +
+      '<p class="muted" style="font-size:14px">Looking ahead. These numbers are projected from what you have logged so far — they move as you train and answer. Nothing here can be logged until it is the session in front of you.</p></div>';
+  }
+
+  h += '<div class="stack" style="margin-bottom:16px">';
+  if (c.trim) h += noteHTML({cls:"warn", head:"Skill B is cut back to practice", body:c.trim.why + " " + c.trim.how});
+  if (c.cut) h += noteHTML({cls:"cut", head:"Straight-arm volume halved for " + c.cut.daysLeft + " more day" + (c.cut.daysLeft === 1 ? "" : "s"),
+    body:"You reported " + (c.cut.v === 2 ? "painful" : "grumpy") + " elbows. Front lever work is halved rather than stopped — tendons want reduced load, not zero. It restores itself."});
+  if (c.drop) h += noteHTML({cls:"warn", head:"Standing overhead press is off this session",
+    body:"The handstand work read heavy last skill day, and the press is the first thing the program cuts. Report it light or normal and it comes straight back."});
+  if (!ahead) restAdvice(c.abs, state.history, c.now).forEach(function(n){ h += noteHTML(n); });
+  h += '</div>';
+
+  h += '<p class="muted" style="font-size:14px;margin-bottom:14px"><b class="num" style="color:var(--ink)">' + total +
+    '</b> sets · <b class="num" style="color:var(--ink)">' + c.exercises.length +
+    '</b> exercises · <b class="num" style="color:var(--ink)">' + state.history.length + '</b> sessions logged</p>';
+
+  h += '<div class="card list">';
+  c.exercises.forEach(function(ex){ h += '<div>' + exLineHTML(c, ex) + '</div>'; });
+  h += '</div>';
+
+  h += ahead
+    ? '<button class="btn ghost mt" data-a="peektoday">Back to the session in front of you</button></div>'
+    : '<button class="btn go mt" data-a="' + (state.draft ? "resume" : "start") + '">' +
+      (state.draft ? "Resume session" : "Start " + c.slot.name) + '</button></div>';
+  return h;
+}
+
+function viewSession(c){
+  var d = state.draft;
+  var h = headerHTML(c) +
+    '<div style="padding:10px 16px 0"><button class="eyebrow" data-a="back">‹ Back</button></div>';
+
+  if (c.trim) h += '<div style="padding:8px 16px 0">' + noteHTML({cls:"warn", head:"Practice only",
+    body:"Fifteen minutes of wall holds and kick-ups. " + c.trim.why}) + '</div>';
+  if (c.cut) h += '<div style="padding:8px 16px 0">' + noteHTML({cls:"cut", head:"Straight-arm sets halved",
+    body:"Elbows first. This restores itself " + c.cut.daysLeft + " day" + (c.cut.daysLeft === 1 ? "" : "s") + " from now."}) + '</div>';
+
+  h += '<div style="height:8px"></div>';
+
+  c.exercises.forEach(function(ex){
+    var t = c.targets[ex.id], rows = d.sets[ex.id] || [];
+    h += '<div class="ex"><div class="exhead"><div><h3>' + ex.name + '</h3>' +
+      '<p class="dim" style="font-size:14px">' + ex.gear + (ex.rest ? " · " + ex.rest : "") + '</p></div>' +
+      '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">' + videoHTML(ex) +
+      '<button class="chip" data-a="why" data-ex="' + ex.id + '">Why?</button></div></div>';
+
+    h += '<div class="target' + (ex.skill ? " sk" : "") + '"><span>Target</span><b>' +
+      (loadless(ex) ? "" : loadLabel(ex, t.weight) + " × ") + repLabel(ex, t) + '</b>' +
+      '<span class="dim">(' + rangeLabel(ex) + ')</span>' +
+      (t.tempo ? '<span style="color:var(--warn)">3s eccentric + pause</span>' : "") + '</div>';
+
+    if (t.position) h += '<p class="cue" style="color:var(--skill)">' + t.position + '</p>';
+    if (ex.accum) h += '<p class="cue">Accumulate ' + ex.accum + 's in total, however it breaks up.</p>';
+    if (ex.cue) h += '<p class="cue">' + ex.cue + '</p>';
+
+    if (onBar(ex) && t.weight > 0){
+      var ps = platesPerSide(ex, t.weight);
+      h += '<p class="num dim" style="font-size:12px;margin-top:3px">' + (ps ? "bar + " + ps + " per side" : "empty bar") + '</p>';
+    }
+    if (openWhy === ex.id) h += '<div class="why">' + t.why + '</div>';
+
+    h += '<div class="grid" style="margin-top:14px"><span class="eyebrow">Set</span>' +
+      '<span class="eyebrow">' + (ex.gear === "Added" ? "Added" : "Weight") + '</span>' +
+      '<span class="eyebrow">' + (ex.time ? "Seconds" : "Reps") + '</span>' +
+      '<span class="eyebrow">Log</span></div>';
+
+    rows.forEach(function(r, i){
+      var ph = t.weight == null ? "lb" : fmt(t.weight);
+      var rph = (t.lastReps && t.lastReps[i] != null) ? t.lastReps[i] : t.reps;
+      var nag = needWeight === ex.id + ":" + i;
+      h += '<div class="grid" style="margin-top:8px"><span class="num dim" style="text-align:center;font-size:14px">' + (i + 1) + '</span>' +
+        (loadless(ex)
+          ? '<div class="cell dim" style="border-style:dashed">N/A</div>'
+          : '<input class="cell' + (nag ? " need" : "") + '" inputmode="decimal" data-ex="' + ex.id + '" data-i="' + i + '" data-f="w" value="' + r.w + '" placeholder="' + ph + '">') +
+        '<input class="cell" inputmode="numeric" data-ex="' + ex.id + '" data-i="' + i + '" data-f="r" value="' + r.r + '" placeholder="' + rph + '">' +
+        '<button class="log' + (r.done ? " on" : "") + '" data-a="toggle" data-ex="' + ex.id + '" data-i="' + i + '">✓</button></div>';
+      if (nag) h += '<p style="color:var(--ask);font-size:12px;margin-top:6px">Put in the weight you used and this set will log.</p>';
+    });
+
+    h += '<div style="display:flex;gap:10px;margin-top:14px">' +
+      '<button class="chip" data-a="addset" data-ex="' + ex.id + '">+ Set</button>' +
+      '<button class="chip" data-a="dropset" data-ex="' + ex.id + '">− Set</button></div></div>';
+  });
+
+  var totalSets = 0, doneSets = 0;
+  Object.keys(d.sets).forEach(function(k){
+    totalSets += d.sets[k].length;
+    doneSets += d.sets[k].filter(function(x){ return x.done; }).length;
+  });
+
+  var left = totalSets - doneSets;
+  h += '<div class="wrap"><p class="muted center" style="font-size:14px;margin-bottom:12px">' +
+    '<b class="num" style="color:var(--ink)">' + doneSets + '</b> of ' + totalSets + ' sets logged</p>';
+  h += left
+    ? '<button class="btn ghost" disabled>' + left + ' set' + (left === 1 ? "" : "s") + ' still to log</button>' +
+      '<p class="dim center" style="font-size:12px;margin-top:10px">Every set gets logged before a session closes. ' +
+      'Use − Set on anything you are not doing.</p>'
+    : '<button class="btn go" data-a="finish">Finish ' + c.slot.name + '</button>';
+  h += '</div>';
+  if (ask) h += viewAsk(c);
+  return h;
+}
+
+/* Answers live on the draft, so they survive a reload mid-session. */
+function fb(){ return state.draft.fb; }
+function exercisesForSkill(c, skillId){
+  return c.exercises.filter(function(e){ return e.skill === skillId; });
+}
+function skillDone(c, skillId){
+  return exercisesForSkill(c, skillId).every(function(ex){
+    var rows = state.draft.sets[ex.id] || [];
+    return rows.length > 0 && rows.every(function(r){ return r.done; });
+  });
+}
+
+/* The skill questions are asked the moment that skill's work is finished,
+   while the position is still fresh in the hands. Everything else waits for
+   the end of the session, where it is one screen instead of five interruptions. */
+function pendingSkills(c){
+  var out = [];
+  c.questions.forEach(function(k){
+    if (k.indexOf("sk:") !== 0) return;
+    if (fb()[k] != null) return;
+    if (skillDone(c, k.slice(3))) out.push(k);
+  });
+  return out;
+}
+function askIfPending(c){
+  var keys = pendingSkills(c);
+  if (keys.length) ask = {keys: keys};
+}
+function missingFeedback(c){
+  return c.questions.filter(function(k){ return fb()[k] == null; });
+}
+function setsLeft(){
+  if (!state.draft) return 0;
+  var n = 0;
+  Object.keys(state.draft.sets).forEach(function(k){
+    n += state.draft.sets[k].filter(function(r){ return !r.done; }).length;
+  });
+  return n;
+}
+
+/* Adding or dropping a set changes how many sets there were to be clean on, so
+   that skill's form answer no longer describes what happened. */
+function volumeChanged(c, exId){
+  var ex = exById(exId);
+  if (!ex || !ex.skill) return;
+  fb()["sk:" + ex.skill] = null;
+  askIfPending(c);
+}
+
+function questionMeta(key, c){
+  if (key.indexOf("sk:") === 0){
+    var s = SKILLS[key.slice(3)];
+    var lv = c.levels[s.id];
+    var pos = s.ladder[lv.level - 1].split(" — ")[0];
+    return {head: s.name + " form", list: SKILLQ,
+      q: "Were your " + pos.toLowerCase() + " sets clean, or did the position go? Only clean work earns the next step, and a set that broke down gives one back."};
+  }
+  return {
+    balance: {head:"Handstand quality", list:BALANCE,
+      q:"How was your balance today? It degrades before you feel tired, and it decides whether a rest day goes before Skill B."},
+    hsload: {head:"Handstand load", list:HSLOAD,
+      q:"How did the handstand work feel overall? Heavy takes the standing overhead press off your next Push session."},
+    elbow: {head:"Elbows", list:ELBOWQ,
+      q:"How are your elbows? Grumpy halves the straight-arm volume for a week instead of stopping it."},
+    legs: {head:"Legs", list:LEGSQ,
+      q:"How did the legs feel through the session? Mush is the sign that Skill B should give first."}
+  }[key];
+}
+
+function optsHTML(key, c, action){
+  var meta = questionMeta(key, c), cur = fb()[key];
+  var h = '<div class="opts" style="grid-template-columns:repeat(3,1fr)">';
+  meta.list.forEach(function(label, i){
+    h += '<button class="' + (cur === i ? "on" : "") + '" data-a="' + action + '" data-k="' + key + '" data-v="' + i + '">' + label + '</button>';
+  });
+  return h + '</div>';
+}
+
+/* The sheet that interrupts the session when a skill is done. */
+function viewAsk(c){
+  var ready = ask.keys.every(function(k){ return fb()[k] != null; });
+  var h = '<div class="scrim"><div class="sheet"><p class="eyebrow">That is your skill work done</p>';
+  ask.keys.forEach(function(k){
+    var meta = questionMeta(k, c);
+    h += '<h3>' + meta.head + '</h3><p class="q">' + meta.q + '</p>' + optsHTML(k, c, "ask");
+  });
+  return h + '<div style="display:flex;justify-content:flex-end;align-items:center;gap:22px;margin-top:22px">' +
+    '<button style="font-size:15px;font-weight:700;color:var(--muted)" data-a="asklater">Not now</button>' +
+    '<button class="save" data-a="asksave"' + (ready ? "" : " disabled") + '>Save</button></div></div></div>';
+}
+
+function viewFeedback(c){
+  var keys = missingFeedback(c), complete = !keys.length;
+  var h = '<div class="fb"><div style="display:flex;justify-content:space-between;align-items:flex-start">' +
+    '<h2>Feedback</h2><button style="font-size:30px;color:var(--muted);line-height:1" data-a="fbcancel">×</button></div>' +
+    '<p class="muted" style="font-size:14px;margin-top:6px">' +
+    'Four taps at most. This is what moves your skill positions and decides what the program cuts next.</p>';
+
+  keys.forEach(function(k){
+    var meta = questionMeta(k, c);
+    h += '<h3>' + meta.head + '</h3><p class="q">' + meta.q + '</p>' + optsHTML(k, c, "fbans") + '<div class="rule"></div>';
+  });
+
+  h += '<div style="display:flex;justify-content:flex-end;align-items:center;gap:22px;margin-top:26px">' +
+    '<button style="font-size:17px;font-weight:700;color:var(--muted)" data-a="fbcancel">Cancel</button>' +
+    '<button class="save" data-a="fbsave"' + (complete ? "" : " disabled") + '>Save</button></div>';
+  if (!complete) h += '<p class="dim" style="font-size:12px;text-align:right;margin-top:8px">Answer every question to save.</p>';
+  return h + '</div>';
+}
+
+function viewSummary(){
+  var s = summary;
+  var h = '<div class="wrap"><p class="eyebrow" style="color:var(--go)">' + s.justDid + ' logged</p>' +
+    '<h2 style="font-size:30px;font-weight:900;margin-top:4px">Next up: ' + s.slotName + '</h2>' +
+    '<p class="muted" style="font-size:14px;margin-top:4px">Slot ' + s.pos + ' of ' + SLOT_COUNT + ', cycle ' + s.cycle + '</p>';
+
+  if (s.changes.length){
+    h += '<p class="eyebrow" style="margin:22px 0 8px">What that session changed</p><div class="stack">';
+    s.changes.forEach(function(ch){
+      h += '<div class="card" style="padding:12px;border-color:' + ch.col + '33;background:' + ch.col + '14">' +
+        '<p style="font-size:14px;font-weight:800;color:' + ch.col + '">' + ch.head + '</p>' +
+        '<p class="muted" style="font-size:14px;margin-top:4px">' + ch.body + '</p></div>';
+    });
+    h += '</div>';
+  }
+
+  h += '<p class="eyebrow" style="margin:22px 0 8px">Your targets</p><div class="card list">';
+  s.targets.forEach(function(t){
+    h += '<div><div class="rowline"><p class="name">' + t.ex.name + '</p>' +
+      '<p class="num" style="font-size:14px;color:var(--go);flex-shrink:0">' + t.sets + ' × ' + repLabel(t.ex, t) + ' ' +
+      (loadless(t.ex) ? "" : t.weight == null ? "" : "@ " + loadLabel(t.ex, t.weight)) + '</p></div>' +
+      '<p class="dim" style="font-size:12px;margin-top:4px">' + t.why + '</p></div>';
+  });
+  h += '</div><button class="btn ghost" style="margin-top:22px" data-a="summarydone">Done</button></div>';
+  return h;
+}
+
+function viewSkills(c){
+  var h = '<div class="wrap"><h2 style="font-size:24px;font-weight:900">Skills</h2>' +
+    '<p class="muted" style="font-size:14px;margin-top:4px">Position, not load. You stay on a step until you own it; a session that breaks down gives one back.</p>';
+
+  Object.keys(SKILLS).forEach(function(id){
+    var s = SKILLS[id], run = c.levels[id], hits = critHits(id, state.history, run.from);
+    h += '<div style="margin-top:22px">' + tagHTML(s.name.toLowerCase()) +
+      '<div class="card" style="margin-top:8px">';
+    s.ladder.forEach(function(step, i){
+      var n = i + 1;
+      var cls = n === run.level ? "on" : n < run.level ? "done" : "";
+      h += '<div class="step ' + cls + '"><i>' + n + '</i><p>' + step + '</p></div>';
+    });
+    h += '</div><div class="card" style="padding:12px;margin-top:8px">' +
+      '<p style="font-size:14px;font-weight:700">Advance at ' + s.advance + '</p>' +
+      '<p class="muted" style="font-size:14px;margin-top:4px">' +
+      (hits == null
+        ? "Nothing logged at this position yet."
+        : "Last time you got " + hits + " set" + (hits === 1 ? "" : "s") + " to " + s.crit + s.unit + ". " +
+          (hits >= s.critSets ? "Rate the next one clean and you move up." : "You need " + s.critSets + ".")) +
+      '</p><p class="dim" style="font-size:12px;margin-top:6px">' + s.entry + '</p>' +
+      (s.cue ? '<p class="dim" style="font-size:12px;margin-top:6px">' + s.cue + '</p>' : "") + '</div></div>';
+  });
+
+  h += '<p class="eyebrow" style="margin:30px 0 8px">Baseline tests</p>' +
+    '<p class="muted" style="font-size:14px;margin-bottom:10px">Do these fresh, not after a session. Retest every 4–6 cycles.</p>';
+
+  var lastCycle = null;
+  TESTS.forEach(function(t){
+    var rows = state.tests[t.id] || [];
+    if (rows.length){ var lc = rows[rows.length - 1].cycle; if (lastCycle == null || lc < lastCycle) lastCycle = lc; }
+  });
+  if (lastCycle != null && c.cycle - lastCycle >= RETEST_CYCLES){
+    h += noteHTML({cls:"warn", head:"Time to retest",
+      body:"It has been " + (c.cycle - lastCycle) + " cycles since the last one. Do them fresh, before a session, not after."});
+  }
+
+  h += '<div class="card list" style="margin-top:10px">';
+  TESTS.forEach(function(t){
+    var rows = state.tests[t.id] || [];
+    var base = firstTest(t.id, state.tests), now = latestTest(t.id, state.tests);
+    var val = testDraft[t.id] != null ? testDraft[t.id] : "";
+    h += '<div><div class="rowline"><div style="min-width:0"><p class="name">' + t.name + '</p>' +
+      '<p class="dim" style="font-size:12px">' + t.hint + '</p></div>' +
+      '<div style="text-align:right;flex-shrink:0"><p class="num" style="font-size:14px">' +
+      (now == null ? "—" : now + " " + t.unit) + '</p>' +
+      '<p class="num dim" style="font-size:12px">' + (base == null ? "no baseline" : "from " + base) + '</p></div></div>' +
+      '<div style="display:flex;gap:8px;margin-top:10px;align-items:center">' +
+      '<input class="cell" style="flex:1" inputmode="decimal" data-t="' + t.id + '" value="' + val + '" placeholder="' + t.unit + '">' +
+      '<button class="chip" data-a="logtest" data-t="' + t.id + '">Log</button></div>' +
+      (rows.length > 1 ? '<p class="dim num" style="font-size:12px;margin-top:6px">' +
+        rows.map(function(r){ return r.v; }).join(" → ") + '</p>' : "") + '</div>';
+  });
+  h += '</div>';
+  h += '<p class="dim" style="font-size:12px;margin-top:10px">The pike pushup and the chest-to-wall hold are not just records: 8 reps and 30 seconds together are what let the handstand pushup ladder start at step 2 instead of step 1.</p>';
+  return h + '</div>';
+}
+
+function viewProgress(c){
+  if (!state.history.length){
+    return '<div class="wrap center" style="padding-top:70px"><h2 style="font-size:24px;font-weight:900">No sessions yet</h2>' +
+      '<p class="muted" style="font-size:14px;margin-top:8px">Log your first session and your curves show up here.</p></div>';
+  }
+  var cpm = cyclesPerMonth(state.history, Date.now());
+  var logged = ALL_EX.filter(function(ex){
+    return state.history.some(function(h){
+      var r = (h.sets || {})[ex.id];
+      return r && r.some(function(x){ return x.done; });
+    });
+  });
+  if (!selEx || !logged.some(function(e){ return e.id === selEx; })) selEx = logged.length ? logged[0].id : null;
+  var ex = selEx ? exById(selEx) : null;
+
+  var h = '<div class="wrap"><h2 style="font-size:24px;font-weight:900">Progress</h2>' +
+    '<div class="card" style="padding:12px;margin-top:12px"><div class="rowline">' +
+    '<p style="font-size:14px;font-weight:700">Cycles a month</p>' +
+    '<span class="num" style="font-size:20px;font-weight:900;color:' +
+    (cpm == null ? "var(--dim)" : cpm < CYCLE_FLOOR ? "var(--warn)" : "var(--go)") + '">' +
+    (cpm == null ? "—" : cpm.toFixed(1)) + '</span></div>' +
+    '<p class="muted" style="font-size:14px;margin-top:4px">' +
+    (cpm == null
+      ? "Three weeks of log and this starts counting. Cycles completed per month is the number that matters, not sessions per week."
+      : cpm < CYCLE_FLOOR
+        ? "Under " + CYCLE_FLOOR + ". Skill frequency has dropped below where straight-arm strength and balance accrue, so Skill B is cut back to practice rather than resting more."
+        : "At or above " + CYCLE_FLOOR + ", which is where the skill work accrues.") + '</p></div>';
+
+  h += '<p class="eyebrow" style="margin:22px 0 0">Estimated best set, session by session</p>' +
+    '<div style="display:flex;gap:8px;overflow-x:auto;padding:14px 0 6px">';
+  logged.forEach(function(e){
+    h += '<button class="chip' + (selEx === e.id ? " on" : "") + '" style="flex-shrink:0;white-space:nowrap" data-a="selex" data-ex="' + e.id + '">' + e.name + '</button>';
+  });
+  h += '</div>';
+
+  if (ex){
+    var pts = [];
+    state.history.forEach(function(hh){
+      var rows = ((hh.sets || {})[ex.id] || []).filter(function(r){ return r.done && Number(r.r) > 0; });
+      if (!rows.length) return;
+      var best = 0;
+      rows.forEach(function(r){
+        var w = Number(r.w) || 0;
+        var val = (!loadless(ex) && w > 0) ? w * (1 + Number(r.r) / 30) : Number(r.r);
+        if (val > best) best = val;
+      });
+      pts.push({v:best, skill:!!ex.skill});
+    });
+    if (pts.length) h += spark(pts, ex.time ? "s" : loadless(ex) ? "reps" : "lb");
+  }
+
+  h += '<p class="eyebrow" style="margin:26px 0 8px">Session log</p><div class="stack">';
+  state.history.slice().reverse().forEach(function(hh){
+    var slot = SLOTS.filter(function(s){ return s.id === hh.slot; })[0] || {name:hh.slot};
+    var n = 0;
+    Object.keys(hh.sets || {}).forEach(function(k){ n += hh.sets[k].filter(function(x){ return x.done; }).length; });
+    h += '<div class="card rowline" style="padding:12px"><div><p style="font-size:14px;font-weight:700">' + slot.name +
+      ' <span class="dim">· cycle ' + hh.cycle + '</span></p>' +
+      '<p class="dim" style="font-size:12px">' + new Date(hh.ts).toLocaleDateString(undefined, {month:"short", day:"numeric"}) + '</p></div>' +
+      '<span class="num muted" style="font-size:14px">' + n + ' sets</span></div>';
+  });
+  return h + '</div>';
+}
+
+function spark(pts, unit){
+  var W = 320, H = 140;
+  var vals = pts.map(function(p){ return p.v; });
+  var min = Math.min.apply(null, vals) * 0.95, max = Math.max.apply(null, vals) * 1.05;
+  var span = (max - min) || 1;
+  function X(i){ return pts.length === 1 ? W / 2 : (i / (pts.length - 1)) * (W - 24) + 12; }
+  function Y(v){ return H - 20 - ((v - min) / span) * (H - 40); }
+  var path = pts.map(function(p, i){ return (i ? "L" : "M") + X(i).toFixed(1) + "," + Y(p.v).toFixed(1); }).join(" ");
+  var col = pts[0].skill ? "#a78bfa" : "#fbbf24";
+  var dots = pts.map(function(p, i){
+    return '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(p.v).toFixed(1) + '" r="4" fill="' + col + '"/>';
+  }).join("");
+  return '<div class="card" style="padding:12px"><svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%" role="img" aria-label="Progress chart">' +
+    '<path d="' + path + '" fill="none" stroke="' + col + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>' + dots +
+    '<text x="12" y="' + (H - 4) + '" fill="#78716c" font-size="10" font-family="monospace">' + vals[0].toFixed(0) + '</text>' +
+    '<text x="' + (W - 12) + '" y="' + (H - 4) + '" fill="#a8a29e" font-size="10" text-anchor="end" font-family="monospace">' +
+    vals[vals.length - 1].toFixed(0) + ' ' + unit + '</text></svg></div>';
+}
+
+function viewPlan(c){
+  var h = '<div class="wrap"><h2 style="font-size:24px;font-weight:900">The cycle</h2>' +
+    '<p class="muted" style="font-size:14px;margin-top:4px">Five slots in order, rest days wherever fatigue says. Nothing here is tied to a day of the week — the only number that matters is cycles completed per month.</p>';
+
+  h += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:16px 0 6px">';
+  SLOTS.forEach(function(s, i){
+    var abs = state.index - (state.index % SLOT_COUNT) + i;
+    if (abs < state.index) abs += SLOT_COUNT;
+    var cls = i === (state.index % SLOT_COUNT) ? "now" : abs === peekIndex() ? "peek" : "";
+    h += '<button class="cell-slot ' + cls + '" data-a="peekat" data-i="' + abs + '">' +
+      '<p style="font-size:12px;font-weight:800;text-transform:uppercase">' + s.name.split(" ")[0] + '</p>' +
+      '<p class="dim num" style="font-size:11px;margin-top:2px">' + (s.kind === "skill" ? s.name.split(" ")[1] : i + 1) + '</p></button>';
+  });
+  h += '</div>';
+
+  h += '<div class="stack mt">';
+  SLOTS.forEach(function(s, i){
+    var on = c.idx === i;
+    h += '<div class="card" style="padding:14px' + (on ? ";border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.05)" : "") + '">' +
+      '<div class="rowline"><h3 style="font-size:16px;font-weight:800">' + (i + 1) + '. ' + s.name + '</h3>' +
+      '<span class="num dim" style="font-size:12px">' + s.exercises.length + ' exercises</span></div>' +
+      '<p class="muted" style="font-size:14px;margin-top:4px">' + SLOT_COPY[s.id] + '</p></div>';
+  });
+  h += '</div>';
+
+  h += '<p class="eyebrow" style="margin:26px 0 8px">Where the rest days go</p>' +
+    '<div class="stack">' +
+    noteHTML({cls:"rest", head:"Between Legs and Skill A",
+      body:"When you are feeling good and tempted to run all five straight, this is the gap to open. Pull → Skill A → Skill B compressed puts three lat- and elbow-loading sessions too close together."}) +
+    noteHTML({cls:"rest", head:"Between Skill A and Skill B",
+      body:"Insert one if handstand quality is off. Balance degrades before you feel systemically tired, and wobbly wall time is rehearsal of bad positions, not practice."}) +
+    '</div>';
+
+  h += '<p class="eyebrow" style="margin:26px 0 8px">How targets are chosen</p>' +
+    '<ul class="muted" style="font-size:14px;padding-left:18px;margin:0">' +
+    '<li style="margin-bottom:6px">Barbell and dumbbell work is double progression: the load holds until <b>every</b> set reaches the top of the range, then it goes up 5 lb upper, 10 lb lower, and the reps drop back to the bottom.</li>' +
+    '<li style="margin-bottom:6px">Every set short of the bottom of the range takes the load back down one step.</li>' +
+    '<li style="margin-bottom:6px">Within ' + CEILING_GAP + ' lb of loading every plate you own, the load stops climbing and the sets pick up a 3-second eccentric and a pause instead.</li>' +
+    '<li style="margin-bottom:6px">Skill work progresses by position. Clean sets at the criterion move you up a step; a session that broke down moves you back one.</li>' +
+    '<li style="margin-bottom:6px">Bodyweight and band accessories climb to the top of their range and hold there — past that it is a thicker band or a harder position, not another rep.</li>' +
+    '<li>Everything is derived from what you logged. There is no stored plan to drift.</li></ul>';
+
+  h += '<p class="eyebrow" style="margin:26px 0 8px">What the program watches</p>' +
+    '<div class="stack">' +
+    noteHTML({cls:"cut", head:"Elbows, not knees",
+      body:"Front lever holds put enormous tension on the distal biceps and medial elbow with the arm locked. Report them grumpy and the straight-arm sets halve for a week — tendons want reduced load, not zero."}) +
+    noteHTML({cls:"warn", head:"Skill B gives first",
+      body:"Five slots feels fine for about three weeks, then legs day quietly turns to mush. Under " + CYCLE_FLOOR + " cycles a month, or legs reading mush, cuts Skill B to fifteen minutes of practice. Not sleep, and not the barbell work."}) +
+    noteHTML({cls:"warn", head:"Overhead press is the release valve",
+      body:"Report the handstand work heavy and the standing press comes off Push until it reads normal again."}) +
+    noteHTML({cls:"", head:"Knee wraps",
+      body:"Long stiff wraps are a maximal-load performance tool, not joint protection — they raise patellofemoral compression and shift mechanics. Sleeves are the different thing. At 3 × 8–10 with reps in reserve you are nowhere near loads that justify wraps."}) +
+    noteHTML({cls:"", head:"Body composition",
+      body:"Both skills are strength-to-weight events. In a caloric surplus, expect the front lever timeline to stretch considerably."}) +
+    '</div>';
+  return h + '</div>';
+}
+
+function viewSettings(c){
+  var h = '<div class="wrap"><h2 style="font-size:24px;font-weight:900">Settings</h2>';
+
+  h += '<div class="card mt" style="padding:14px"><p style="font-size:14px;font-weight:700">Plates you own</p>' +
+    '<p class="muted" style="font-size:14px;margin-top:6px">Total plate poundage, not counting the bar. The squat runs out of room first: within ' +
+    CEILING_GAP + ' lb of loading all of it, the app stops adding weight and switches you to 3-second eccentrics and paused reps.</p>' +
+    '<div style="display:flex;gap:8px;margin-top:12px;align-items:center">' +
+    '<button class="chip" data-a="plates" data-v="-25">− 25</button>' +
+    '<span class="num" style="flex:1;text-align:center;font-size:20px;font-weight:900">' + state.plates + ' lb</span>' +
+    '<button class="chip" data-a="plates" data-v="25">+ 25</button></div>' +
+    '<p class="dim num" style="font-size:12px;margin-top:8px">Ceiling: ' + (BAR + state.plates) + ' lb on the bar, ' +
+    (BAR + state.plates - CEILING_GAP) + ' lb where it stops climbing.</p></div>';
+
+  h += '<div class="card" style="padding:14px;margin-top:12px"><p style="font-size:14px;font-weight:700">Weights</p>' +
+    '<p class="muted" style="font-size:14px;margin-top:6px">Pounds throughout. 45 lb bar, 25 lb EZ bar, plates down to 2.5.</p>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px" class="num muted">' +
+    '<div class="card" style="padding:8px;font-size:12px">Upper jumps <span style="color:var(--ink)">+5 lb</span></div>' +
+    '<div class="card" style="padding:8px;font-size:12px">Lower jumps <span style="color:var(--ink)">+10 lb</span></div>' +
+    '<div class="card" style="padding:8px;font-size:12px">Bars snap to <span style="color:var(--ink)">5 lb</span></div>' +
+    '<div class="card" style="padding:8px;font-size:12px">Dumbbells to <span style="color:var(--ink)">2.5 lb</span></div></div></div>';
+
+  h += '<div class="card" style="padding:14px;margin-top:12px"><p style="font-size:14px;font-weight:700">Slot ' +
+    posOf(c.abs) + ' of ' + SLOT_COUNT + ', cycle ' + c.cycle + '</p>' +
+    '<p class="dim" style="font-size:12px;margin-top:4px">' + c.slot.name + '. Everything is stored on this device.</p>' +
+    '<div style="display:flex;gap:8px;margin-top:12px">' +
+    '<button class="chip" style="flex:1;text-align:center" data-a="skipback">Skip back</button>' +
+    '<button class="chip" style="flex:1;text-align:center" data-a="skipahead">Skip ahead</button></div></div>';
+
+  h += '<div class="card" id="install" style="padding:14px;margin-top:12px;display:none">' +
+    '<p style="font-size:14px;font-weight:700">Install</p>' +
+    '<p class="muted" style="font-size:14px;margin-top:4px">Add it to your home screen so it opens full screen.</p>' +
+    '<button class="chip" style="margin-top:12px" data-a="install">Install app</button></div>';
+
+  h += '<div class="card" style="padding:14px;margin-top:12px;border-color:rgba(127,29,29,.6);background:rgba(69,10,10,.25)">' +
+    '<p style="font-size:14px;font-weight:700;color:#fca5a5">Erase all training data</p>' +
+    '<p class="muted" style="font-size:12px;margin-top:4px">Removes every logged session, every baseline test, and returns you to cycle 1, slot 1.</p>';
+  h += confirmErase
+    ? '<div style="display:flex;gap:8px;margin-top:12px"><button class="chip" style="flex:1;text-align:center" data-a="erase-no">Keep it</button>' +
+      '<button class="chip" style="flex:1;text-align:center;background:#dc2626;border-color:#dc2626;color:#fff" data-a="erase-yes">Erase</button></div>'
+    : '<button class="chip" style="margin-top:12px;border-color:#7f1d1d;color:#fca5a5" data-a="erase-ask">Erase</button>';
+  return h + '</div></div>';
+}
+
+/* ============================== RENDER ============================== */
+
+var app = document.getElementById("app");
+var navEl = document.getElementById("nav");
+var TABS = [["cycle","Cycle"],["skills","Skills"],["progress","Progress"],["plan","Plan"],["settings","Settings"]];
+
+function render(keepScroll){
+  var y = window.scrollY;
+  var c = ctx();
+  var html;
+  if (tab === "cycle"){
+    if (view === "session" && state.draft) html = viewSession(c);
+    else if (view === "feedback" && state.draft) html = viewFeedback(c);
+    else if (view === "summary" && summary) html = viewSummary();
+    /* the only screen that may show a session other than the live one */
+    else html = viewHome(ctx(peekIndex()), c);
+  } else if (tab === "skills") html = viewSkills(c);
+  else if (tab === "progress") html = viewProgress(c);
+  else if (tab === "plan") html = viewPlan(c);
+  else html = viewSettings(c);
+
+  app.innerHTML = html;
+  navEl.innerHTML = TABS.map(function(t){
+    return '<button class="' + (tab === t[0] ? "on" : "") + '" data-a="nav" data-tab="' + t[0] + '">' + t[1] + '</button>';
+  }).join("");
+  if (keepScroll) window.scrollTo(0, y); else window.scrollTo(0, 0);
+  if (deferredPrompt) { var box = document.getElementById("install"); if (box) box.style.display = "block"; }
+}
+
+/* ============================== ACTIONS ============================== */
+
+function startSession(){
+  var c = ctx(), sets = {}, exs = [];
+  c.exercises.forEach(function(ex){
+    var n = plannedSets(c, ex), arr = [];
+    for (var i = 0; i < n; i++) arr.push({w:"", r:"", done:false});
+    sets[ex.id] = arr; exs.push(ex.id);
+  });
+  state.draft = {index:state.index, exs:exs, sets:sets, fb:{}};
+  saveState();
+  view = "session"; openWhy = null; ask = null; render();
+}
+
+/* What the session just changed about the program itself, for the summary. */
+function changesFrom(before, after){
+  var out = [];
+  Object.keys(SKILLS).forEach(function(id){
+    var s = SKILLS[id], b = before.levels[id].level, a = after.levels[id].level;
+    if (a > b) out.push({col:"#a78bfa", head:s.name + " → step " + a,
+      body:"Clean at " + s.critSets + " × " + s.crit + s.unit + ". Next up: " + s.ladder[a - 1] + "."});
+    else if (a < b) out.push({col:"#f43f5e", head:s.name + " back to step " + a,
+      body:"The position went. Rebuild it at " + s.ladder[a - 1] + " rather than grinding degraded reps."});
+  });
+  if (!before.cut && after.cut) out.push({col:"#f43f5e", head:"Straight-arm volume halved for " + ELBOW_DAYS + " days",
+    body:"Front lever and straight-arm sets are cut in half, not stopped. It restores itself."});
+  if (before.cut && !after.cut) out.push({col:"#fbbf24", head:"Straight-arm volume back to full", body:"The elbow week is up."});
+  if (!before.ohp && after.ohp) out.push({col:"#fb923c", head:"Standing overhead press comes off Push",
+    body:"You reported the handstand work heavy. It is the first thing the program cuts."});
+  if (before.ohp && !after.ohp) out.push({col:"#fbbf24", head:"Standing overhead press is back on Push",
+    body:"The handstand work is not reading heavy any more."});
+  if (!before.trim && after.trim) out.push({col:"#fb923c", head:"Skill B cut to practice", body:after.trim.why + " " + after.trim.how});
+  if (before.trim && !after.trim) out.push({col:"#fbbf24", head:"Skill B back to full", body:"Whatever was cutting it has cleared."});
+  return out;
+}
+function snapshot(){
+  var now = Date.now(), levels = {};
+  Object.keys(SKILLS).forEach(function(k){ levels[k] = levelRun(k, state.history, state.tests); });
+  return {levels:levels, cut:straightArmCut(state.history, now), trim:skillBTrim(state.history, now), ohp:ohpCut(state.history)};
+}
+
+function commit(){
+  var c = ctx(), before = snapshot();
+  state.history.push({
+    ts: Date.now(), cycle: c.cycle, slot: c.slot.id,
+    sets: state.draft.sets, fb: state.draft.fb
+  });
+  ask = null;
+  state.index += 1;
+  state.draft = null;
+  peek = null;
+  saveState();
+  var after = snapshot();
+
+  var n = ctx();
+  summary = {
+    justDid: c.slot.name, slotName: n.slot.name, pos: posOf(n.abs), cycle: n.cycle,
+    changes: changesFrom(before, after),
+    targets: n.exercises.map(function(ex){
+      var t = n.targets[ex.id];
+      return {ex:ex, sets:plannedSets(n, ex), reps:t.reps, weight:t.weight, why:t.why};
+    })
+  };
+  view = "summary"; render();
+}
+
+document.addEventListener("click", function(e){
+  var el = e.target.closest("[data-a]");
+  if (!el) return;
+  var a = el.dataset.a, exId = el.dataset.ex, c = ctx();
+
+  if (a === "nav"){
+    tab = el.dataset.tab;
+    if (tab === "cycle" && view === "summary") view = "home";
+    confirmErase = false; peek = null;
+    render(); return;
+  }
+
+  /* Looking around the cycle. Nothing here writes to a session. */
+  if (a === "peekprev"){ peek = Math.max(state.index, peekIndex() - 1); render(); return; }
+  if (a === "peeknext"){ peek = Math.min(peekLast(), peekIndex() + 1); render(); return; }
+  if (a === "peektoday"){ peek = null; render(); return; }
+  if (a === "peekat"){
+    peek = clamp(Number(el.dataset.i), state.index, peekLast());
+    tab = "cycle"; view = "home"; render(); return;
+  }
+
+  if (a === "start"){ peek = null; startSession(); return; }
+  if (a === "resume"){ view = "session"; render(); return; }
+  if (a === "back"){ view = "home"; render(); return; }
+  if (a === "why"){ openWhy = openWhy === exId ? null : exId; render(true); return; }
+
+  if (a === "toggle"){
+    var i = Number(el.dataset.i), row = state.draft.sets[exId][i];
+    var t = c.targets[exId], ex = exById(exId);
+    /* Nothing gets into history without a load behind it. Bodyweight work has
+       one already — the body — so it logs at 0 with the field empty. */
+    if (!row.done && row.w === "" && (t.weight == null) && !loadless(ex)){
+      needWeight = exId + ":" + i; render(true); return;
+    }
+    needWeight = null;
+    row.done = !row.done;
+    if (row.done){
+      if (row.w === "") row.w = String(t.weight == null ? 0 : t.weight);
+      if (row.r === "") row.r = String((t.lastReps && t.lastReps[i] != null) ? t.lastReps[i] : t.reps);
+      askIfPending(c);
+    }
+    saveState(); render(true); return;
+  }
+  if (a === "addset"){
+    state.draft.sets[exId].push({w:"", r:"", done:false});
+    volumeChanged(c, exId);
+    saveState(); render(true); return;
+  }
+  if (a === "dropset"){
+    if (state.draft.sets[exId].length > 1){
+      state.draft.sets[exId].pop();
+      volumeChanged(c, exId);
+    }
+    saveState(); render(true); return;
+  }
+
+  if (a === "ask" || a === "fbans"){ fb()[el.dataset.k] = Number(el.dataset.v); saveState(); render(true); return; }
+  if (a === "asksave" || a === "asklater"){ ask = null; saveState(); render(true); return; }
+
+  if (a === "finish"){
+    /* the button is hidden until the last set is in; this is the invariant
+       behind it — nothing reaches history half-recorded */
+    if (setsLeft()) { render(true); return; }
+    ask = null;
+    if (!missingFeedback(c).length) commit();
+    else { view = "feedback"; render(); }
+    return;
+  }
+  if (a === "fbcancel"){ view = "session"; render(); return; }
+  if (a === "fbsave"){ if (!missingFeedback(c).length) commit(); return; }
+  if (a === "summarydone"){ view = "home"; render(); return; }
+  if (a === "selex"){ selEx = exId; render(true); return; }
+
+  if (a === "logtest"){
+    var id = el.dataset.t, v = Number(testDraft[id]);
+    if (!(v > 0)) return;
+    if (!state.tests[id]) state.tests[id] = [];
+    state.tests[id].push({ts:Date.now(), v:v, cycle:c.cycle});
+    testDraft[id] = "";
+    saveState(); render(true); return;
+  }
+  if (a === "plates"){
+    state.plates = clamp(state.plates + Number(el.dataset.v), 100, 800);
+    saveState(); render(true); return;
+  }
+
+  if (a === "skipback"){ state.index = Math.max(0, state.index - 1); state.draft = null; peek = null; saveState(); render(); return; }
+  if (a === "skipahead"){ state.index += 1; state.draft = null; peek = null; saveState(); render(); return; }
+  if (a === "erase-ask"){ confirmErase = true; render(true); return; }
+  if (a === "erase-no"){ confirmErase = false; render(true); return; }
+  if (a === "erase-yes"){
+    state = blank();
+    confirmErase = false; peek = null; testDraft = {};
+    saveState(); tab = "cycle"; view = "home"; render(); return;
+  }
+  if (a === "install" && deferredPrompt){ deferredPrompt.prompt(); deferredPrompt = null; return; }
+});
+
+/* The first set carries the working weight for the exercise, once you leave
+   the field — filling in real values rather than leaving the rows to hint at
+   it. Sets already logged keep what they were logged with. Writes straight
+   into the sibling inputs because this path must not re-render. */
+function carryWeightDown(exId, rows, value){
+  for (var j = 1; j < rows.length; j++){
+    if (rows[j].done) continue;
+    rows[j].w = value;
+    var el = document.querySelector('input[data-ex="' + exId + '"][data-i="' + j + '"][data-f="w"]');
+    if (el) el.value = value;
+  }
+}
+
+/* typing does not re-render, so the keyboard and caret stay put */
+document.addEventListener("input", function(e){
+  var t = e.target;
+  if (!t.dataset) return;
+  if (t.dataset.t){ testDraft[t.dataset.t] = t.value; return; }
+  if (!t.dataset.ex || !state.draft) return;
+  var rows = state.draft.sets[t.dataset.ex];
+  if (!rows) return;
+  rows[Number(t.dataset.i)][t.dataset.f] = t.value;
+  if (t.dataset.f === "w") needWeight = null;
+  clearTimeout(window.__saveT);
+  window.__saveT = setTimeout(saveState, 400);
+});
+
+/* Leaving the first weight field is what carries it down the exercise. Doing
+   it per keystroke would flicker 1, 13, 135 through every row below. */
+document.addEventListener("focusout", function(e){
+  var t = e.target;
+  if (!t.dataset || t.dataset.f !== "w" || t.value === "" || !state.draft) return;
+  if (Number(t.dataset.i) !== 0) return;
+  var rows = state.draft.sets[t.dataset.ex];
+  if (!rows) return;
+  carryWeightDown(t.dataset.ex, rows, t.value);
+  saveState();
+});
+
+/* ============================== PWA ============================== */
+
+var deferredPrompt = null;
+window.addEventListener("beforeinstallprompt", function(e){
+  e.preventDefault(); deferredPrompt = e;
+  var box = document.getElementById("install");
+  if (box) box.style.display = "block";
+});
+
+var ONDISK = (typeof location === "undefined") || location.protocol === "file:";
+
+/* Hosted, the manifest and worker are real files next to this one. Opened from
+   disk they cannot be fetched, so the blob fallback below keeps install working. */
+(function installManifest(){
+  if (!ONDISK) return;
+  var icon192 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAIAAADdvvtQAAAB60lEQVR42u3SwQnAIBBEUa9KyrDbFGIZ9hUvthCyhMDmwT/PYXjlaFV6XHGBABJAAkgASQAJIAEkgCSABJAAEkASQAJIAAkgCSABJIAEkACSABJAAkgASQAJIAEkgCSABJAAEkASQAJIAAkgASQBJIAEkACSABJAAkgA3W3NHinr+DivSB+OAwQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAQQQQAABBBBAAAEEEEAAAfQyIP0zgASQABJAAkgCSAAJIAEkASSABJAAkgASQAJIAEkACSABJIAEkASQABJAAkgCSAAJIAEkASSABJAAkgASQAJIAAkgCSABJIAEkASQABJAyt8GHtiKy4H/aXUAAAAASUVORK5CYII=", icon512 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAIAAAB7GkOtAAAL50lEQVR42u3VwQ0AEBBFQVeiDN0qRBn64qIHEYmYZBr4e9gXcooAfCg4AYAAACAAAAgAAAIAgAAAIAAACAAAAgCAAAAgAAAIAAACAIAAACAAAAgAAAIAgAAAIAAACAAAAgCAAAAgAAAIAIAAACAAAAgAAAIAgAAAIAAACAAAAgCAAAAgAAAIAAACAIAAACAAAAgAAAIAgAAAIAAACAAAAgCAAAAgAAAIAIAAuAKAAAAgAAAIAAACAIAAACAAAAgAAAIAgAAAIAAACAAAAgCAAAAgAAAIAAACAIAAACAAAAgAAAIAgAAAIAAACACAAAAgAAAIAAACAIAAACAAAAgAAAIAgAAAIAAACAAAAgCAAAAgAAAIAAACAIAAACAAAAgAAAIAgAAAIAAACACAALgCgAAAIAAACAAAAgCAAAAgAAAIAAACAIAAACAAAAgAAAIAgAAAIAAACAAAAgCAAAAgAAAIAAACAIAAACAAAAgAgAAAIAAACAAAAgCAAAAgAAAIAAACcNHs5QlWW72n1fEEqwVAALxCqwXAagEQAK/Qaq/QagEQAK/Qaq/QagEQAKut9gqtFgBPwWqrvUKrBcBTsNpqr9BqAfAUrLbaKxQAAfAUrLZaAARAADwFqwVAAARAADwFqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwXAagEQAK/Qaq/QagEQAK/Qaq/QagEQAKut9gqtFgBPwWqrvUKrBcBTsNpqr9BqAfAUrLbaKxQAAfAUrLZaAARAADwFqwVAAARAADwFqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwXAagEQAK/Qaq/QagEQAK/Qaq/QagEQAK/Qaq/QagEQAKut9gqtFgBPwWqrvUKrBcBTsNpqr1AABMBTsNpqr1AABMBTsNpqARAAAfAUrBYAARAAAfAUrBYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAqwVAALxCq71CqwVAALxCq71CqwVAAKy22iu0WgA8Baut9gqtFgBPwWqrvUKrBcBTsNpqr1AABMBTsNpqARAAAfAUrBYAARAAAfAUrBYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAqwVAALxCq71CqwVAALxCq71CqwVAALxCq71CqwVAAKy22iu0WgA8Baut9gqtFgBPwWqrvUIBEABPwWqrBUAABMBTsNpqARAAAfAUrBYAARAAAfAUrBYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAqwVAALxCq71CqwVAALxCq71CqwVAAKy22iu0WgA8Baut9gqtFgBPwWqrvUKrBcBTsNpqr1AABMBTsNpqARAAAfAUrBYAARAAAfAUrBYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAARAAAfAKrRYAqwVAALxCq71CqwVAALxCq71CqwVAAKy22iu0WgAEwGqrvUKrBcBTsNpqr9BqAfAUrLbaKxQAAfAUrLZaAARAADwFqwVAAARAADwFqwVAAARAADwFqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwXAagEQAK/Qaq/QagEQAK/Qaq/QagEQAKut9gqtFgBPwWqrvUKrBcBTsNpqr9BqAfAUrLbaKxQAAfAUrLZaAARAADwFqwVAAARAADwFqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwXAagEQAK/Qaq/QagEQAK/Qaq/QagEQAKut9gqtFgBPwWqrvUKrBcBTsNpqr9BqAfAUrLbaKxQAAfAUrLZaAARAADwFqwVAAARAADwFqwVAAARAADwFqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwXAagEQAK/Qaq/QagEQAK/Qaq/QagEQAKut9gqtFgBPwWqrvUKrBcBTsNpqr9BqAfAUrLbaKxQAAfAUrLZaAARAADwFqwVAAARAADwFqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwXAagEQAK/Qaq/QagEQAK/Qaq/QagEQAKut9gqtFgBPwWqrvUKrBcBTsNpqr9BqAfAUrLbaKxQAAfAUrLZaAARAADwFqwVAAARAADwFqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwVAAARAALxCqwXAagEQAK/QagGwWgAAEAAABAAAAQBAAAAQAAAEAAABAEAAABAAAAQAAAEAQAAAEAAABAAAAQAQAAAEAAABAEAAABAAAAQAAAEAQAAAEAAABAAAAQBAAAAQAAAEAAABAEAAABAAAAQAAAEAQAAAEAAABAAAAQAQAFcAEAAABAAAAQBAAAAQAAAEAAABAEAAABAAAAQAAAEAQAAAEAAABAAAAQBAAAAQAAAEAAABAEAAABAAAAQAAAEAEAAABAAAAQBAAAAQAAAEAAABAEAAABAAAAQAAAEAQAAAEAAABAAAAQBAAAAQAAAEAAABAEAAABAAAAQAAAEAEABXABAAAAQAAAEAQAAAEAAABAAAAQBAAAAQAAAEAAABAEAAABAAAAQAAAEAQAAAEAAABAAAAQBAAAAQAAAEAAABABAAAAQAAAEAQAAAEAAABAAAAQBAAAAQAAAEAAABAEAAABAAAAQAAAEAQAAAOGYBqulago+C3tAAAAAASUVORK5CYII=";
+  var manifest = {
+    name: "Rolling Five", short_name: "Rolling Five", start_url: ".", scope: ".",
+    display: "standalone", background_color: "#0c0a09", theme_color: "#0c0a09",
+    orientation: "portrait",
+    icons: [
+      {src: icon192, sizes: "192x192", type: "image/png", purpose: "any"},
+      {src: icon512, sizes: "512x512", type: "image/png", purpose: "any maskable"}
+    ]
+  };
+  try {
+    var url = URL.createObjectURL(new Blob([JSON.stringify(manifest)], {type:"application/manifest+json"}));
+    var link = document.createElement("link");
+    link.rel = "manifest"; link.href = url;
+    document.head.appendChild(link);
+  } catch (e) {}
+})();
+
+/* Offline cache. Blob workers are rejected by most browsers, so this registers
+   the real sw.js sitting next to the page. Nothing to register from disk. */
+if (!ONDISK && "serviceWorker" in navigator){
+  try {
+    navigator.serviceWorker.register("sw.js").catch(function(){});
+  } catch (e) {}
+}
+
+render();
+</script>
+</body>
+</html>
