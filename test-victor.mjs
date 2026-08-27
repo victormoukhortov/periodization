@@ -619,13 +619,13 @@ check("the timer bar is in the session header and nowhere else", () => {
 
 check("the alarm file is the rest in silence, then the bell, struck twice", () => {
   const app = boot();
-  const RATE = 16000, GAP = 1, STRIKE = 1, TAIL = GAP + STRIKE;
+  const RATE = 32000, GAP = 1, STRIKE = 1, TAIL = GAP + STRIKE;
   const buf = app.wavFor(90);
   const dv = new DataView(buf);
   const str = (o, n) => String.fromCharCode(...new Uint8Array(buf, o, n));
 
   eq([str(0, 4), str(8, 4)], ["RIFF", "WAVE"], "it is a wav");
-  eq(dv.getUint32(24, true), RATE, "16 kHz — a 4 kHz ceiling would leave the bell a thud");
+  eq(dv.getUint32(24, true), RATE, "32 kHz — 16 would cap at 8 kHz and cut the bell's upper partial");
   eq(dv.getUint16(34, true), 16, "16-bit");
   eq(dv.getUint16(22, true), 1, "mono");
 
@@ -655,11 +655,12 @@ check("the alarm file is the rest in silence, then the bell, struck twice", () =
 
 check("the bell decodes to exactly one trimmed strike", () => {
   const app = boot();
-  const RATE = 16000;
-  // a zero rest is the alarm alone: gap + one strike
+  // a zero rest is the alarm alone: gap + one strike. Read the rate out of the
+  // header rather than restating it, so this cannot drift from the app.
   const buf = app.wavFor(0);
-  const samples = new DataView(buf).getUint32(40, true) / 2;
-  eq(samples / RATE, 2, "a second to the second strike, a second of strike");
+  const dv = new DataView(buf);
+  const rate = dv.getUint32(24, true);
+  eq(dv.getUint32(40, true) / 2 / rate, 2, "a second to the second strike, a second of strike");
 });
 
 console.log("\nsession state");

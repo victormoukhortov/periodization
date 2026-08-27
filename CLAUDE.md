@@ -350,14 +350,17 @@ Consequences to keep in mind when changing any of this:
 - The lead-in is a ±2 LSB dither rather than digital silence, so the stream reads as real audio
   worth keeping alive.
 - Every timer change re-arms the file, because its length *is* the remaining rest.
-- The alarm is a desk bell sample, `BELL_B64`: 16 kHz 16-bit mono PCM, one strike of 1s with a
+- The alarm is a desk bell sample, `BELL_B64`: 32 kHz 16-bit mono PCM, one strike of 1s with a
   raised-cosine fade over the last third, struck twice `BELL_GAP` apart. It starts at the strike,
   not at the recording — the source opens with 33ms of the striker rattling before the bell
-  speaks, and that is cut. The rate is not negotiable downward: a 4 kHz ceiling loses 60% of this
-  bell's energy and leaves a thud. Replacing the sound means replacing that constant and the two
-  numbers around it, nothing else.
-- `TIMER_MAX` bounds the file: one second of 16 kHz 16-bit mono per second of rest, so 5:00 is
-  about 9.6 MB.
+  speaks, and that is cut. **The rate is set by the sound, and 32 kHz is not spare.** This bell's
+  partials sit at 6–8 kHz (53% of the strike's energy) and 8–11 kHz (40%); under 6% is below
+  4 kHz. At 16 kHz the file caps at 8 kHz, the upper partial goes, and what is left is dull. If
+  you swap the sound, measure its spectrum with an FFT and set the rate from that — biquad
+  filter ratios lie about this, and did.
+- `TIMER_MAX` bounds the file: one second of 32 kHz 16-bit mono per second of rest, so 5:00 is
+  about 19 MB. The lead-in goes in as repeated `Int16Array.set` copies rather than a write per
+  sample, because at that size a per-sample loop is felt on the tap that logs the set.
 - The first `play()` has to happen inside a user gesture. It does: `timerDo("tstart")` is called
   from the tap that logs the set.
 - Nothing sounds if the app is force-quit from the app switcher. There is no way around that
