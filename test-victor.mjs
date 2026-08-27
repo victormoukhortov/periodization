@@ -95,7 +95,7 @@ return {
     roundLoad: roundLoad, platesPerSide: platesPerSide, prescribe: prescribe,
     lastPerformance: lastPerformance, levelRun: levelRun, critHits: critHits,
     startLevel: startLevel, straightArmCut: straightArmCut, skillBTrim: skillBTrim,
-    ohpCut: ohpCut, cyclesPerMonth: cyclesPerMonth, questionsFor: questionsFor,
+    pressCut: pressCut, cyclesPerMonth: cyclesPerMonth, questionsFor: questionsFor,
     restAdvice: restAdvice, nearCeiling: nearCeiling, plannedSets: plannedSets,
     exById: exById, slotOf: slotOf, cycleOf: cycleOf, loadless: loadless,
     SLOTS: SLOTS, SKILLS: SKILLS, SLOT_COUNT: SLOT_COUNT, DAY_MS: DAY_MS,
@@ -137,7 +137,7 @@ function log(exId, weight, reps, extra) {
 }
 
 const STARTING = {
-  p1: 135, p2: 50, p3: 75, p4: 15, p5: 60,
+  p1: 135, p2: 50, p4: 15, p5: 60, p6: 50,
   u1: 25, u2: 115, u3: 60, u4: 15, u5: 50, u6: 30,
   g1: 185, g2: 155, g3: 40, g5: 45
 };
@@ -349,17 +349,35 @@ check("grumpy elbows halve the straight-arm sets for a week", () => {
   eq(ctx().counts.k3, 6, "back to six holds");
 });
 
-check("heavy handstand work takes the overhead press off Push", () => {
+check("heavy handstand work takes the cuttable press off Push", () => {
   const app = boot();
-  const { state, ctx, ohpCut } = app.api();
+  const { state, ctx, pressCut } = app.api();
   state.history.push({ ts: Date.now(), cycle: 1, slot: "skilla", sets: {}, fb: { hsload: 2 } });
-  ok(ohpCut(state.history), "the press is cut");
+  ok(pressCut(state.history), "the press is cut");
   eq(ctx().slot.id, "push", "and the live session is a push session");
-  ok(!ctx().exercises.some((e) => e.id === "p3"), "standing overhead press is gone");
+  ok(!ctx().exercises.some((e) => e.id === "p6"), "the seated dumbbell press is gone");
   ok(ctx().exercises.some((e) => e.id === "p1"), "the bench is not");
 
   state.history.push({ ts: Date.now(), cycle: 1, slot: "skillb", sets: {}, fb: { hsload: 1 } });
-  ok(ctx().exercises.some((e) => e.id === "p3"), "reporting it normal brings the press back");
+  ok(ctx().exercises.some((e) => e.id === "p6"), "reporting it normal brings the press back");
+});
+
+check("a retired lift does not hand its loads to whatever replaced it", () => {
+  const app = boot();
+  const { state, ctx, exById, SLOTS } = app.api();
+  const push = SLOTS[0];
+  ok(!push.exercises.some((e) => e.id === "p3"), "the standing press is off the program");
+  ok(push.exercises.some((e) => e.id === "p6"), "the seated dumbbell press took the slot");
+  ok(exById("p3"), "but it is still readable, so Progress keeps its curve");
+  eq(exById("p6").gear, "Dumbbell", "and the replacement is its own movement");
+
+  // a log from back when the standing press was programmed
+  state.history.push({
+    ts: 0, cycle: 1, slot: "push", fb: {},
+    sets: { p3: [{ w: "95", r: "8", done: true }] }
+  });
+  eq(ctx().targets.p6.weight, null, "the dumbbells start by picking a load, not from 95");
+  eq(ctx().targets.p3, undefined, "and nothing prescribes the standing press any more");
 });
 
 check("Skill B is what gives, and it gives for two reasons", () => {

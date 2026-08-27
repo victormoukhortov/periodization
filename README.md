@@ -36,7 +36,7 @@ program actually cares about, and tells you where the rest days want to go.
   one leg → straddle → full, advancing at 3 × 15s clean. Rate a session as having broken down and
   it hands the position back rather than letting you grind a degraded hold.
 - **The program cuts itself back.** Grumpy elbows halve the straight-arm volume for a week rather
-  than stopping it. A heavy-feeling handstand day takes the standing overhead press off your next
+  than stopping it. A heavy-feeling handstand day takes the seated dumbbell press off your next
   Push. Legs going to mush, or dropping under four cycles a month, cuts Skill B to fifteen minutes
   of practice — Skill B is what gives, not sleep and not the barbell work.
 - **Baseline tests** live on the Skills tab. Retest every four to six cycles. Eight strict pike

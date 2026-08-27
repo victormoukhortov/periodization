@@ -234,8 +234,9 @@ Same section banners as `indie.html`, and the same responsibilities:
   battery), and the constants. Exercise ids (`p1`, `u4`, `g1`, `k3`, `b2`) are the primary key for
   everything and appear in saved history. **Never renumber or reuse an id.** A swapped movement
   gets a fresh id and the old definition moves to `RETIRED`, which is off the program but still
-  read by Progress so the old lift keeps its curve. `RETIRED` is empty at handoff; the machinery
-  is there for when it is not.
+  read by Progress so the old lift keeps its curve. One is in there: `p3` Standing Overhead Press,
+  replaced by `p6` Seated Dumbbell Press on the same 2 × 6–8 and still the exercise the `cuttable`
+  lever removes.
 - `ENGINE` — pure. `prescribe`, the ladder replay, and the three levers all take history and
   `now` as arguments.
 - `STORAGE` — `localStorage` under `rolling-five-v1`, in-memory fallback when storage is blocked.
@@ -291,11 +292,15 @@ these is a rule from the program text, not an invention:
 | Answer | What changes | For how long |
 | --- | --- | --- |
 | Elbows grumpy or painful | Every `straightArm` exercise is **halved**, never removed | 7 days, expires by itself |
-| Handstand work felt heavy | Standing overhead press comes off Push | Until a skill day reports light or normal |
+| Handstand work felt heavy | The one `cuttable` exercise comes off Push | Until a skill day reports light or normal |
 | Legs went to mush, **or** under 4 cycles a month | Skill B is cut to `practice` exercises only | Until legs read better, or the rate recovers |
 
 Skill B is what gives. Not sleep, and not the barbell work. `cyclesPerMonth` returns null until
 there are three weeks of log, because two sessions in week one is not a rate.
+
+`CUTTABLE` finds that exercise from `SLOTS` and `cutName()` is what every screen prints, so
+swapping the movement out cannot leave five screens describing a lift that is no longer on the
+program.
 
 `restAdvice` carries the program's two rules about rest placement — before Skill A when running
 the cycle straight, and before Skill B when balance was off — and they are advice on the home

@@ -184,7 +184,7 @@ var SLOTS = [
   { id:"push", name:"Push", kind:"lift", exercises:[
     {id:"p1",name:"Bench Press",gear:"Barbell",muscle:"chest",sets:4,lo:5,hi:8},
     {id:"p2",name:"Incline Dumbbell Press",gear:"Dumbbell",muscle:"chest",sets:3,lo:8,hi:12},
-    {id:"p3",name:"Standing Overhead Press",gear:"Barbell",muscle:"delts",sets:2,lo:6,hi:8,cuttable:true,
+    {id:"p6",name:"Seated Dumbbell Press",gear:"Dumbbell",muscle:"delts",sets:2,lo:6,hi:8,cuttable:true,
       cue:"The first thing to cut when the handstand work is feeling heavy."},
     {id:"p4",name:"Lateral Raise",gear:"Dumbbell",muscle:"delts",sets:3,lo:12,hi:15},
     {id:"p5",name:"EZ-Bar Skullcrusher",gear:"EZ Bar",muscle:"triceps",sets:3,lo:8,hi:12,elbow:true}
@@ -233,7 +233,9 @@ var SLOTS = [
 /* Off the program but still sitting in the log. Progress reads this so a
    dropped movement keeps its curve. Never put one of these ids back on a slot,
    and never reuse an id — it is the primary key of the whole training log. */
-var RETIRED = [];
+var RETIRED = [
+  {id:"p3",name:"Standing Overhead Press",gear:"Barbell",muscle:"delts",sets:2,lo:6,hi:8}
+];
 
 /* The two skills. Position, not load, is the progression: you stay at a step
    until you own it, then you move up and the reps or seconds start over. */
@@ -284,7 +286,7 @@ var ELBOWQ  = ["Fine","Grumpy","Painful"];
 var LEGSQ   = ["Strong","Ordinary","Mush"];
 
 var SLOT_COPY = {
-  push: "Bench leads. Overhead press is the release valve — it comes off the session by itself when the handstand work is reading heavy.",
+  push: "Bench leads. The overhead press is the release valve — it comes off the session by itself when the handstand work is reading heavy.",
   pull: "Weighted chin-ups and rows. No straight-arm work here on purpose; that lives on the skill days and should not appear in both places.",
   legs: "Squat and hinge with reps in reserve. The split squats are knee insurance, not filler.",
   skilla: "The hard skill session. Handstand pushups at your current depth, front lever holds at your current position, and the shrugs that make the top of the press work.",
@@ -319,6 +321,19 @@ var ALL_EX = (function(){
 function exById(id){
   var hit = ALL_EX.filter(function(e){ return e.id === id; });
   return hit.length ? hit[0] : null;
+}
+
+/* The one exercise the program may cut when the handstand work reads heavy.
+   Derived rather than named in the copy, so swapping the movement out cannot
+   leave five screens describing a lift that is no longer on the program. */
+var CUTTABLE = (function(){
+  var hit = [];
+  SLOTS.forEach(function(s){ s.exercises.forEach(function(e){ if (e.cuttable) hit.push(e); }); });
+  return hit.length ? hit[0] : null;
+})();
+function cutName(lower){
+  var n = CUTTABLE ? CUTTABLE.name : "The optional press";
+  return lower ? n.toLowerCase() : n;
 }
 
 /* Dumbbells move in 2.5 lb because the handles do; everything on a bar moves in
@@ -550,8 +565,8 @@ function skillBTrim(history, now){
   return null;
 }
 
-/* Standing overhead press comes off Push when the handstand work reads heavy. */
-function ohpCut(history){
+/* The cuttable press comes off Push when the handstand work reads heavy. */
+function pressCut(history){
   var a = lastAnswer("hsload", history);
   return !!(a && a.v === 2);
 }
@@ -647,7 +662,7 @@ function ctx(absIndex){
 
   var cut = straightArmCut(hist, now);
   var trim = slot.id === "skillb" ? skillBTrim(hist, now) : null;
-  var drop = slot.id === "push" && ohpCut(hist);
+  var drop = slot.id === "push" && pressCut(hist);
 
   var levels = {};
   Object.keys(SKILLS).forEach(function(k){ levels[k] = levelRun(k, hist, state.tests); });
@@ -760,7 +775,7 @@ function viewHome(c, live){
   if (c.trim) h += noteHTML({cls:"warn", head:"Skill B is cut back to practice", body:c.trim.why + " " + c.trim.how});
   if (c.cut) h += noteHTML({cls:"cut", head:"Straight-arm volume halved for " + c.cut.daysLeft + " more day" + (c.cut.daysLeft === 1 ? "" : "s"),
     body:"You reported " + (c.cut.v === 2 ? "painful" : "grumpy") + " elbows. Front lever work is halved rather than stopped — tendons want reduced load, not zero. It restores itself."});
-  if (c.drop) h += noteHTML({cls:"warn", head:"Standing overhead press is off this session",
+  if (c.drop) h += noteHTML({cls:"warn", head: cutName() + " is off this session",
     body:"The handstand work read heavy last skill day, and the press is the first thing the program cuts. Report it light or normal and it comes straight back."});
   if (!ahead) restAdvice(c.abs, state.history, c.now).forEach(function(n){ h += noteHTML(n); });
   h += '</div>';
@@ -917,7 +932,7 @@ function questionMeta(key, c){
     balance: {head:"Handstand quality", list:BALANCE,
       q:"How was your balance today? It degrades before you feel tired, and it decides whether a rest day goes before Skill B."},
     hsload: {head:"Handstand load", list:HSLOAD,
-      q:"How did the handstand work feel overall? Heavy takes the standing overhead press off your next Push session."},
+      q:"How did the handstand work feel overall? Heavy takes the " + cutName(true) + " off your next Push session."},
     elbow: {head:"Elbows", list:ELBOWQ,
       q:"How are your elbows? Grumpy halves the straight-arm volume for a week instead of stopping it."},
     legs: {head:"Legs", list:LEGSQ,
@@ -1183,7 +1198,7 @@ function viewPlan(c){
     noteHTML({cls:"warn", head:"Skill B gives first",
       body:"Five slots feels fine for about three weeks, then legs day quietly turns to mush. Under " + CYCLE_FLOOR + " cycles a month, or legs reading mush, cuts Skill B to fifteen minutes of practice. Not sleep, and not the barbell work."}) +
     noteHTML({cls:"warn", head:"Overhead press is the release valve",
-      body:"Report the handstand work heavy and the standing press comes off Push until it reads normal again."}) +
+      body:"Report the handstand work heavy and the " + cutName(true) + " comes off Push until it reads normal again."}) +
     noteHTML({cls:"", head:"Knee wraps",
       body:"Long stiff wraps are a maximal-load performance tool, not joint protection — they raise patellofemoral compression and shift mechanics. Sleeves are the different thing. At 3 × 8–10 with reps in reserve you are nowhere near loads that justify wraps."}) +
     noteHTML({cls:"", head:"Body composition",
@@ -1291,9 +1306,9 @@ function changesFrom(before, after){
   if (!before.cut && after.cut) out.push({col:"#f43f5e", head:"Straight-arm volume halved for " + ELBOW_DAYS + " days",
     body:"Front lever and straight-arm sets are cut in half, not stopped. It restores itself."});
   if (before.cut && !after.cut) out.push({col:"#fbbf24", head:"Straight-arm volume back to full", body:"The elbow week is up."});
-  if (!before.ohp && after.ohp) out.push({col:"#fb923c", head:"Standing overhead press comes off Push",
+  if (!before.press && after.press) out.push({col:"#fb923c", head: cutName() + " comes off Push",
     body:"You reported the handstand work heavy. It is the first thing the program cuts."});
-  if (before.ohp && !after.ohp) out.push({col:"#fbbf24", head:"Standing overhead press is back on Push",
+  if (before.press && !after.press) out.push({col:"#fbbf24", head: cutName() + " is back on Push",
     body:"The handstand work is not reading heavy any more."});
   if (!before.trim && after.trim) out.push({col:"#fb923c", head:"Skill B cut to practice", body:after.trim.why + " " + after.trim.how});
   if (before.trim && !after.trim) out.push({col:"#fbbf24", head:"Skill B back to full", body:"Whatever was cutting it has cleared."});
@@ -1302,7 +1317,7 @@ function changesFrom(before, after){
 function snapshot(){
   var now = Date.now(), levels = {};
   Object.keys(SKILLS).forEach(function(k){ levels[k] = levelRun(k, state.history, state.tests); });
-  return {levels:levels, cut:straightArmCut(state.history, now), trim:skillBTrim(state.history, now), ohp:ohpCut(state.history)};
+  return {levels:levels, cut:straightArmCut(state.history, now), trim:skillBTrim(state.history, now), press:pressCut(state.history)};
 }
 
 function commit(){
