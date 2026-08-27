@@ -242,6 +242,9 @@ Same section banners as `indie.html`, and the same responsibilities:
 - `STORAGE` — `localStorage` under `rolling-five-v1`, in-memory fallback when storage is blocked.
   A different key from PPL Block, so the two apps cannot see each other.
 - `STATE` — `state` (`index`, `history`, `draft`, `tests`, `plates`) plus `ctx(absIndex)`.
+- `ALARM` — the rest timer's side effects: the alarm file, the wake lock, the media-session
+  transport, the notification, the tick, and `paintTimer`. Nothing in here may throw; a phone that
+  will not play a sound must still log a set.
 - `VIEWS`, `RENDER`, `ACTIONS`, `PWA` — as in `indie.html`, including the rule that the `input`
   handler never re-renders and `carryWeightDown` pokes sibling inputs directly.
 
@@ -322,6 +325,48 @@ Answers live on `state.draft.fb`, keyed exactly as history stores them (`sk:hspu
 `balance`, `hsload`, `elbow`, `legs`), so a reload mid-session keeps them and `levelRun` can read
 them straight back out of the log.
 
+## The rest timer
+
+`state.timer` is `{dur, startedAt, elapsed}` and nothing else. Everything shown — the clock, the
+phase, the bar — is derived from those three and a `now` passed in, so the countdown cannot drift
+from wall time, and changing the duration mid-rest keeps the seconds already served
+(40s into a 2:00, switching to 3:00 leaves 2:20). `elapsed` is what previous runs banked;
+`startedAt` is when the current run began; `null` for both means idle. The reducers
+(`timerStart` / `timerPause` / `timerResume` / `timerToggle` / `timerReset` / `timerSetDur`) are
+pure and live in `ENGINE` with everything else.
+
+**The alarm is media playback, not a notification, and that is the whole design.** A static page
+cannot schedule a future local notification — there is no such API on iOS, and Web Push needs a
+server this repo does not have — and a backgrounded or locked phone stops running timers, so
+nothing JavaScript-driven can be trusted to fire on time. What a phone does keep doing is playing
+media. So starting a rest builds a WAV of `left` seconds of inaudible dither followed by four
+seconds of tone and plays it through the one `<audio>` element in the page. The phone plays it to
+the end on its own: no callback runs when the alarm sounds, which is exactly why it survives the
+app being backgrounded and the screen locking. On iOS it also plays through the ringer switch,
+which Web Audio does not.
+
+Consequences to keep in mind when changing any of this:
+
+- The lead-in is a ±2 LSB dither rather than digital silence, so the stream reads as real audio
+  worth keeping alive.
+- Every timer change re-arms the file, because its length *is* the remaining rest.
+- `TIMER_MAX` bounds the file: one second of 8 kHz 16-bit mono per second of rest, so 5:00 is
+  about 4.8 MB.
+- The first `play()` has to happen inside a user gesture. It does: `timerDo("tstart")` is called
+  from the tap that logs the set.
+- Nothing sounds if the app is force-quit from the app switcher. There is no way around that
+  without a server, and the app should not pretend otherwise.
+- `alarmFallback` covers the case where the phone took the audio back: on the tick that sees the
+  rest end, if the armed file is not playing, it sounds one immediately.
+- The notification is a *banner*, best-effort, and never the alarm itself. Notification sounds are
+  not controllable from the web.
+
+**The tick never re-renders.** `paintTimer` writes into `#t-clock`, `#t-fill`, `#t-label`,
+`#t-play` and the duration chips by hand, and so do the timer's own controls. This is the same
+rule as the `input` handler: the session screen is full of text fields, and a clock that stole the
+keyboard once a second would be unusable. If you add anything to the bar, paint it — do not reach
+for `render()`.
+
 ## Peeking
 
 Same as PPL Block, bounded to `[state.index, state.index + SLOT_COUNT - 1]` — the cycle in front
@@ -331,7 +376,6 @@ of you. Only the live session is writable, and the mechanism is the same: every 
 ## Backlog
 
 - Export / import of `state` as JSON. Same gap as the other app, same priority.
-- A rest timer for the front lever's two minutes between sets.
 - Per-position hold-time charts, not just the per-exercise curve.
 - The baseline test screen records numbers but only the pike pushup and chest-to-wall hold feed
   the engine. The chin-up 5RM and squat × 10 could seed first loads instead of asking.
@@ -342,7 +386,7 @@ of you. Only the live session is writable, and the mechanism is the same: every 
 
 ```
 node test.mjs          # PPL Block, 31 checks
-node test-victor.mjs   # Rolling Five, 44 checks
+node test-victor.mjs   # Rolling Five, 54 checks
 ```
 
 Each suite extracts the `<script>` body from its HTML file, stubs the handful of browser APIs the

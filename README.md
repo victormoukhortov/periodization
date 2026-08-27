@@ -39,9 +39,34 @@ program actually cares about, and tells you where the rest days want to go.
   than stopping it. A heavy-feeling handstand day takes the seated dumbbell press off your next
   Push. Legs going to mush, or dropping under four cycles a month, cuts Skill B to fifteen minutes
   of practice — Skill B is what gives, not sleep and not the barbell work.
+- **A rest timer** sits at the top of an open session and starts itself the moment you check a set
+  off. Pick a duration from the chips, play / pause / reset by hand. The alarm is a real sound, and
+  it works with the app in your pocket or the screen locked, because it is delivered as media
+  playback rather than as a notification — see the note below.
 - **Baseline tests** live on the Skills tab. Retest every four to six cycles. Eight strict pike
   pushups plus a 30-second chest-to-wall hold is what starts the handstand pushup ladder on the
   wall instead of on a box.
+
+## How the rest alarm works, and where it stops
+
+A page served from static hosting cannot schedule a future notification: iOS has no local
+scheduling API, and Web Push needs a server. Nor can it rely on `setTimeout` — a backgrounded or
+locked phone stops running it. So the alarm is not a notification at all.
+
+When a rest starts, the app builds a WAV in memory — the remaining seconds as inaudible signal,
+then four seconds of tone — and plays it through an `<audio>` element. Phones keep playing media
+when you switch away or lock the screen, and no code has to run at the moment the tone arrives,
+so it lands on time. On iOS it also plays with the ringer switch on silent, which Web Audio does
+not.
+
+What that buys and what it does not:
+
+- **Works:** app backgrounded, screen locked, phone in your pocket. Lock-screen play/pause
+  controls the rest.
+- **Works:** foreground, obviously — and the screen is held awake while a rest runs.
+- **Does not work:** the app force-quit from the app switcher. Nothing on the web can wake it.
+- **Best effort:** a notification banner when the rest ends, if you grant permission. It is the
+  banner only; web notification sounds are not controllable.
 
 ## Deploying
 
@@ -85,7 +110,7 @@ python3 -m http.server 8000   # then open http://localhost:8000/
 
 ```
 node test.mjs          # PPL Block, 31 checks
-node test-victor.mjs   # Rolling Five, 44 checks
+node test-victor.mjs   # Rolling Five, 54 checks
 ```
 
 They cover the progression engines, the reducers, and the fact that every screen renders. CI runs

@@ -151,6 +151,29 @@
   .save{background:var(--ask);color:#fff;border-radius:10px;padding:13px 30px;font-size:17px;font-weight:800}
   .save[disabled]{background:#292524;color:#57534e}
 
+  /* rest timer, in the sticky header of an open session */
+  .timer{margin-top:10px}
+  .tbar{display:flex;align-items:center;gap:12px}
+  .tclock{font-family:var(--mono);font-size:30px;font-weight:800;line-height:1.05;
+    font-variant-numeric:tabular-nums;letter-spacing:-0.02em;min-width:78px}
+  .ttrack{flex:1;height:6px;border-radius:99px;background:var(--line);overflow:hidden}
+  .ttrack i{display:block;height:100%;width:0;background:var(--dim);border-radius:99px}
+  .tbtn{width:44px;height:40px;border:1px solid var(--line);border-radius:11px;
+    color:var(--muted);font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .tbtn:active{border-color:var(--muted);color:var(--ink)}
+  .tchips{display:flex;gap:6px;margin-top:9px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tchips button{flex-shrink:0;border:1px solid var(--line);border-radius:99px;padding:4px 11px;
+    font-family:var(--mono);font-size:12px;font-weight:700;color:var(--muted)}
+  .tchips button.on{border-color:var(--go);background:var(--go);color:#3b2606}
+  .tchips button.alert{font-family:inherit;color:var(--skill);border-color:rgba(167,139,250,.4)}
+  .timer.running .tclock{color:var(--go)}
+  .timer.running .ttrack i{background:var(--go)}
+  .timer.paused .tclock{color:var(--muted)}
+  .timer.paused .ttrack i{background:var(--muted)}
+  .timer.over .tclock{color:var(--ask);animation:tpulse 1s ease-in-out infinite}
+  .timer.over .ttrack i{background:var(--ask)}
+  @keyframes tpulse{0%,100%{opacity:1}50%{opacity:.3}}
+
   /* nav */
   /* The home indicator needs clearance, but the whole inset under a 10px label
      reads as a dead band, so it is trimmed to what the indicator actually
@@ -171,6 +194,12 @@
 <body>
 <div id="app"></div>
 <nav id="nav"></nav>
+<!-- The rest alarm. Its source is built when a rest starts: the remaining
+     seconds of inaudible signal followed by the tone, so the beep is delivered
+     by ordinary media playback rather than by a timer callback. That is what
+     survives a backgrounded app and a locked screen, and on iOS it also plays
+     through the ringer switch, which Web Audio does not. -->
+<audio id="alarm" preload="auto" playsinline></audio>
 
 <script>
 "use strict";
@@ -274,6 +303,12 @@ var CEILING_GAP = 40;          /* stop chasing load this close to loading everyt
 var ELBOW_DAYS = 7;            /* how long a grumpy elbow halves the straight-arm work */
 var CYCLE_FLOOR = 4;           /* cycles a month below which Skill B gets cut back */
 var DAY_MS = 86400000;
+
+/* Rest timer. The steps are what the chips offer; TIMER_MAX also bounds the
+   alarm file, which is a second of 8 kHz 16-bit mono per second of rest. */
+var TIMER_STEPS = [45, 60, 90, 120, 180, 300];
+var TIMER_MAX = 300;
+var TIMER_DEFAULT = 120;   /* the front lever's two minutes, the one rest the program names */
 
 var HUE = {chest:"#fb7185", back:"#38bdf8", delts:"#fbbf24", "rear delts":"#fbbf24",
   triceps:"#e879f9", biceps:"#a78bfa", quads:"#34d399", hamstrings:"#2dd4bf",
@@ -609,12 +644,61 @@ function questionsFor(exercises, slot){
   return qs;
 }
 
+/* --- the rest timer, as a value ------------------------------------- */
+
+/* {dur, startedAt, elapsed}. Everything is derived from those three and the
+   clock passed in, so the display cannot drift from wall time and a change of
+   duration mid-rest keeps the seconds already served. `elapsed` is what has
+   been counted in previous runs; `startedAt` is when the current run began. */
+function timerBlank(dur){ return {dur: dur || TIMER_DEFAULT, startedAt: null, elapsed: 0}; }
+
+function timerLeft(t, now){
+  if (!t) return 0;
+  return t.dur - t.elapsed - (t.startedAt ? (now - t.startedAt) / 1000 : 0);
+}
+function timerPhase(t, now){
+  if (!t) return "idle";
+  var started = t.startedAt || t.elapsed > 0;
+  if (started && timerLeft(t, now) <= 0) return "over";
+  if (t.startedAt) return "running";
+  return t.elapsed > 0 ? "paused" : "idle";
+}
+function timerStart(t, now){ return {dur: t.dur, startedAt: now, elapsed: 0}; }
+function timerPause(t, now){
+  if (!t.startedAt) return t;
+  return {dur: t.dur, startedAt: null, elapsed: clamp(t.elapsed + (now - t.startedAt) / 1000, 0, t.dur)};
+}
+function timerResume(t, now){
+  if (t.startedAt) return t;
+  /* a tap on a rest that is already over starts the next one, not a zero */
+  if (timerLeft(t, now) <= 0) return timerStart(t, now);
+  return {dur: t.dur, startedAt: now, elapsed: t.elapsed};
+}
+/* Play on a rest that has already run out starts the next one. Pausing a
+   finished timer is a tap that does nothing, which reads as a broken button. */
+function timerToggle(t, now){
+  if (timerLeft(t, now) <= 0 && (t.startedAt || t.elapsed > 0)) return timerStart(t, now);
+  return t.startedAt ? timerPause(t, now) : timerResume(t, now);
+}
+function timerReset(t){ return timerBlank(t.dur); }
+/* Changing the duration keeps the seconds already rested, so picking 3:00 forty
+   seconds in leaves 2:20 rather than starting again. */
+function timerSetDur(t, sec){
+  return {dur: clamp(sec, 5, TIMER_MAX), startedAt: t.startedAt, elapsed: t.elapsed};
+}
+function fmtClock(sec){
+  var s = Math.max(0, Math.round(sec)), m = Math.floor(s / 60), r = s % 60;
+  return m + ":" + (r < 10 ? "0" : "") + r;
+}
+
 /* ============================== STORAGE ============================== */
 
 var KEY = "rolling-five-v1";
 var memory = null;
 
-function blank(){ return {index:0, history:[], draft:null, tests:{}, plates:DEFAULT_PLATES}; }
+function blank(){
+  return {index:0, history:[], draft:null, tests:{}, plates:DEFAULT_PLATES, timer:timerBlank()};
+}
 
 function loadState(){
   try {
@@ -625,6 +709,9 @@ function loadState(){
       if (!s.plates) s.plates = DEFAULT_PLATES;
       if (s.draft && !s.draft.fb) s.draft.fb = {};
       if (s.draft && !s.draft.exs) s.draft.exs = Object.keys(s.draft.sets);
+      if (!s.timer) s.timer = timerBlank();
+      /* a rest that ran out while the app was closed is not news */
+      if (timerPhase(s.timer, Date.now()) === "over") s.timer = timerReset(s.timer);
       return s;
     }
   } catch (e) { /* storage blocked — fall through */ }
@@ -728,7 +815,7 @@ function noteHTML(n){
   return '<div class="note ' + n.cls + '"><b>' + n.head + '</b>' + n.body + '</div>';
 }
 
-function headerHTML(c, live){
+function headerHTML(c, live, banner){
   var at = live ? live.idx : c.idx;
   var mark = live && c.cycle === live.cycle ? c.idx : -1;
   var rail = "";
@@ -741,8 +828,35 @@ function headerHTML(c, live){
     (c.skill ? "<em>" + c.slot.name.toUpperCase() + "</em>" : c.slot.name.toUpperCase()) +
     ' <span>SLOT ' + posOf(c.abs) + '</span></h1>' +
     '<span class="eyebrow">Cycle ' + c.cycle + '</span></div>' +
-    '<p class="muted" style="font-size:14px">Push Pull Legs Skill Skill · rest goes wherever you need it</p>' +
+    (banner || '<p class="muted" style="font-size:14px">Push Pull Legs Skill Skill · rest goes wherever you need it</p>') +
     '<div class="rail">' + rail + '</div></header>';
+}
+
+var TIMER_LABEL = {idle:"Rest timer", running:"Resting", paused:"Paused", over:"Rest over"};
+var PLAY = "▶", PAUSE = "❚❚";
+
+/* Lives in the session's sticky header, so it is in reach while you scroll and
+   its controls sit above the first exercise. Every id in here is written to in
+   place by paintTimer — the clock must never cost a re-render. */
+function timerHTML(){
+  var t = state.timer, now = Date.now(), ph = timerPhase(t, now), left = timerLeft(t, now);
+  var h = '<div class="timer ' + ph + '" id="tmr"><div class="tbar">' +
+    '<div><p class="eyebrow" id="t-label">' + TIMER_LABEL[ph] + '</p>' +
+    '<p class="tclock" id="t-clock">' + fmtClock(Math.max(0, left)) + '</p></div>' +
+    '<div class="ttrack"><i id="t-fill" style="width:' + timerPct(t, now) + '%"></i></div>' +
+    '<button class="tbtn" id="t-play" data-a="tplay" aria-label="Start or pause the rest timer">' +
+    (ph === "running" ? PAUSE : PLAY) + '</button>' +
+    '<button class="tbtn" data-a="treset" aria-label="Reset the rest timer">↺</button></div>' +
+    '<div class="tchips">';
+  TIMER_STEPS.forEach(function(sec){
+    h += '<button class="' + (t.dur === sec ? "on" : "") + '" data-a="tdur" data-v="' + sec + '">' + fmtClock(sec) + '</button>';
+  });
+  if (canAsk()) h += '<button class="alert" data-a="tnotify">Alerts off</button>';
+  return h + '</div></div>';
+}
+function timerPct(t, now){
+  var done = t.dur - Math.max(0, timerLeft(t, now));
+  return clamp((done / (t.dur || 1)) * 100, 0, 100).toFixed(1);
 }
 
 function exLineHTML(c, ex){
@@ -797,7 +911,7 @@ function viewHome(c, live){
 
 function viewSession(c){
   var d = state.draft;
-  var h = headerHTML(c) +
+  var h = headerHTML(c, null, timerHTML()) +
     '<div style="padding:10px 16px 0"><button class="eyebrow" data-a="back">‹ Back</button></div>';
 
   if (c.trim) h += '<div style="padding:8px 16px 0">' + noteHTML({cls:"warn", head:"Practice only",
@@ -1279,6 +1393,179 @@ function render(keepScroll){
   if (deferredPrompt) { var box = document.getElementById("install"); if (box) box.style.display = "block"; }
 }
 
+/* ============================== ALARM ============================== */
+
+/* The whole point of this section: a static page cannot schedule a future
+   notification, and a backgrounded or locked phone stops running timers. What
+   it will keep doing is playing media. So a rest arms an audio file that is
+   `left` seconds of inaudible signal followed by the tone, and the phone plays
+   it to the end on its own. Nothing here has to be awake for the alarm to
+   sound. Everything is feature-detected and swallowed: no alarm must ever stop
+   a set being logged. */
+
+var alarmEl = document.getElementById("alarm");
+var alarmUrl = null, tickHandle = null, fired = false, wakeLock = null;
+
+function hasAudio(){ return !!(alarmEl && typeof alarmEl.play === "function"); }
+function canAsk(){
+  return typeof Notification !== "undefined" && Notification.permission === "default";
+}
+
+/* 8 kHz 16-bit mono. The lead-in is a ±2 LSB dither rather than digital
+   silence, which is some 84 dB down — inaudible, but real audio, so the phone
+   treats this as playback worth keeping alive. */
+function alarmSrc(silentSec){
+  var RATE = 8000, TAIL = 4;
+  var lead = Math.round(Math.max(0, silentSec) * RATE);
+  var n = lead + TAIL * RATE, bytes = 44 + n * 2;
+  var buf = new ArrayBuffer(bytes), dv = new DataView(buf), i;
+  function tag(off, str){ for (var j = 0; j < str.length; j++) dv.setUint8(off + j, str.charCodeAt(j)); }
+  tag(0, "RIFF"); dv.setUint32(4, bytes - 8, true); tag(8, "WAVEfmt ");
+  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+  dv.setUint32(24, RATE, true); dv.setUint32(28, RATE * 2, true);
+  dv.setUint16(32, 2, true); dv.setUint16(34, 16, true);
+  tag(36, "data"); dv.setUint32(40, n * 2, true);
+  for (i = 0; i < lead; i++) dv.setInt16(44 + i * 2, i % 2 ? 2 : -2, true);
+  for (i = lead; i < n; i++){
+    var t = (i - lead) / RATE, beat = t % 0.5, v = 0;
+    if (beat < 0.32){
+      /* ramp both edges so each burst starts and ends without a click */
+      var env = Math.min(1, beat * 40, (0.32 - beat) * 40);
+      v = Math.round(8600 * env * (Math.sin(2 * Math.PI * 880 * t) + 0.5 * Math.sin(2 * Math.PI * 1320 * t)));
+    }
+    dv.setInt16(44 + i * 2, v, true);
+  }
+  return URL.createObjectURL(new Blob([buf], {type: "audio/wav"}));
+}
+
+function armAlarm(secs){
+  if (!hasAudio()) return;
+  stopAlarm();
+  try {
+    alarmUrl = alarmSrc(secs);
+    alarmEl.src = alarmUrl;
+    var p = alarmEl.play();
+    if (p && p.catch) p.catch(function(){});
+    wireMedia();
+  } catch (e) {}
+}
+function stopAlarm(){
+  try { if (hasAudio()) alarmEl.pause(); } catch (e) {}
+  if (alarmUrl){
+    try { URL.revokeObjectURL(alarmUrl); } catch (e) {}
+    alarmUrl = null;
+  }
+}
+
+/* If the armed file was stopped somewhere along the way — the phone reclaimed
+   it, the tab was frozen — the rest still ends, so sound it now. */
+function alarmFallback(){
+  try { if (hasAudio() && alarmEl.paused) armAlarm(0); } catch (e) {}
+}
+
+/* Lock-screen transport, so pausing there pauses the rest rather than leaving
+   a phantom player running. */
+function wireMedia(){
+  try {
+    if (!navigator.mediaSession) return;
+    if (typeof MediaMetadata === "function"){
+      navigator.mediaSession.metadata = new MediaMetadata({title: "Rest timer", artist: "Rolling Five"});
+    }
+    navigator.mediaSession.setActionHandler("pause", function(){ timerDo("tplay"); });
+    navigator.mediaSession.setActionHandler("play", function(){ timerDo("tplay"); });
+  } catch (e) {}
+}
+
+/* Keeps the screen up while a rest runs, which is the case where nothing can go
+   wrong at all. Released the moment it is not needed. */
+function holdScreen(on){
+  try {
+    if (on && !wakeLock && navigator.wakeLock && navigator.wakeLock.request){
+      navigator.wakeLock.request("screen").then(function(w){ wakeLock = w; }, function(){});
+    } else if (!on && wakeLock){
+      wakeLock.release(); wakeLock = null;
+    }
+  } catch (e) { wakeLock = null; }
+}
+
+function notifyOver(){
+  try {
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    var body = fmtClock(state.timer.dur) + " rest is up. Next set.";
+    if (navigator.serviceWorker && navigator.serviceWorker.ready){
+      navigator.serviceWorker.ready.then(function(reg){
+        reg.showNotification("Rest over", {body: body, tag: "rest", renotify: true});
+      }, function(){});
+    } else {
+      new Notification("Rest over", {body: body, tag: "rest"});
+    }
+  } catch (e) {}
+}
+
+/* Writes the clock into the nodes that are already there. Never re-renders:
+   the session screen is full of text fields, and a tick that stole the keyboard
+   once a second would be unusable. */
+function paintTimer(){
+  var box = document.getElementById("tmr");
+  if (!box) return;
+  var t = state.timer, now = Date.now(), ph = timerPhase(t, now);
+  box.className = "timer " + ph;
+  var el = document.getElementById("t-clock");
+  if (el) el.textContent = fmtClock(Math.max(0, timerLeft(t, now)));
+  el = document.getElementById("t-label");
+  if (el) el.textContent = TIMER_LABEL[ph];
+  el = document.getElementById("t-fill");
+  if (el && el.style) el.style.width = timerPct(t, now) + "%";
+  el = document.getElementById("t-play");
+  if (el) el.textContent = ph === "running" ? PAUSE : PLAY;
+  if (!document.querySelectorAll) return;
+  var chips = document.querySelectorAll('[data-a="tdur"]');
+  for (var i = 0; i < chips.length; i++){
+    chips[i].className = Number(chips[i].dataset.v) === t.dur ? "on" : "";
+  }
+}
+
+function tick(){
+  var ph = timerPhase(state.timer, Date.now());
+  paintTimer();
+  if (ph === "over"){
+    if (!fired){ fired = true; alarmFallback(); notifyOver(); }
+    stopTicking(); holdScreen(false);
+  } else if (ph !== "running") stopTicking();
+}
+function startTicking(){
+  if (tickHandle == null && typeof setInterval === "function") tickHandle = setInterval(tick, 250);
+}
+function stopTicking(){
+  if (tickHandle != null && typeof clearInterval === "function") clearInterval(tickHandle);
+  tickHandle = null;
+}
+
+/* One place where a timer value change turns into sound, screen and ticking, so
+   no action has to remember the four of them. */
+function syncTimer(){
+  var t = state.timer, ph = timerPhase(t, Date.now());
+  if (ph === "running"){
+    fired = false;
+    armAlarm(timerLeft(t, Date.now()));
+    holdScreen(true);
+    startTicking();
+  } else {
+    stopAlarm();
+    holdScreen(false);
+    if (ph !== "over") stopTicking();
+  }
+}
+
+function timerDo(a, v){
+  var now = Date.now(), t = state.timer;
+  if (a === "tplay") state.timer = timerToggle(t, now);
+  else if (a === "treset") state.timer = timerReset(t);
+  else if (a === "tstart") state.timer = timerStart(t, now);
+  else if (a === "tdur") state.timer = timerSetDur(t, Number(v));
+  syncTimer(); saveState(); paintTimer();
+}
+
 /* ============================== ACTIONS ============================== */
 
 function startSession(){
@@ -1330,6 +1617,10 @@ function commit(){
   state.index += 1;
   state.draft = null;
   peek = null;
+  /* the session is over, so the rest between its sets is too — nothing should
+     go off in your pocket on the walk home */
+  state.timer = timerReset(state.timer);
+  syncTimer();
   saveState();
   var after = snapshot();
 
@@ -1385,6 +1676,9 @@ document.addEventListener("click", function(e){
       if (row.w === "") row.w = String(t.weight == null ? 0 : t.weight);
       if (row.r === "") row.r = String((t.lastReps && t.lastReps[i] != null) ? t.lastReps[i] : t.reps);
       askIfPending(c);
+      /* The set is done, so the rest has started. This runs inside the tap that
+         logged it, which is the gesture the alarm needs to be allowed to play. */
+      timerDo("tstart");
     }
     saveState(); render(true); return;
   }
@@ -1399,6 +1693,14 @@ document.addEventListener("click", function(e){
       volumeChanged(c, exId);
     }
     saveState(); render(true); return;
+  }
+
+  /* The timer paints itself, so none of these re-render — tapping one mid-set
+     must not take the keyboard away from the field being typed in. */
+  if (a === "tplay" || a === "treset" || a === "tdur"){ timerDo(a, el.dataset.v); return; }
+  if (a === "tnotify"){
+    try { Notification.requestPermission().then(function(){ render(true); }, function(){}); } catch (e) {}
+    return;
   }
 
   if (a === "ask" || a === "fbans"){ fb()[el.dataset.k] = Number(el.dataset.v); saveState(); render(true); return; }
@@ -1438,7 +1740,7 @@ document.addEventListener("click", function(e){
   if (a === "erase-yes"){
     state = blank();
     confirmErase = false; peek = null; testDraft = {};
-    saveState(); tab = "cycle"; view = "home"; render(); return;
+    syncTimer(); saveState(); tab = "cycle"; view = "home"; render(); return;
   }
   if (a === "install" && deferredPrompt){ deferredPrompt.prompt(); deferredPrompt = null; return; }
 });
@@ -1523,7 +1825,18 @@ if (!ONDISK && "serviceWorker" in navigator){
   } catch (e) {}
 }
 
+/* A rest survives leaving the session screen, so pick the clock back up
+   whenever the app comes forward or a screen is drawn. */
+document.addEventListener("visibilitychange", function(){
+  if (document.visibilityState === "visible"){ paintTimer(); syncTicking(); }
+});
+function syncTicking(){
+  var ph = timerPhase(state.timer, Date.now());
+  if (ph === "running") startTicking(); else tick();
+}
+
 render();
+syncTicking();
 </script>
 </body>
 </html>

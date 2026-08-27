@@ -24,6 +24,7 @@ function mkEl(){ return {innerHTML:"", style:{}, dataset:{}, appendChild:functio
 var document = {
   getElementById: function(){ return mkEl(); },
   querySelector: function(){ return null; },
+  querySelectorAll: function(){ return []; },
   addEventListener: function(t,f){ __handlers[t] = f; },
   createElement: function(){ return mkEl(); },
   head: { appendChild: function(){} }
@@ -31,10 +32,13 @@ var document = {
 var window = { scrollY:0, scrollTo:function(){}, addEventListener:function(){} };
 var location = { protocol:"file:" };
 var navigator = {};
-var URL = { createObjectURL: function(){ return "blob:stub"; } };
-function Blob(){}
+var URL = { createObjectURL: function(){ return "blob:stub"; }, revokeObjectURL: function(){} };
+var __lastBlob = null;
+function Blob(parts){ __lastBlob = parts; }
 var setTimeout = function(f){ f(); };
 var clearTimeout = function(){};
+var setInterval = function(){ return 1; };
+var clearInterval = function(){};
 `;
 
 const DRIVER = `
@@ -99,8 +103,15 @@ return {
     restAdvice: restAdvice, nearCeiling: nearCeiling, plannedSets: plannedSets,
     exById: exById, slotOf: slotOf, cycleOf: cycleOf, loadless: loadless,
     SLOTS: SLOTS, SKILLS: SKILLS, SLOT_COUNT: SLOT_COUNT, DAY_MS: DAY_MS,
-    CEILING_GAP: CEILING_GAP, ELBOW_DAYS: ELBOW_DAYS, CYCLE_FLOOR: CYCLE_FLOOR
-  };}
+    CEILING_GAP: CEILING_GAP, ELBOW_DAYS: ELBOW_DAYS, CYCLE_FLOOR: CYCLE_FLOOR,
+    timerLeft: timerLeft, timerPhase: timerPhase, timerStart: timerStart,
+    timerPause: timerPause, timerResume: timerResume, timerToggle: timerToggle,
+    timerReset: timerReset, timerSetDur: timerSetDur, timerBlank: timerBlank,
+    fmtClock: fmtClock, TIMER_MAX: TIMER_MAX, TIMER_DEFAULT: TIMER_DEFAULT,
+    TIMER_STEPS: TIMER_STEPS
+  };},
+  /* the alarm file itself, so the tone's position in it can be measured */
+  wavFor: function(sec){ alarmSrc(sec); return __lastBlob[0]; }
 };
 `;
 
@@ -481,6 +492,155 @@ check("three clean skill sessions walk the front lever up the ladder", () => {
   eq(app.api().state.index, 4, "on to Skill B");
   app.runSession(load, (ex) => (ex.time ? 15 : 8), clean);
   eq(app.api().ctx().levels.fl.level, 3, "Skill B counts toward the same ladder");
+});
+
+console.log("\nrest timer");
+
+check("a rest is a value read off the clock, not a countdown", () => {
+  const { timerLeft, timerPhase, timerBlank, timerStart } = boot().api();
+  const t0 = 1_000_000;
+  const idle = timerBlank(120);
+  eq([timerLeft(idle, t0), timerPhase(idle, t0)], [120, "idle"], "idle sits at its duration");
+
+  const run = timerStart(idle, t0);
+  eq(timerPhase(run, t0), "running", "started");
+  eq(timerLeft(run, t0 + 30_000), 90, "thirty seconds later, ninety left");
+  eq(timerLeft(run, t0 + 119_000), 1, "one to go");
+  eq(timerPhase(run, t0 + 120_000), "over", "and then it is over");
+  eq(timerPhase(run, t0 + 900_000), "over", "still over an hour later, not wrapped around");
+  // the display never shows a negative, but the value knows
+  ok(timerLeft(run, t0 + 130_000) < 0, "the overrun is real");
+  eq(fmt(boot().api(), -10), "0:00", "the clock floors at zero");
+});
+
+function fmt(api, v){ return api.fmtClock(v); }
+
+check("the clock reads in minutes and seconds", () => {
+  const { fmtClock } = boot().api();
+  eq([45, 60, 90, 120, 300, 605].map(fmtClock), ["0:45", "1:00", "1:30", "2:00", "5:00", "10:05"]);
+});
+
+check("pause holds the seconds served and resume carries on from them", () => {
+  const { timerStart, timerPause, timerResume, timerLeft, timerPhase, timerBlank } = boot().api();
+  const t0 = 1_000_000;
+  const run = timerStart(timerBlank(120), t0);
+  const held = timerPause(run, t0 + 45_000);
+
+  eq(timerPhase(held, t0 + 45_000), "paused", "paused");
+  eq(timerLeft(held, t0 + 45_000), 75, "75 left");
+  eq(timerLeft(held, t0 + 600_000), 75, "and it stays 75 however long you stand there");
+
+  const back = timerResume(held, t0 + 600_000);
+  eq(timerLeft(back, t0 + 600_000), 75, "resuming does not lose them");
+  eq(timerLeft(back, t0 + 610_000), 65, "and it runs again from there");
+});
+
+check("changing the duration keeps the seconds already rested", () => {
+  const { timerStart, timerSetDur, timerLeft, timerBlank, TIMER_MAX } = boot().api();
+  const t0 = 1_000_000;
+  const run = timerStart(timerBlank(120), t0);
+  const longer = timerSetDur(run, 180);
+  eq(timerLeft(longer, t0 + 40_000), 140, "40s in, switching to 3:00 leaves 2:20 — not a fresh 3:00");
+
+  const shorter = timerSetDur(run, 45);
+  ok(timerLeft(shorter, t0 + 60_000) <= 0, "and shortening below what you have rested ends it");
+
+  eq(timerSetDur(run, 9999).dur, TIMER_MAX, "durations are capped");
+  eq(timerSetDur(run, 1).dur, 5, "and floored");
+});
+
+check("a tap on a finished rest starts the next one", () => {
+  const { timerStart, timerToggle, timerPhase, timerLeft, timerReset, timerBlank } = boot().api();
+  const t0 = 1_000_000, over = t0 + 200_000;
+  const done = timerStart(timerBlank(120), t0);
+  eq(timerPhase(done, over), "over", "this one is spent");
+
+  const next = timerToggle(done, over);
+  eq(timerPhase(next, over), "running", "tapping play starts a fresh rest");
+  eq(timerLeft(next, over), 120, "at the full duration, not at zero");
+
+  const cleared = timerReset(next);
+  eq([timerPhase(cleared, over), timerLeft(cleared, over)], ["idle", 120], "reset puts it back");
+  eq(cleared.dur, 120, "keeping the duration you chose");
+});
+
+check("logging a set starts the rest, un-logging leaves it alone", () => {
+  const app = boot();
+  const { state, ctx } = app.api();
+  eq(app.api().state.timer.startedAt, null, "nothing running to begin with");
+
+  app.type("p1", 0, "w", 135);
+  app.click({ a: "start" });
+  app.type("p1", 0, "w", 135);
+  app.click({ a: "toggle", ex: "p1", i: "0" });
+  ok(app.api().state.timer.startedAt, "checking a set off starts the rest");
+  eq(app.api().timerPhase(app.api().state.timer, Date.now()), "running", "and it is running");
+
+  const started = app.api().state.timer.startedAt;
+  app.click({ a: "toggle", ex: "p1", i: "0" }); // un-log it
+  eq(app.api().state.timer.startedAt, started, "un-checking does not restart anything");
+});
+
+check("play, pause and reset are on the bar", () => {
+  const app = boot();
+  app.click({ a: "start" });
+  app.click({ a: "tplay" });
+  eq(app.api().timerPhase(app.api().state.timer, Date.now()), "running", "play starts it");
+  app.click({ a: "tplay" });
+  eq(app.api().state.timer.startedAt, null, "and pauses it — nothing is counting");
+  app.click({ a: "treset" });
+  eq(app.api().timerPhase(app.api().state.timer, Date.now()), "idle", "reset clears it");
+
+  app.click({ a: "tdur", v: "180" });
+  eq(app.api().state.timer.dur, 180, "and the duration chips set the duration");
+});
+
+check("finishing the session clears the rest behind it", () => {
+  const app = boot();
+  app.runSession(load, topOfRange, clean);
+  eq(app.api().state.timer.startedAt, null, "nothing left running once a session is committed");
+  eq(app.api().state.timer.dur, 120, "but the duration you chose is still yours");
+});
+
+check("the timer bar is in the session header and nowhere else", () => {
+  const app = boot();
+  ok(app.api().html.indexOf('id="tmr"') < 0, "not on the home screen");
+  app.click({ a: "start" });
+  const h = app.api().html;
+  ok(h.indexOf('id="tmr"') >= 0, "on the open session");
+  ok(h.indexOf('id="t-clock"') >= 0, "with a clock the tick can write into");
+  ok(h.indexOf('data-a="tplay"') >= 0 && h.indexOf('data-a="treset"') >= 0, "play and reset");
+  ok(h.indexOf('data-a="tdur" data-v="120"') >= 0, "and every duration on offer");
+  ok(h.indexOf("</header>") > h.indexOf('id="tmr"'), "inside the sticky header, so it stays in reach");
+
+  app.click({ a: "nav", tab: "plan" });
+  ok(app.api().html.indexOf('id="tmr"') < 0, "and not on the other tabs");
+});
+
+check("the alarm file is the rest in silence, then the tone", () => {
+  const app = boot();
+  const RATE = 8000, TAIL = 4;
+  const buf = app.wavFor(90);
+  const dv = new DataView(buf);
+  const str = (o, n) => String.fromCharCode(...new Uint8Array(buf, o, n));
+
+  eq([str(0, 4), str(8, 4)], ["RIFF", "WAVE"], "it is a wav");
+  eq(dv.getUint32(24, true), RATE, "8 kHz");
+  eq(dv.getUint16(34, true), 16, "16-bit");
+  eq(dv.getUint16(22, true), 1, "mono");
+
+  const samples = dv.getUint32(40, true) / 2;
+  eq(samples, (90 + TAIL) * RATE, "90 seconds of rest and then the alarm");
+  eq(buf.byteLength, 44 + samples * 2, "and the header agrees with the body");
+
+  // the lead-in is inaudible, the tail is not
+  let leadPeak = 0, tailPeak = 0;
+  for (let i = 0; i < 90 * RATE; i += 37) leadPeak = Math.max(leadPeak, Math.abs(dv.getInt16(44 + i * 2, true)));
+  for (let i = 90 * RATE; i < samples; i += 7) tailPeak = Math.max(tailPeak, Math.abs(dv.getInt16(44 + i * 2, true)));
+  ok(leadPeak <= 2, "the rest itself is 84 dB down — real audio, but nothing you can hear");
+  ok(tailPeak > 8000, "and the alarm at the end is not, got " + tailPeak);
+
+  eq(new DataView(app.wavFor(0)).getUint32(40, true) / 2, TAIL * RATE, "a zero rest is the tone alone");
 });
 
 console.log("\nsession state");
