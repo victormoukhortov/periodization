@@ -350,10 +350,12 @@ Consequences to keep in mind when changing any of this:
 - The lead-in is a ±2 LSB dither rather than digital silence, so the stream reads as real audio
   worth keeping alive.
 - Every timer change re-arms the file, because its length *is* the remaining rest.
-- The alarm is a desk bell sample, `BELL_B64`: 16 kHz 16-bit mono PCM, one strike trimmed to
-  0.75s with a raised-cosine fade, struck twice `BELL_GAP` apart. The rate is not negotiable
-  downward — a 4 kHz ceiling loses 60% of that bell's energy and leaves a thud. Replacing the
-  sound means replacing that constant and the two numbers around it, nothing else.
+- The alarm is a desk bell sample, `BELL_B64`: 16 kHz 16-bit mono PCM, one strike of 1s with a
+  raised-cosine fade over the last third, struck twice `BELL_GAP` apart. It starts at the strike,
+  not at the recording — the source opens with 33ms of the striker rattling before the bell
+  speaks, and that is cut. The rate is not negotiable downward: a 4 kHz ceiling loses 60% of this
+  bell's energy and leaves a thud. Replacing the sound means replacing that constant and the two
+  numbers around it, nothing else.
 - `TIMER_MAX` bounds the file: one second of 16 kHz 16-bit mono per second of rest, so 5:00 is
   about 9.6 MB.
 - The first `play()` has to happen inside a user gesture. It does: `timerDo("tstart")` is called

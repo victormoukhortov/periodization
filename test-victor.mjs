@@ -619,7 +619,7 @@ check("the timer bar is in the session header and nowhere else", () => {
 
 check("the alarm file is the rest in silence, then the bell, struck twice", () => {
   const app = boot();
-  const RATE = 16000, GAP = 0.75, STRIKE = 0.75, TAIL = GAP + STRIKE;
+  const RATE = 16000, GAP = 1, STRIKE = 1, TAIL = GAP + STRIKE;
   const buf = app.wavFor(90);
   const dv = new DataView(buf);
   const str = (o, n) => String.fromCharCode(...new Uint8Array(buf, o, n));
@@ -659,7 +659,7 @@ check("the bell decodes to exactly one trimmed strike", () => {
   // a zero rest is the alarm alone: gap + one strike
   const buf = app.wavFor(0);
   const samples = new DataView(buf).getUint32(40, true) / 2;
-  eq(samples / RATE, 1.5, "0.75s to the second strike, 0.75s of strike");
+  eq(samples / RATE, 2, "a second to the second strike, a second of strike");
 });
 
 console.log("\nsession state");
