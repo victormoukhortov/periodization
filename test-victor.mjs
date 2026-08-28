@@ -108,7 +108,8 @@ return {
     timerPause: timerPause, timerResume: timerResume, timerToggle: timerToggle,
     timerReset: timerReset, timerSetDur: timerSetDur, timerBlank: timerBlank,
     fmtClock: fmtClock, TIMER_MAX: TIMER_MAX, TIMER_DEFAULT: TIMER_DEFAULT,
-    TIMER_STEPS: TIMER_STEPS
+    TIMER_STEPS: TIMER_STEPS, BELL_RATE: BELL_RATE, BELL_GAP: BELL_GAP,
+    bellSeconds: bell().length / BELL_RATE
   };},
   /* the alarm file itself, so the tone's position in it can be measured */
   wavFor: function(sec){ alarmSrc(sec); return __lastBlob[0]; }
@@ -619,7 +620,10 @@ check("the timer bar is in the session header and nowhere else", () => {
 
 check("the alarm file is the rest in silence, then the bell, struck twice", () => {
   const app = boot();
-  const RATE = 32000, GAP = 1, STRIKE = 1, TAIL = GAP + STRIKE;
+  // the shape comes from the app itself, so these cannot drift apart
+  const { BELL_RATE: RATE, BELL_GAP: GAP, bellSeconds: STRIKE } = app.api();
+  const TAIL = GAP + STRIKE;
+  eq([RATE, GAP, STRIKE], [32000, 1, 1.5], "32 kHz, a second between strikes, 1.5s of ring");
   const buf = app.wavFor(90);
   const dv = new DataView(buf);
   const str = (o, n) => String.fromCharCode(...new Uint8Array(buf, o, n));
@@ -657,10 +661,12 @@ check("the bell decodes to exactly one trimmed strike", () => {
   const app = boot();
   // a zero rest is the alarm alone: gap + one strike. Read the rate out of the
   // header rather than restating it, so this cannot drift from the app.
+  const { BELL_GAP, bellSeconds } = app.api();
   const buf = app.wavFor(0);
   const dv = new DataView(buf);
   const rate = dv.getUint32(24, true);
-  eq(dv.getUint32(40, true) / 2 / rate, 2, "a second to the second strike, a second of strike");
+  eq(dv.getUint32(40, true) / 2 / rate, BELL_GAP + bellSeconds, "gap plus one strike, nothing else");
+  eq(BELL_GAP + bellSeconds, 2.5, "which is 2.5s of alarm");
 });
 
 console.log("\nsession state");
