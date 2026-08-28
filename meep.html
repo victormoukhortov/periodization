@@ -186,9 +186,9 @@
    Every exercise ends in a proof set — see ENGINE. */
 var SLOTS = [
   { id:"ua", name:"Upper Push", kind:"upper", exercises:[
-    {id:"a1",name:"Dumbbell Bench Press",gear:"Dumbbell",muscle:"chest",sets:4,lo:6,hi:10,perHand:true,heavy:true,
+    {id:"a1",name:"Dumbbell Bench Press",gear:"Dumbbell",muscle:"chest",sets:4,lo:6,hi:10,perHand:true,
       cue:"The heavy chest session of the week. Dumbbells because the proof set goes to failure and you can put these down."},
-    {id:"a4",name:"Seated Dumbbell Shoulder Press",gear:"Dumbbell",muscle:"delts",sets:3,lo:8,hi:12,perHand:true,heavy:true},
+    {id:"a4",name:"Seated Dumbbell Shoulder Press",gear:"Dumbbell",muscle:"delts",sets:3,lo:8,hi:12,perHand:true},
     {id:"c1",name:"Incline Dumbbell Press",gear:"Dumbbell",muscle:"chest",sets:3,lo:10,hi:14,perHand:true},
     {id:"a2",name:"Chest-Supported Row",gear:"Machine",muscle:"back",sets:3,lo:10,hi:15,step:10,
       cue:"Back's easy day. Chest on the pad, no lower back involved — the heavy pulling is on Upper Pull."},
@@ -198,7 +198,7 @@ var SLOTS = [
     {id:"a6",name:"Rope Triceps Pushdown",gear:"Cable",muscle:"triceps",sets:3,lo:10,hi:15}
   ]},
   { id:"la", name:"Lower Squat", kind:"lower", exercises:[
-    {id:"b1",name:"Hack Squat",gear:"Machine",muscle:"quads",sets:4,lo:6,hi:10,step:20,heavy:true,
+    {id:"b1",name:"Hack Squat",gear:"Machine",muscle:"quads",sets:4,lo:6,hi:10,step:20,
       cue:"The heavy leg session of the week. All the way down — depth is the whole point of the machine, and the stops mean you can fail safely."},
     {id:"b5",name:"Leg Extension",gear:"Machine",muscle:"quads",sets:3,lo:12,hi:20,step:10},
     {id:"d4",name:"Bulgarian Split Squat",gear:"Dumbbell",muscle:"glutes",sets:3,lo:10,hi:12,perHand:true,perLeg:true},
@@ -211,7 +211,7 @@ var SLOTS = [
     {id:"b7",name:"Hanging Knee Raise",gear:"Bodyweight",muscle:"abs",sets:2,lo:10,hi:20,bw:true}
   ]},
   { id:"ub", name:"Upper Pull", kind:"upper", exercises:[
-    {id:"e1",name:"Barbell Row",gear:"Barbell",muscle:"back",sets:4,lo:6,hi:10,heavy:true,
+    {id:"e1",name:"Barbell Row",gear:"Barbell",muscle:"back",sets:4,lo:6,hi:10,
       cue:"The heavy back session of the week. Torso around 45°, bar to the belly, and stop the proof set when the torso starts rising — that is technical failure and it counts."},
     {id:"a3",name:"Wide-Grip Lat Pulldown",gear:"Cable",muscle:"back",sets:3,lo:8,hi:12,step:10},
     {id:"c3",name:"Machine Chest Press",gear:"Machine",muscle:"chest",sets:3,lo:10,hi:15,step:10,
@@ -222,9 +222,9 @@ var SLOTS = [
     {id:"a7",name:"Incline Dumbbell Curl",gear:"Dumbbell",muscle:"biceps",sets:3,lo:10,hi:15,perHand:true}
   ]},
   { id:"lb", name:"Lower Hinge", kind:"lower", exercises:[
-    {id:"d1",name:"Barbell Hip Thrust",gear:"Barbell",muscle:"glutes",sets:4,lo:6,hi:10,step:10,heavy:true,
+    {id:"d1",name:"Barbell Hip Thrust",gear:"Barbell",muscle:"glutes",sets:4,lo:6,hi:10,step:10,
       cue:"The heavy glute session of the week. Ribs down, chin tucked, a full second at the top of every rep."},
-    {id:"b2",name:"Romanian Deadlift",gear:"Barbell",muscle:"hamstrings",sets:4,lo:8,hi:12,step:10,heavy:true,
+    {id:"b2",name:"Romanian Deadlift",gear:"Barbell",muscle:"hamstrings",sets:4,lo:8,hi:12,step:10,
       cue:"The heavy hinge. Hips back, bar close. The proof set ends when the hamstrings run out — not when the back rounds."},
     {id:"d2",name:"Leg Press",gear:"Machine",muscle:"quads",sets:3,lo:10,hi:15,step:20,
       cue:"Quads' easy day. Feet mid-platform, shoulder width — the heavy quad work was on Lower Squat."},
@@ -715,8 +715,7 @@ function headerHTML(c, live, banner){
 
 function exLineHTML(c, ex){
   var t = c.targets[ex.id];
-  return '<div class="rowline"><div style="min-width:0"><p class="name">' + ex.name +
-    (ex.heavy ? ' <span style="color:var(--push);font-size:10px;font-weight:800;letter-spacing:.1em">HEAVY</span>' : "") + '</p>' +
+  return '<div class="rowline"><div style="min-width:0"><p class="name">' + ex.name + '</p>' +
     '<p class="dim" style="font-size:12px">' + ex.gear + ' · ' + ex.muscle + '</p></div>' +
     '<div style="text-align:right;flex-shrink:0"><p class="num" style="font-size:14px">' +
     plannedSets(c, ex) + ' × ' + ex.lo + '–' + ex.hi + (ex.perLeg ? "/leg" : "") + '</p>' +
@@ -790,8 +789,7 @@ function viewSession(c){
 
   c.exercises.forEach(function(ex){
     var t = c.targets[ex.id], rows = d.sets[ex.id] || [];
-    h += '<div class="ex"><div class="exhead"><div><h3>' + ex.name +
-      (ex.heavy ? ' <span style="color:var(--push);font-size:11px;font-weight:800;letter-spacing:.1em;vertical-align:middle">HEAVY</span>' : "") + '</h3>' +
+    h += '<div class="ex"><div class="exhead"><div><h3>' + ex.name + '</h3>' +
       '<p class="dim" style="font-size:14px">' + ex.gear + (ex.perHand ? " · each hand" : "") + (ex.perLeg ? " · per leg" : "") + '</p></div>' +
       '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">' + videoHTML(ex) +
       '<button class="chip" data-a="why" data-ex="' + ex.id + '">Why?</button></div></div>';

@@ -408,8 +408,9 @@ around measuring effort rather than asking for it politely.
 Each muscle gets **one heavy compound a week and one easy day**, and the two upper days are led
 from opposite ends: Upper Push opens with the heavy dumbbell press and gives back a machine row
 and a pulldown; Upper Pull opens with the heavy barbell row and gives chest a machine press and a
-pec deck. Lower Squat and Lower Hinge do the same for quads against hips and hamstrings. `heavy`
-marks the compound on each slot and is what the HEAVY badge and the Plan copy read.
+pec deck. Lower Squat and Lower Hinge do the same for quads against hips and hamstrings. Nothing in the
+data marks which movement is the heavy one — the rep range and the exercise's own `cue` say it,
+and a badge on every card was noise. The Plan tab explains the structure once, in prose.
 
 This is not decoration. Every exercise here ends in a set taken to failure, so two heavy sessions
 a week for the same muscle is two failure sets on the same tissue 72 hours apart — which is where
