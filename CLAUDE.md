@@ -6,9 +6,11 @@ Two single-file workout trackers, deployed together to GitHub Pages from the rep
 | --- | --- | --- |
 | **PPL Block** | `indie.html` | 4-day Push / Pull / Legs / Full Body split on five-week blocks, RP-style autoregulation. |
 | **Rolling Five** | `victor.html` | 5-slot rolling cycle — push, pull, legs, and two skill days for the handstand pushup and front lever. |
+| **Prove It** | `meep.html` | 4-day upper/lower hypertrophy. Every exercise ends in a proof set, and the effort rating is audited against the log. |
 
 They share nothing at runtime: separate files, separate `localStorage` keys, separate manifests,
-separate home-screen installs. They share the constraints below and the deployment.
+separate home-screen installs. `meep.html` carries a copy of `victor.html`'s rest timer and alarm;
+that is a copy on purpose, because a shared file would be a second file. They share the constraints below and the deployment.
 
 ## Files
 
@@ -16,14 +18,17 @@ separate home-screen installs. They share the constraints below and the deployme
 | --- | --- |
 | `indie.html` | PPL Block, entire. No dependencies, no build step. |
 | `victor.html` | Rolling Five, entire. Same rules. |
+| `meep.html` | Prove It, entire. Same rules. |
 | `index.html` | Site root. Offers both apps; installs go straight to the app files. |
 | `sw.js` | Service worker for the hosted copies. Network first, cache fallback, both apps in the shell. |
 | `manifest.webmanifest` | PWA manifest for PPL Block. Icons are inline data URIs. |
 | `victor.webmanifest` | PWA manifest for Rolling Five. |
+| `meep.webmanifest` | PWA manifest for Prove It. |
 | `.nojekyll` | Keeps Pages from running the files through Jekyll. |
-| `.github/workflows/test.yml` | `node test.mjs` and `node test-victor.mjs` on pushes and pull requests. |
+| `.github/workflows/test.yml` | All three suites on pushes and pull requests. |
 | `test.mjs` | PPL Block regression suite. No test framework. |
 | `test-victor.mjs` | Rolling Five regression suite. Same harness, same style. |
+| `test-meep.mjs` | Prove It regression suite. Same again. |
 | `CLAUDE.md` | This file. |
 
 ## Hard constraints
@@ -387,18 +392,88 @@ of you. Only the live session is writable, and the mechanism is the same: every 
 
 ## Backlog
 
-- Export / import of `state` as JSON. Same gap as the other app, same priority.
+- Export / import of `state` as JSON. Same gap as the other apps, same priority.
 - Per-position hold-time charts, not just the per-exercise curve.
 - The baseline test screen records numbers but only the pike pushup and chest-to-wall hold feed
   the engine. The chin-up 5RM and squat × 10 could seed first loads instead of asking.
 
-# Both apps
+# Prove It (`meep.html`)
+
+Meep's program: upper/lower, four sessions on rotation, built for hypertrophy in a commercial
+gym. The brief that shaped the engine is that she does not push hard enough, so the app is built
+around measuring effort rather than asking for it politely.
+
+## The one idea
+
+**Every exercise ends in a proof set**, taken until the reps stop. The working sets before it stop
+a rep or two short and exist to accumulate volume; the proof set is the measurement, and every
+load in the app is calculated from it. The rating she gives it — how many more she could have done
+— is the other half of the input.
+
+Three rules follow from that, and they are the whole app:
+
+1. **There is no rating that leaves the weight alone.** Reps left in the tank beyond the one the
+   program allows are treated as evidence the load was too light, and they are added to it. The
+   only way to keep a weight where it is, is to finish the set.
+2. **Volume is a reward for intensity.** Soreness moves set counts, but only for a muscle whose
+   work was actually taken close to failure (`workedHard`). Recovering easily from work she did
+   not really do buys nothing.
+3. **Deloads are earned, not scheduled.** `deloadDue` injects one when the proof sets go backwards
+   across most of a session twice running. Someone who has not been training hard does not need a
+   week off, and handing her one on a calendar would teach the wrong lesson.
+
+## Layout of `meep.html`
+
+The same section banners and the same responsibilities as the other two. What differs:
+
+- `PROGRAM` — `SLOTS` (Upper A, Lower A, Upper B, Lower B) and the constants. Exercise ids
+  (`a1`, `b4`, `c2`, `d5`) are the primary key of the log. **Never renumber or reuse one.**
+  `RETIRED` is empty; the machinery is there for when it is not.
+- `ENGINE` — pure. `proofOf`, `claimRun`, `prescribe`, `setsDelta`, `deloadDue` and `effortScore`
+  all take history and return values.
+- `STORAGE` — `localStorage` under `prove-it-v1`, its own key.
+- `ALARM` — a copy of Rolling Five's rest timer and bell, defaults changed to a 90 second rest.
+
+## How the load moves
+
+`prescribe` turns evidence into load rather than stepping a fixed amount:
+
+- `room` = reps past the top of the range (topping it counts as one) **plus** reps she said were
+  left beyond the one rep of leeway the program allows. Capped at four.
+- That is priced at `PER_REP` (3%) of the current load per rep, then rounded to whole steps of
+  whatever the equipment actually moves in — never less than one step when there is any room at
+  all. A 3% bump on a 30 lb dumbbell is smaller than the smallest dumbbell; on a 300 lb leg press
+  it is not, and the rule handles both without a special case.
+- `room` of zero holds the load and asks for one more rep on the proof set.
+- Below the range having emptied the tank → one step down.
+- **Below the range while claiming reps were left → nothing comes off** (`forced`). That is an
+  abandoned set rather than a failed one, and dropping the load would reward it. This is the one
+  place the audit overrides the arithmetic.
+
+`claimRun` counts consecutive sessions finished with reps still in the tank. It does not change
+the load — the standing rule already does that every single time — it drives the call-out on the
+home screen and the exercise card. `effortScore` is the headline: the share of proof sets over the
+last four weeks rated one-more or nothing-left, against an 80% target, on the front of Progress
+and on every summary.
+
+## Feedback timing
+
+The effort rating renders **inline on the exercise card** the moment its proof set is logged, not
+in a sheet — seven interruptions a session would get tapped through without being read. Soreness
+is asked at the end, and only about muscles the session actually works (`askedMuscles`: three or
+more sets). A session cannot commit with either outstanding.
+
+`+ Set` / `− Set` and un-logging the last set all clear that exercise's rating, because the set it
+described is no longer the proof set.
+
+# All three apps
 
 ## Testing
 
 ```
 node test.mjs          # PPL Block, 31 checks
 node test-victor.mjs   # Rolling Five, 54 checks
+node test-meep.mjs     # Prove It, 31 checks
 ```
 
 Each suite extracts the `<script>` body from its HTML file, stubs the handful of browser APIs the
@@ -415,8 +490,8 @@ GitHub Pages, source **Deploy from a branch** — `main`, `/ (root)`. A push to 
 deploy: GitHub's own `pages-build-deployment` run copies the repo root to the site. There is no
 deploy workflow, and `.github/workflows/test.yml` only runs the suite — **it cannot block a
 publish**, so run both suites before you push. The apps land at
-`https://<owner>.github.io/periodization/indie.html` and
-`https://<owner>.github.io/periodization/victor.html`; `/` offers both.
+`https://<owner>.github.io/periodization/indie.html`,
+`.../victor.html` and `.../meep.html`; `/` offers all three.
 
 Do not add an `actions/deploy-pages` workflow back. With a branch source it cannot work:
 `configure-pages` wants the site's build type to be `workflow`, and switching that is an

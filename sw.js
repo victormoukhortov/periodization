@@ -1,17 +1,18 @@
 /**
- * Offline shell for both apps.
+ * Offline shell for all three apps.
  *
  * Network first so a fresh deploy is picked up as soon as you are online, cache
  * fallback so a session logged in a basement gym still opens. Registered by
- * indie.html and victor.html only when they are served over http(s); from
+ * each app only when it is served over http(s); from
  * file:// there is nothing to register and the pages run uncached.
  */
 
-var CACHE = "periodization-v2";
+var CACHE = "periodization-v3";
 var SHELL = [
   "./", "./index.html",
   "./indie.html", "./manifest.webmanifest",
-  "./victor.html", "./victor.webmanifest"
+  "./victor.html", "./victor.webmanifest",
+  "./meep.html", "./meep.webmanifest"
 ];
 
 self.addEventListener("install", function(e){

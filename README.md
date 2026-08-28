@@ -1,24 +1,25 @@
 # periodization
 
-Two single-file workout trackers, hosted on GitHub Pages. No dependencies, no build step, no
+Three single-file workout trackers, hosted on GitHub Pages. No dependencies, no build step, no
 server. Each one keeps its whole training log in the browser it is installed in.
 
 | App | File | What it runs |
 | --- | --- | --- |
 | **PPL Block** | [`indie.html`](indie.html) | A 4-day Push / Pull / Legs / Full Body split on five-week blocks. Logs sets, asks the RP-style soreness / pump / volume questions, and derives the next session's sets, weight and reps from the answers. Four weeks of work at 3, 2, 1 then 0 reps in reserve, then a deload. |
 | **Rolling Five** | [`victor.html`](victor.html) | A 5-slot rolling cycle — Push, Pull, Legs, Skill A, Skill B — for barbell strength alongside the handstand pushup and front lever. Double progression on the bar, position progression on the skills, and a program that cuts itself back when your elbows, your legs or your cycle rate say so. |
+| **Prove It** | [`meep.html`](meep.html) | Upper / lower, four days a week, for building muscle in a commercial gym. Every exercise ends in a proof set taken to failure; the load comes off that set, volume is a reward for intensity, and deloads are earned rather than scheduled. |
 
 Everything else in this repo is deployment plumbing or tests.
 
 | File | Role |
 | --- | --- |
-| `indie.html`, `victor.html` | The applications, entire. |
+| `indie.html`, `victor.html`, `meep.html` | The applications, entire. |
 | `index.html` | Site root; offers both apps. |
-| `sw.js` | Service worker: network first, cache fallback, so either app opens offline. |
-| `manifest.webmanifest`, `victor.webmanifest` | PWA manifests for home-screen install. Icons are inline data URIs. |
+| `sw.js` | Service worker: network first, cache fallback, so any of them opens offline. |
+| `manifest.webmanifest`, `victor.webmanifest`, `meep.webmanifest` | PWA manifests for home-screen install. Icons are inline data URIs. |
 | `.nojekyll` | Serve the files verbatim; no Jekyll processing. |
 | `.github/workflows/test.yml` | Runs both suites on every push and pull request. |
-| `test.mjs`, `test-victor.mjs` | Headless regression suites. No test framework. |
+| `test.mjs`, `test-victor.mjs`, `test-meep.mjs` | Headless regression suites. No test framework. |
 | `CLAUDE.md` | Architecture and the constraints that hold it together. |
 
 ## Rolling Five, in one screen
@@ -68,6 +69,23 @@ What that buys and what it does not:
 - **Best effort:** a notification banner when the rest ends, if you grant permission. It is the
   banner only; web notification sounds are not controllable.
 
+## Prove It, in one screen
+
+Four sessions on rotation — Upper A, Lower A, Upper B, Lower B — and they advance when you train
+them, so a missed day slides the week rather than dropping a session.
+
+- **The last set of every exercise is a proof set**, taken until the reps stop. The sets before it
+  stop short and build volume; the proof set is the measurement, and every load comes off it.
+- **No rating leaves the weight alone.** Reps you say were left over are treated as evidence the
+  load was light and added to it. The only way to keep a weight is to finish the set.
+- **Volume is a reward for intensity.** Soreness moves your set counts, but only for a muscle whose
+  work was actually taken near failure. Sail through work you did not really do and you get
+  nothing for it.
+- **Deloads are earned.** There is no deload week on the calendar. One arrives when your proof sets
+  go backwards two sessions running, which is what fatigue actually looks like.
+- **One number on the front of Progress:** the share of proof sets you took to one-more-or-nothing
+  over the last four weeks. Target is 80%.
+
 ## Deploying
 
 Pages serves the branch directly — **Settings → Pages → Source: Deploy from a branch, `main`,
@@ -75,8 +93,9 @@ Pages serves the branch directly — **Settings → Pages → Source: Deploy fro
 the repo root to the site a moment later. There is no build step and no deploy workflow.
 
 The site is at <https://victormoukhortov.github.io/periodization/>, and the apps at
-<https://victormoukhortov.github.io/periodization/indie.html> and
-<https://victormoukhortov.github.io/periodization/victor.html>.
+<https://victormoukhortov.github.io/periodization/indie.html>,
+<https://victormoukhortov.github.io/periodization/victor.html> and
+<https://victormoukhortov.github.io/periodization/meep.html>.
 
 Because publishing is GitHub's job and not a workflow's, **a red test does not stop a deploy.**
 `test.yml` tells you whether what you just shipped is sound; it cannot hold it back. Run the
@@ -111,6 +130,7 @@ python3 -m http.server 8000   # then open http://localhost:8000/
 ```
 node test.mjs          # PPL Block, 31 checks
 node test-victor.mjs   # Rolling Five, 54 checks
+node test-meep.mjs     # Prove It, 31 checks
 ```
 
 They cover the progression engines, the reducers, and the fact that every screen renders. CI runs
