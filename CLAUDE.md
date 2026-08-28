@@ -403,6 +403,23 @@ Meep's program: upper/lower, four sessions on rotation, built for hypertrophy in
 gym. The brief that shaped the engine is that she does not push hard enough, so the app is built
 around measuring effort rather than asking for it politely.
 
+## The shape
+
+Each muscle gets **one heavy compound a week and one easy day**, and the two upper days are led
+from opposite ends: Upper Push opens with the heavy dumbbell press and gives back a machine row
+and a pulldown; Upper Pull opens with the heavy barbell row and gives chest a machine press and a
+pec deck. Lower Squat and Lower Hinge do the same for quads against hips and hamstrings. `heavy`
+marks the compound on each slot and is what the HEAVY badge and the Plan copy read.
+
+This is not decoration. Every exercise here ends in a set taken to failure, so two heavy sessions
+a week for the same muscle is two failure sets on the same tissue 72 hours apart — which is where
+the fatigue comes from and the progress stops.
+
+**It also constrains exercise selection: nothing goes in a heavy slot that is dangerous to fail
+alone.** A dumbbell press can be put down, a hack squat has stops, a row and a hip thrust just
+end. A barbell bench press or a back squat cannot be taken to failure without a spotter, so
+neither is in this program. If you swap a heavy movement, that is the test it has to pass.
+
 ## The one idea
 
 **Every exercise ends in a proof set**, taken until the reps stop. The working sets before it stop
@@ -426,9 +443,10 @@ Three rules follow from that, and they are the whole app:
 
 The same section banners and the same responsibilities as the other two. What differs:
 
-- `PROGRAM` — `SLOTS` (Upper A, Lower A, Upper B, Lower B) and the constants. Exercise ids
+- `PROGRAM` — `SLOTS` (Upper Push, Lower Squat, Upper Pull, Lower Hinge) and the constants. Exercise ids
   (`a1`, `b4`, `c2`, `d5`) are the primary key of the log. **Never renumber or reuse one.**
-  `RETIRED` is empty; the machinery is there for when it is not.
+  Two are in `RETIRED`: `c6` Overhead Cable Triceps Extension and `c7` Cable Curl, dropped when
+  the arm work consolidated onto its matching day.
 - `ENGINE` — pure. `proofOf`, `claimRun`, `prescribe`, `setsDelta`, `deloadDue` and `effortScore`
   all take history and return values.
 - `STORAGE` — `localStorage` under `prove-it-v1`, its own key.

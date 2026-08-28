@@ -185,46 +185,51 @@
    train them, so a missed day slides the week rather than skipping a session.
    Every exercise ends in a proof set — see ENGINE. */
 var SLOTS = [
-  { id:"ua", name:"Upper A", kind:"upper", exercises:[
-    {id:"a1",name:"Dumbbell Bench Press",gear:"Dumbbell",muscle:"chest",sets:3,lo:8,hi:12,perHand:true},
-    {id:"a2",name:"Chest-Supported Row",gear:"Machine",muscle:"back",sets:3,lo:10,hi:14,step:10},
-    {id:"a3",name:"Lat Pulldown",gear:"Cable",muscle:"back",sets:3,lo:10,hi:14,step:10},
-    {id:"a4",name:"Seated Dumbbell Shoulder Press",gear:"Dumbbell",muscle:"delts",sets:3,lo:8,hi:12,perHand:true},
+  { id:"ua", name:"Upper Push", kind:"upper", exercises:[
+    {id:"a1",name:"Dumbbell Bench Press",gear:"Dumbbell",muscle:"chest",sets:4,lo:6,hi:10,perHand:true,heavy:true,
+      cue:"The heavy chest session of the week. Dumbbells because the proof set goes to failure and you can put these down."},
+    {id:"a4",name:"Seated Dumbbell Shoulder Press",gear:"Dumbbell",muscle:"delts",sets:3,lo:8,hi:12,perHand:true,heavy:true},
+    {id:"c1",name:"Incline Dumbbell Press",gear:"Dumbbell",muscle:"chest",sets:3,lo:10,hi:14,perHand:true},
+    {id:"a2",name:"Chest-Supported Row",gear:"Machine",muscle:"back",sets:3,lo:10,hi:15,step:10,
+      cue:"Back's easy day. Chest on the pad, no lower back involved — the heavy pulling is on Upper Pull."},
+    {id:"c4",name:"Neutral-Grip Pulldown",gear:"Cable",muscle:"back",sets:3,lo:12,hi:15,step:10},
     {id:"a5",name:"Cable Lateral Raise",gear:"Cable",muscle:"delts",sets:3,lo:12,hi:20,
       cue:"One arm at a time. Lead with the elbow, stop at shoulder height."},
-    {id:"a6",name:"Rope Triceps Pushdown",gear:"Cable",muscle:"triceps",sets:2,lo:10,hi:15},
-    {id:"a7",name:"Incline Dumbbell Curl",gear:"Dumbbell",muscle:"biceps",sets:2,lo:10,hi:15,perHand:true}
+    {id:"a6",name:"Rope Triceps Pushdown",gear:"Cable",muscle:"triceps",sets:3,lo:10,hi:15}
   ]},
-  { id:"la", name:"Lower A", kind:"lower", exercises:[
-    {id:"b1",name:"Hack Squat",gear:"Machine",muscle:"quads",sets:3,lo:8,hi:12,step:20,
-      cue:"All the way down. Depth is the whole point of the machine."},
-    {id:"b2",name:"Romanian Deadlift",gear:"Barbell",muscle:"hamstrings",sets:3,lo:8,hi:12,step:10,
-      cue:"Push the hips back, bar close, stop when the hamstrings run out — not when the back rounds."},
-    {id:"b3",name:"Walking Lunge",gear:"Dumbbell",muscle:"quads",sets:3,lo:10,hi:12,perHand:true,perLeg:true},
-    {id:"b4",name:"Seated Leg Curl",gear:"Machine",muscle:"hamstrings",sets:3,lo:10,hi:15,step:10},
-    {id:"b5",name:"Leg Extension",gear:"Machine",muscle:"quads",sets:2,lo:12,hi:20,step:10},
+  { id:"la", name:"Lower Squat", kind:"lower", exercises:[
+    {id:"b1",name:"Hack Squat",gear:"Machine",muscle:"quads",sets:4,lo:6,hi:10,step:20,heavy:true,
+      cue:"The heavy leg session of the week. All the way down — depth is the whole point of the machine, and the stops mean you can fail safely."},
+    {id:"b5",name:"Leg Extension",gear:"Machine",muscle:"quads",sets:3,lo:12,hi:20,step:10},
+    {id:"d4",name:"Bulgarian Split Squat",gear:"Dumbbell",muscle:"glutes",sets:3,lo:10,hi:12,perHand:true,perLeg:true},
+    {id:"d3",name:"Lying Leg Curl",gear:"Machine",muscle:"hamstrings",sets:3,lo:10,hi:15,step:10,
+      cue:"Hamstrings' easy day. The heavy hinge is on Lower Hinge."},
+    {id:"d5",name:"Hip Abduction",gear:"Machine",muscle:"glutes",sets:3,lo:15,hi:20,step:10,
+      cue:"Lean forward slightly. Hold the last inch for a beat."},
     {id:"b6",name:"Standing Calf Raise",gear:"Machine",muscle:"calves",sets:3,lo:10,hi:15,step:10,
       cue:"Pause at the bottom, all the way to the top. No bouncing."},
     {id:"b7",name:"Hanging Knee Raise",gear:"Bodyweight",muscle:"abs",sets:2,lo:10,hi:20,bw:true}
   ]},
-  { id:"ub", name:"Upper B", kind:"upper", exercises:[
-    {id:"c1",name:"Incline Dumbbell Press",gear:"Dumbbell",muscle:"chest",sets:3,lo:8,hi:12,perHand:true},
-    {id:"c2",name:"Seated Cable Row",gear:"Cable",muscle:"back",sets:3,lo:10,hi:14,step:10},
-    {id:"c3",name:"Machine Chest Press",gear:"Machine",muscle:"chest",sets:3,lo:10,hi:15,step:10},
-    {id:"c4",name:"Neutral-Grip Pulldown",gear:"Cable",muscle:"back",sets:3,lo:10,hi:14,step:10},
+  { id:"ub", name:"Upper Pull", kind:"upper", exercises:[
+    {id:"e1",name:"Barbell Row",gear:"Barbell",muscle:"back",sets:4,lo:6,hi:10,heavy:true,
+      cue:"The heavy back session of the week. Torso around 45°, bar to the belly, and stop the proof set when the torso starts rising — that is technical failure and it counts."},
+    {id:"a3",name:"Wide-Grip Lat Pulldown",gear:"Cable",muscle:"back",sets:3,lo:8,hi:12,step:10},
+    {id:"c3",name:"Machine Chest Press",gear:"Machine",muscle:"chest",sets:3,lo:10,hi:15,step:10,
+      cue:"Chest's easy day. The heavy pressing was on Upper Push."},
+    {id:"c2",name:"Seated Cable Row",gear:"Cable",muscle:"back",sets:2,lo:10,hi:14,step:10},
+    {id:"e2",name:"Pec Deck",gear:"Machine",muscle:"chest",sets:3,lo:12,hi:20,step:10},
     {id:"c5",name:"Reverse Pec Deck",gear:"Machine",muscle:"rear delts",sets:3,lo:15,hi:20,step:10},
-    {id:"c6",name:"Overhead Cable Triceps Extension",gear:"Cable",muscle:"triceps",sets:2,lo:10,hi:15},
-    {id:"c7",name:"Cable Curl",gear:"Cable",muscle:"biceps",sets:2,lo:10,hi:15}
+    {id:"a7",name:"Incline Dumbbell Curl",gear:"Dumbbell",muscle:"biceps",sets:3,lo:10,hi:15,perHand:true}
   ]},
-  { id:"lb", name:"Lower B", kind:"lower", exercises:[
-    {id:"d1",name:"Barbell Hip Thrust",gear:"Barbell",muscle:"glutes",sets:3,lo:8,hi:12,step:10,
-      cue:"Ribs down, chin tucked, pause a full second at the top of every rep."},
-    {id:"d2",name:"Leg Press",gear:"Machine",muscle:"glutes",sets:3,lo:10,hi:15,step:20,
-      cue:"Feet high on the platform to bias the glutes and hamstrings."},
-    {id:"d3",name:"Lying Leg Curl",gear:"Machine",muscle:"hamstrings",sets:3,lo:8,hi:12,step:10},
-    {id:"d4",name:"Bulgarian Split Squat",gear:"Dumbbell",muscle:"glutes",sets:3,lo:10,hi:12,perHand:true,perLeg:true},
-    {id:"d5",name:"Hip Abduction",gear:"Machine",muscle:"glutes",sets:3,lo:15,hi:20,step:10,
-      cue:"Lean forward slightly. Hold the last inch for a beat."},
+  { id:"lb", name:"Lower Hinge", kind:"lower", exercises:[
+    {id:"d1",name:"Barbell Hip Thrust",gear:"Barbell",muscle:"glutes",sets:4,lo:6,hi:10,step:10,heavy:true,
+      cue:"The heavy glute session of the week. Ribs down, chin tucked, a full second at the top of every rep."},
+    {id:"b2",name:"Romanian Deadlift",gear:"Barbell",muscle:"hamstrings",sets:4,lo:8,hi:12,step:10,heavy:true,
+      cue:"The heavy hinge. Hips back, bar close. The proof set ends when the hamstrings run out — not when the back rounds."},
+    {id:"d2",name:"Leg Press",gear:"Machine",muscle:"quads",sets:3,lo:10,hi:15,step:20,
+      cue:"Quads' easy day. Feet mid-platform, shoulder width — the heavy quad work was on Lower Squat."},
+    {id:"b4",name:"Seated Leg Curl",gear:"Machine",muscle:"hamstrings",sets:3,lo:10,hi:15,step:10},
+    {id:"b3",name:"Walking Lunge",gear:"Dumbbell",muscle:"quads",sets:3,lo:10,hi:12,perHand:true,perLeg:true},
     {id:"d6",name:"Seated Calf Raise",gear:"Machine",muscle:"calves",sets:3,lo:12,hi:20,step:10},
     {id:"d7",name:"Cable Crunch",gear:"Cable",muscle:"abs",sets:2,lo:10,hi:15}
   ]}
@@ -232,7 +237,10 @@ var SLOTS = [
 
 /* Off the program but still in the log. Progress reads this so a dropped
    movement keeps its curve. Never renumber or reuse an id. */
-var RETIRED = [];
+var RETIRED = [
+  {id:"c6",name:"Overhead Cable Triceps Extension",gear:"Cable",muscle:"triceps",sets:2,lo:10,hi:15},
+  {id:"c7",name:"Cable Curl",gear:"Cable",muscle:"biceps",sets:2,lo:10,hi:15}
+];
 
 var SLOT_COUNT = SLOTS.length;
 var BAR = 45, PLATES = [45,35,25,10,5,2.5];
@@ -245,7 +253,7 @@ var HARD = 2;              /* effort index at or above which a proof set counts 
 var SANDBAG_TRIGGER = 2;   /* contradictions in a row before the app moves the load itself */
 var CAP_MUSCLE = 12;       /* sets per muscle per session */
 var CAP_EX = 5;            /* sets per exercise */
-var ASK_SORENESS_AT = 3;   /* muscles with at least this many sets get a soreness question */
+var ASK_SORENESS_AT = 4;   /* muscles with at least this many sets get a soreness question */
 var DELOAD_LOAD = 0.7;
 var EFFORT_GOAL = 0.8;     /* share of proof sets that should be rated 1-more or nothing-left */
 var DAY_MS = 86400000;
@@ -259,10 +267,10 @@ var HUE = {chest:"#fb7185", back:"#22d3ee", delts:"#fbbf24", "rear delts":"#fbbf
   glutes:"#f472b6", calves:"#a3e635", abs:"#fb923c"};
 
 var SLOT_COPY = {
-  ua: "Horizontal press, both pulls, and the side delts. The heaviest upper session of the two.",
-  la: "Quad-led. Hack squat first while you are fresh, RDL second, then the single-leg work.",
-  ub: "Incline and machine press, both pulls again from different angles, rear delts.",
-  lb: "Hip-led. Thrusts, high-foot leg press, hamstring curls and abduction."
+  ua: "Push-led. Chest and shoulders get their one heavy session of the week here; the back work is machine rowing and pulldowns, which is volume without another hard pull.",
+  la: "Squat-led. Quads get their heavy session; hamstrings and glutes are curls, abduction and split squats.",
+  ub: "Pull-led. Back gets its one heavy session here; the chest work is a machine press and a pec deck at high reps.",
+  lb: "Hinge-led. Glutes and hamstrings get their heavy session; the quad work is leg press and lunges."
 };
 
 /* ============================== ENGINE ============================== */
@@ -707,7 +715,8 @@ function headerHTML(c, live, banner){
 
 function exLineHTML(c, ex){
   var t = c.targets[ex.id];
-  return '<div class="rowline"><div style="min-width:0"><p class="name">' + ex.name + '</p>' +
+  return '<div class="rowline"><div style="min-width:0"><p class="name">' + ex.name +
+    (ex.heavy ? ' <span style="color:var(--push);font-size:10px;font-weight:800;letter-spacing:.1em">HEAVY</span>' : "") + '</p>' +
     '<p class="dim" style="font-size:12px">' + ex.gear + ' · ' + ex.muscle + '</p></div>' +
     '<div style="text-align:right;flex-shrink:0"><p class="num" style="font-size:14px">' +
     plannedSets(c, ex) + ' × ' + ex.lo + '–' + ex.hi + (ex.perLeg ? "/leg" : "") + '</p>' +
@@ -781,7 +790,8 @@ function viewSession(c){
 
   c.exercises.forEach(function(ex){
     var t = c.targets[ex.id], rows = d.sets[ex.id] || [];
-    h += '<div class="ex"><div class="exhead"><div><h3>' + ex.name + '</h3>' +
+    h += '<div class="ex"><div class="exhead"><div><h3>' + ex.name +
+      (ex.heavy ? ' <span style="color:var(--push);font-size:11px;font-weight:800;letter-spacing:.1em;vertical-align:middle">HEAVY</span>' : "") + '</h3>' +
       '<p class="dim" style="font-size:14px">' + ex.gear + (ex.perHand ? " · each hand" : "") + (ex.perLeg ? " · per leg" : "") + '</p></div>' +
       '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">' + videoHTML(ex) +
       '<button class="chip" data-a="why" data-ex="' + ex.id + '">Why?</button></div></div>';
@@ -1053,6 +1063,16 @@ function viewPlan(c){
       '<p class="muted" style="font-size:14px;margin-top:4px">' + SLOT_COPY[s.id] + '</p></div>';
   });
   h += '</div>';
+
+  h += '<p class="eyebrow" style="margin:26px 0 8px">One heavy session per muscle</p>' +
+    '<div class="stack">' +
+    noteHTML({cls:"push", head:"Push leads one upper day, pull leads the other",
+      body:"Chest and shoulders get their heavy compound on Upper Push, and back gets a machine row and a pulldown there — volume, no second hard pull. On Upper Pull that reverses: heavy barbell rowing, and the chest work is a machine press and a pec deck. Legs work the same way, squat-led one day and hinge-led the other."}) +
+    noteHTML({cls:"", head:"Why once a week and not twice",
+      body:"Every exercise here ends in a set taken to failure. Two of those a week on the same heavy compound is where the fatigue comes from and where the progress stops — one hard exposure plus a day of machine volume grows the muscle and leaves you able to train again."}) +
+    noteHTML({cls:"", head:"Nothing heavy that is dangerous to fail",
+      body:"The proof set means the last set genuinely ends. So the heavy slots are a dumbbell press you can put down, a hack squat with stops, a row and a hip thrust — not a barbell bench or a back squat, which you cannot take to failure on your own."}) +
+    '</div>';
 
   h += '<p class="eyebrow" style="margin:26px 0 8px">Why the last set is different</p>' +
     '<div class="stack">' +

@@ -134,8 +134,9 @@ function session(exId, load, reps, effort, extra) {
 
 const START = { a1:25, a2:60, a3:70, a4:15, a5:10, a6:30, a7:12,
   b1:90, b2:65, b3:20, b4:50, b5:40, b6:90, b7:0,
-  c1:25, c2:70, c3:50, c4:70, c5:30, c6:25, c7:25,
-  d1:95, d2:180, d3:40, d4:20, d5:70, d6:70, d7:40 };
+  c1:25, c2:70, c3:50, c4:70, c5:30,
+  d1:95, d2:180, d3:40, d4:20, d5:70, d6:70, d7:40,
+  e1:65, e2:50 };
 const load = (ex) => (START[ex.id] == null ? 20 : START[ex.id]);
 /* she stops the proof set exactly at the top of the range and says 2 were left */
 const sandbagger = (ex, t, proof) => (proof ? ex.hi : t.reps);
@@ -162,11 +163,11 @@ check("the last set of every exercise is the proof set, and only that one", () =
 
 check("the load comes off the proof set, not off the working sets", () => {
   const { prescribe, exById } = boot().api();
-  const press = exById("a1"); // 8-12, dumbbell, 5 lb steps
+  const press = exById("a1"); // the heavy chest compound, 6-10, dumbbell, 5 lb steps
   // heavy working sets but a proof set that stopped inside the range
-  const h = [session("a1", 30, [12, 12, 10], 3)];
+  const h = [session("a1", 30, [12, 12, 8], 3)];
   const p = prescribe(press, h);
-  eq([p.weight, p.reps], [30, 11], "held at 30 with the target one rep past the proof set");
+  eq([p.weight, p.reps], [30, 9], "held at 30 with the target one rep past the proof set");
   ok(/one more rep/.test(p.why), "and it says so: " + p.why);
 });
 
@@ -174,11 +175,11 @@ check("the load moves by what the evidence is worth, in whole steps", () => {
   const { prescribe, exById } = boot().api();
   // a 30 lb dumbbell moves in 5s, which is already 17% — one step is the floor
   // and also, on this exercise, the ceiling
-  const press = exById("a1"); // 8-12, step 5
-  eq(prescribe(press, [session("a1", 30, [10, 10, 12], 3)]).weight, 35, "topped the range with nothing left: up");
-  eq(prescribe(press, [session("a1", 30, [10, 10, 12], 0)]).weight, 35,
+  const press = exById("a1"); // 6-10, step 5
+  eq(prescribe(press, [session("a1", 30, [8, 8, 10], 3)]).weight, 35, "topped the range with nothing left: up");
+  eq(prescribe(press, [session("a1", 30, [8, 8, 10], 0)]).weight, 35,
     "and three reps of claimed reserve cannot buy more than the rack has");
-  eq(prescribe(press, [session("a1", 30, [10, 10, 12], 0)]).reps, 8, "reps reset to the bottom");
+  eq(prescribe(press, [session("a1", 30, [8, 8, 10], 0)]).reps, 6, "reps reset to the bottom");
 
   // the leg press moves in 20s and carries enough load for the reserve to count
   const legs = exById("d2"); // 10-15, step 20
@@ -199,8 +200,8 @@ check("reps inside the range plus a claimed reserve still moves the load", () =>
 
 check("falling under the range takes the load back down", () => {
   const { prescribe, exById } = boot().api();
-  const p = prescribe(exById("a1"), [session("a1", 40, [7, 6, 6], 3)]);
-  eq([p.weight, p.reps], [35, 8], "6 reps against an 8-12 range: one step down, back to the bottom");
+  const p = prescribe(exById("a1"), [session("a1", 40, [7, 6, 5], 3)]);
+  eq([p.weight, p.reps], [35, 6], "5 reps against a 6-10 range: one step down, back to the bottom");
 });
 
 check("each implement moves in its own step", () => {
@@ -219,7 +220,7 @@ check("a first session asks for a load and explains what the proof set is for", 
   const { prescribe, exById } = boot().api();
   const p = prescribe(exById("a1"), []);
   eq(p.weight, null, "nothing to prescribe yet");
-  eq(p.reps, 8, "opening at the bottom of the range");
+  eq(p.reps, 6, "opening at the bottom of the range");
   ok(/until the reps stop/.test(p.why), "and it says what to do with the last set: " + p.why);
 });
 
@@ -238,24 +239,24 @@ check("the app counts how many sessions running she has held reps back", () => {
 
 check("there is no rating that leaves the weight where it is", () => {
   const { prescribe, exById } = boot().api();
-  const press = exById("a1"); // 8-12, step 5
-  // ten reps, in the range: the only answer that holds the load is 'nothing left'
-  eq(prescribe(press, [session("a1", 30, [10, 10, 10], 3)]).weight, 30, "nothing left: hold, chase the rep");
-  eq(prescribe(press, [session("a1", 30, [10, 10, 10], 2)]).weight, 30, "one left: hold, chase the rep");
-  eq(prescribe(press, [session("a1", 30, [10, 10, 10], 1)]).weight, 35, "two left: that is a lighter load than she needs");
-  eq(prescribe(press, [session("a1", 30, [10, 10, 10], 0)]).weight, 35, "three or more left: same");
+  const press = exById("a1"); // 6-10, step 5
+  // eight reps, inside the range: the only answers that hold the load are the honest ones
+  eq(prescribe(press, [session("a1", 30, [8, 8, 8], 3)]).weight, 30, "nothing left: hold, chase the rep");
+  eq(prescribe(press, [session("a1", 30, [8, 8, 8], 2)]).weight, 30, "one left: hold, chase the rep");
+  eq(prescribe(press, [session("a1", 30, [8, 8, 8], 1)]).weight, 35, "two left: that is a lighter load than she needs");
+  eq(prescribe(press, [session("a1", 30, [8, 8, 8], 0)]).weight, 35, "three or more left: same");
 });
 
 check("stopping short of the range is not treated as failing it", () => {
   const { prescribe, exById } = boot().api();
-  const press = exById("a1"); // 8-12
+  const press = exById("a1"); // 6-10
 
-  const quit = prescribe(press, [session("a1", 40, [8, 7, 6], 1)]);   // 6 reps, says 2 were left
+  const quit = prescribe(press, [session("a1", 40, [7, 6, 4], 1)]);   // 4 reps, says 2 were left
   ok(quit.forced, "the audit overrode the ordinary rule");
   eq(quit.weight, 40, "nothing comes off — that was an abandoned set");
   ok(/stopping early, not failing/.test(quit.why), "and it says so: " + quit.why);
 
-  const failed = prescribe(press, [session("a1", 40, [8, 7, 6], 3)]); // 6 reps, emptied
+  const failed = prescribe(press, [session("a1", 40, [7, 6, 4], 3)]); // 4 reps, emptied
   ok(!failed.forced, "genuinely failing is a different thing");
   eq(failed.weight, 35, "and that does come down a step");
 });
@@ -263,9 +264,9 @@ check("stopping short of the range is not treated as failing it", () => {
 check("an honest stall is left alone", () => {
   const { prescribe, exById } = boot().api();
   const stalling = [
-    session("a1", 30, [10, 10, 9], 3),
-    session("a1", 30, [10, 10, 8], 3),
-    session("a1", 30, [10, 10, 8], 3)
+    session("a1", 30, [8, 8, 9], 3),
+    session("a1", 30, [8, 8, 8], 3),
+    session("a1", 30, [8, 8, 8], 3)
   ];
   const p = prescribe(exById("a1"), stalling);
   ok(!p.forced, "nothing forced — she is emptying the tank, the reps just are not there");
@@ -299,17 +300,17 @@ check("soreness moves the set count for the next time that session comes round",
   const app = boot();
   const { setCountsFor, state, SLOTS } = app.api();
   const base = setCountsFor("ua", []);
-  eq(base.a1, 3, "the program's own set count to begin with");
+  eq(base.a1, 4, "the program's own set count to begin with — a1 is a heavy compound");
 
   state.history.push({
     ts: 0, week: 1, slot: "ua", deload: false,
     sets: {}, effort: {a1: 3, c1: 3}, sore: {chest: 0}
   });
   const after = setCountsFor("ua", state.history);
-  eq(after.a1, 5, "never sore off honest chest work: two sets on");
+  eq(after.a1, 5, "never sore off honest chest work: sets on, capped per exercise");
 
   state.history[0].effort = {a1: 0};        // she says three were left
-  eq(setCountsFor("ua", state.history).a1, 3, "the same soreness buys nothing when the work was soft");
+  eq(setCountsFor("ua", state.history).a1, 4, "the same soreness buys nothing when the work was soft");
 });
 
 check("set counts stay inside their caps", () => {
@@ -333,9 +334,11 @@ check("set counts stay inside their caps", () => {
 check("soreness is only asked about muscles the session actually works", () => {
   const { askedMuscles, setCountsFor, SLOTS } = boot().api();
   const ua = askedMuscles(SLOTS[0], setCountsFor("ua", []));
-  eq(ua, ["chest", "back", "delts"], "upper A: not the two-set arm work");
+  eq(ua, ["chest", "delts", "back"], "upper push: not the three-set triceps work");
   const la = askedMuscles(SLOTS[1], setCountsFor("la", []));
-  eq(la, ["quads", "hamstrings", "calves"], "lower A: not the two sets of knee raises");
+  eq(la, ["quads", "glutes"], "lower squat: hamstrings are asked about on the day they are loaded");
+  const lb = askedMuscles(SLOTS[3], setCountsFor("lb", []));
+  eq(lb, ["glutes", "hamstrings", "quads"], "lower hinge: hamstrings are asked here, where they are loaded");
 });
 
 console.log("\nearned deloads");
@@ -495,9 +498,9 @@ check("the top set's weight fills the rest when you leave the field", () => {
   app.click({ a: "start" });
   const rows = app.api().state.draft.sets.a1;
   app.type("a1", 0, "w", 25);
-  eq(rows.map((r) => r.w), ["25", "", ""], "nothing moves while typing");
+  eq(rows.map((r) => r.w), ["25", "", "", ""], "nothing moves while typing");
   app.fill("a1", 0, "w", 25);
-  eq(rows.map((r) => r.w), ["25", "25", "25"], "leaving the field fills them");
+  eq(rows.map((r) => r.w), ["25", "25", "25", "25"], "leaving the field fills them");
 });
 
 check("you can look ahead and come back", () => {

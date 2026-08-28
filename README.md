@@ -14,11 +14,11 @@ Everything else in this repo is deployment plumbing or tests.
 | File | Role |
 | --- | --- |
 | `indie.html`, `victor.html`, `meep.html` | The applications, entire. |
-| `index.html` | Site root; offers both apps. |
+| `index.html` | Site root; offers all three apps. |
 | `sw.js` | Service worker: network first, cache fallback, so any of them opens offline. |
 | `manifest.webmanifest`, `victor.webmanifest`, `meep.webmanifest` | PWA manifests for home-screen install. Icons are inline data URIs. |
 | `.nojekyll` | Serve the files verbatim; no Jekyll processing. |
-| `.github/workflows/test.yml` | Runs both suites on every push and pull request. |
+| `.github/workflows/test.yml` | Runs all three suites on every push and pull request. |
 | `test.mjs`, `test-victor.mjs`, `test-meep.mjs` | Headless regression suites. No test framework. |
 | `CLAUDE.md` | Architecture and the constraints that hold it together. |
 
@@ -71,8 +71,16 @@ What that buys and what it does not:
 
 ## Prove It, in one screen
 
-Four sessions on rotation — Upper A, Lower A, Upper B, Lower B — and they advance when you train
-them, so a missed day slides the week rather than dropping a session.
+Four sessions on rotation — Upper Push, Lower Squat, Upper Pull, Lower Hinge — advancing when you
+train them, so a missed day slides the week rather than dropping a session.
+
+**Each muscle gets one heavy compound a week and one easy day.** Upper Push opens with the heavy
+dumbbell press; back's work that day is a machine row and a pulldown. Upper Pull opens with the
+heavy barbell row; chest's work that day is a machine press and a pec deck. The lower days do the
+same for quads against hips and hamstrings. Because every exercise ends in a set taken to failure,
+two heavy sessions a week on the same muscle is two failure sets 72 hours apart — which is where
+the fatigue comes from. It also decides the exercise list: nothing sits in a heavy slot that is
+dangerous to fail alone, so there is no barbell bench and no back squat.
 
 - **The last set of every exercise is a proof set**, taken until the reps stop. The sets before it
   stop short and build volume; the proof set is the measurement, and every load comes off it.
@@ -110,12 +118,12 @@ fork or a rename keeps working.
 ## Installing to a phone
 
 Open the app's Pages URL in Safari → Share → Add to Home Screen. It launches full screen, keeps
-its own `localStorage`, and works without a signal after the first load. The two apps install
+its own `localStorage`, and works without a signal after the first load. The apps install
 separately and never see each other's data.
 
 ## Running it locally
 
-Either app opens straight off disk with no server — double-click it. Over `file://` the manifest
+Any of them opens straight off disk with no server — double-click it. Over `file://` the manifest
 file and service worker are skipped (the page falls back to an inline blob manifest) and iOS may
 treat that storage as ephemeral, so real training logs belong on the hosted copy.
 
