@@ -551,11 +551,13 @@ check("the gate sits above the exercise and holds the card shut", () => {
   const gates = (html().match(/class="gate"/g) || []).length;
   eq(gates, 1, "exactly one gate, on the movement she is about to start");
   ok(html().indexOf("First time on this one.") >= 0, "which says where she is up to");
-  ok(html().indexOf('class="ex veiled"') >= 0, "and the card behind it is dimmed and inert");
-  eq((html().match(/class="ex veiled"/g) || []).length, 1, "only that one card");
+  eq((html().match(/class="ex veiled"/g) || []).length, 1, "and exactly one card is held shut");
 
-  // the gate is rendered before the card it gates
-  ok(html().indexOf('class="gate"') < html().indexOf('class="ex veiled"'), "gate first, card second");
+  // the gate is rendered immediately before the card it gates, with nothing between
+  ok(/class="gate">[\s\S]*?<\/div><div class="ex veiled">/.test(html()), "gate first, its card straight after");
+  // it does not repeat the name the card underneath already carries in big type
+  const gate = html().slice(html().indexOf('class="gate"'), html().indexOf('class="ex veiled"'));
+  eq(gate.indexOf("<h3>"), -1, "and it does not restate the exercise name");
 
   app.click({ a: "watched", ex: exs[0].id });
   eq((app.api().html.match(/class="gate"/g) || []).length, 0, "watching it opens the card");
@@ -568,8 +570,9 @@ check("the gate moves to the next new movement as she works", () => {
   const { ctx } = app.api();
   app.click({ a: "start" });
   const exs = ctx().exercises;
+  /* the gated exercise is the one whose own card is held shut */
   const gatedName = () => {
-    const m = app.api().html.match(/class="gate">.*?<h3>([^<]*)<\/h3>/);
+    const m = app.api().html.match(/class="ex veiled">[\s\S]*?<h3>([^<]*)<\/h3>/);
     return m ? m[1] : null;
   };
   eq(gatedName(), exs[0].name, "first exercise");
@@ -602,11 +605,12 @@ check("a movement stops gating once it is not new, and a new one still gates", (
   app.click({ a: "start" });
   const exs = ctx().exercises;
   const gateOn = () => {
-    const m = app.api().html.match(/class="gate">[\s\S]*?<h3>([^<]*)<\/h3>/);
+    const m = app.api().html.match(/class="ex veiled">[\s\S]*?<h3>([^<]*)<\/h3>/);
     return m ? m[1] : null;
   };
 
   eq(gateOn(), null, "the bench press has had its four sessions, so nothing gates it");
+  eq(app.api().html.indexOf('class="gate"'), -1, "and no gate on screen at all");
   app.fill(exs[0].id, 0, "w", 25);
   app.click({ a: "toggle", ex: exs[0].id, i: "0" });
   eq(gateOn(), exs[1].name, "and the next movement, which she has never done, gates as she reaches it");

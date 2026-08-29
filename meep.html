@@ -113,19 +113,24 @@
   /* The form prompt sits above the exercise it is for and holds that card shut
      until it is answered. Only ever one on screen: the movement she is about to
      start, and only while it is still new to her. */
-  .gate{background:var(--card);border:1px solid rgba(34,211,238,.4);border-bottom:none;
+  .gate{background:var(--card);border:1px solid rgba(34,211,238,.45);border-bottom:none;
     border-radius:14px 14px 0 0;padding:16px 16px 18px}
-  .gate h3{font-size:17px;font-weight:800;margin-top:3px}
-  .gate p.g{font-size:14px;color:var(--muted);margin-top:6px}
+  .gate p.g{font-size:15px;color:var(--ink);margin-top:7px;font-weight:600}
   .watch{display:inline-flex;align-items:center;gap:8px;margin-top:14px;padding:11px 16px;
     border:1px solid var(--go);background:rgba(34,211,238,.14);border-radius:99px;
     color:#a5f3fc;font-size:14px;font-weight:750;text-decoration:none}
   .watch:active{background:rgba(34,211,238,.28)}
   .skipwatch{display:block;margin-top:14px;font-size:13px;font-weight:650;color:var(--dim)}
-  /* Dimmed and inert: no typing, no logging, until the gate is answered. A nudge
-     with a way past, not a lock — no signal in the gym must never mean no
+  /* The gate and the card it holds are one outlined block: the gate is its top,
+     open at the bottom, and the card closes it. Dimming the card's children
+     rather than the card keeps that shared outline crisp — an opacity on the
+     whole thing faded the join and was the awkward part.
+     Inert as well as dim: no typing, no logging, until the gate is answered. A
+     nudge with a way past, not a lock — no signal in the gym must never mean no
      training, which is what the skip is for. */
-  .ex.veiled{opacity:.32;pointer-events:none;border-radius:0 0 14px 14px}
+  .ex.veiled{border:1px solid rgba(34,211,238,.45);border-top:none;
+    border-radius:0 0 14px 14px;pointer-events:none}
+  .ex.veiled > *{opacity:.3}
 
   .effort{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
   .effort p{font-size:14px;font-weight:700}
@@ -707,7 +712,6 @@ function videoHTML(ex){
    telling you to go and find one. */
 function gateHTML(ex, done){
   return '<div class="gate"><p class="eyebrow">Next up · still new</p>' +
-    '<h3>' + ex.name + '</h3>' +
     '<p class="g">' + (done === 0 ? "First time on this one." : "Time " + (done + 1) + " of " + LEARN_SESSIONS + " on this one.") +
     ' Watch the demo and the sets below open up.</p>' +
     '<a class="watch" data-a="watched" data-ex="' + ex.id + '" target="_blank" rel="noopener noreferrer"' +
