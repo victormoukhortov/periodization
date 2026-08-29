@@ -91,6 +91,7 @@ return {
     deloadDue: deloadDue, regressed: regressed, effortScore: effortScore,
     askedMuscles: askedMuscles, plannedSets: plannedSets, isProof: isProof,
     exById: exById, slotOf: slotOf, weekOf: weekOf, loadless: loadless,
+    learning: learning, learnDaysLeft: learnDaysLeft, LEARN_DAYS: LEARN_DAYS,
     SLOTS: SLOTS, SLOT_COUNT: SLOT_COUNT, HARD: HARD, CAP_MUSCLE: CAP_MUSCLE,
     CAP_EX: CAP_EX, SANDBAG_TRIGGER: SANDBAG_TRIGGER, EFFORT_GOAL: EFFORT_GOAL, claimRun: claimRun,
     DELOAD_LOAD: DELOAD_LOAD, DAY_MS: DAY_MS
@@ -514,6 +515,60 @@ check("you can look ahead and come back", () => {
   for (let i = 0; i < 20; i++) app.click({ a: "peeknext" });
   app.click({ a: "peektoday" });
   eq(ctx().slot.id, "ua", "clamped to the week in front of you");
+});
+
+console.log("\nform prompts");
+
+check("the prompts run for four weeks from the first logged session", () => {
+  const { learning, learnDaysLeft, LEARN_DAYS, DAY_MS } = boot().api();
+  const now = Date.now();
+  eq(LEARN_DAYS, 28, "four weeks");
+
+  ok(learning([], now), "nothing logged yet: the window has not even opened");
+  eq(learnDaysLeft([], now), 28, "and the full four weeks are ahead");
+
+  const started = (daysAgo) => [{ts: now - daysAgo * DAY_MS}];
+  ok(learning(started(1), now), "a day in");
+  ok(learning(started(27), now), "and on day 27");
+  eq(learnDaysLeft(started(27), now), 1, "with a day to run");
+  ok(!learning(started(28), now), "but not on day 28");
+  eq(learnDaysLeft(started(40), now), 0, "and it does not go negative afterwards");
+
+  // the window is anchored to the first session, not the most recent one
+  const long = [{ts: now - 200 * DAY_MS}, {ts: now - DAY_MS}];
+  ok(!learning(long, now), "training for months does not reopen it");
+});
+
+check("each exercise offers the demo until its first set is logged", () => {
+  const app = boot();
+  const { state, ctx } = app.api();
+  app.click({ a: "start" });
+  const first = ctx().exercises[0];
+
+  ok(app.api().html.indexOf("Watch the demo before your first set") >= 0, "prompted to begin with");
+  ok(app.api().html.indexOf('class="vid hot"') >= 0, "and the video button is lit");
+  const before = (app.api().html.match(/class="watch"/g) || []).length;
+  eq(before, ctx().exercises.length, "one on every exercise");
+
+  app.fill(first.id, 0, "w", 25);
+  app.click({ a: "toggle", ex: first.id, i: "0" });
+  const after = (app.api().html.match(/class="watch"/g) || []).length;
+  eq(after, before - 1, "and it clears off the one you have started");
+});
+
+check("the prompts are gone once the four weeks are up", () => {
+  const app = boot();
+  const { state, DAY_MS } = app.api();
+  // a first session logged five weeks ago
+  state.history.push({
+    ts: Date.now() - 35 * DAY_MS, week: 1, slot: "ua", deload: false,
+    sets: {a1:[{w:"25",r:"8",done:true}]}, effort: {a1: 3}, sore: {}
+  });
+  state.index = 4;                       // back round to Upper Push
+  app.click({ a: "start" });
+  eq((app.api().html.match(/class="watch"/g) || []).length, 0, "no prompts");
+  eq(app.api().html.indexOf('class="vid hot"'), -1, "and nothing lit");
+  ok(app.api().html.indexOf('class="vid"') >= 0, "the demo link itself is still there, just not shouted about");
 });
 
 console.log("\nscreens");

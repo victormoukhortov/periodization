@@ -485,6 +485,16 @@ more sets). A session cannot commit with either outstanding.
 `+ Set` / `− Set` and un-logging the last set all clear that exercise's rating, because the set it
 described is no longer the proof set.
 
+## Form prompts
+
+For `LEARN_DAYS` (28) from the **first logged session** — not from install, which would burn the
+window on someone who opened the app a fortnight before starting — every exercise carries a link
+to a demo and lights its video button. Each one clears the moment that exercise's first set is
+logged, so the prompt is only ever in front of work you have not started. `learning()` and
+`learnDaysLeft()` are pure and take `now`; the home screen says how many days are left, and after
+that the video button is still there, just not shouted about. A prompt that never expires stops
+being read, which is the entire reason it expires.
+
 # All three apps
 
 ## Testing
@@ -492,7 +502,7 @@ described is no longer the proof set.
 ```
 node test.mjs          # PPL Block, 31 checks
 node test-victor.mjs   # Rolling Five, 54 checks
-node test-meep.mjs     # Prove It, 31 checks
+node test-meep.mjs     # Prove It, 34 checks
 ```
 
 Each suite extracts the `<script>` body from its HTML file, stubs the handful of browser APIs the
