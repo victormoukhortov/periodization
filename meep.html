@@ -136,9 +136,16 @@
   .ex.veiled{border:1px solid rgba(34,211,238,.45);border-top:none;
     border-radius:0 0 14px 14px;pointer-events:none}
   /* Everything past the exercise she is on. Same dimming, no outline — there is
-     no gate above these to join. */
-  .ex.locked{pointer-events:none}
-  .ex.veiled > *, .ex.locked > *{opacity:.3}
+     no gate above these to join. The whole card is a tap target that opens it
+     out of order: the order is how the session wants to go, not a cage, and a
+     machine being busy is not a reason to stop training. */
+  .ex.locked{pointer-events:none;position:relative}
+  .ex.veiled > *, .ex.locked > *:not(.jump){opacity:.3}
+  .jump{pointer-events:auto;position:absolute;inset:0;width:100%;
+    display:flex;align-items:center;justify-content:center}
+  .jump span{border:1px solid var(--go);background:rgba(34,211,238,.16);border-radius:99px;
+    padding:9px 16px;color:#a5f3fc;font-size:13px;font-weight:750}
+  .jump:active span{background:rgba(34,211,238,.3)}
   .lockhint{margin-top:10px;font-size:13px;font-weight:650;color:var(--go)}
 
   .effort{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
@@ -670,6 +677,7 @@ function loadState(){
       if (s.draft && !s.draft.effort) s.draft.effort = {};
       if (s.draft && !s.draft.sore) s.draft.sore = {};
       if (s.draft && !s.draft.watched) s.draft.watched = {};
+      if (s.draft && !s.draft.jumped) s.draft.jumped = {};
       if (timerPhase(s.timer, Date.now()) === "over") s.timer = timerReset(s.timer);
       return s;
     }
@@ -762,13 +770,18 @@ function cursorId(c){
   }
   return null;
 }
+/* Open means she can work on it: the one the session is pointing at, or one she
+   has deliberately jumped to. */
+function opened(c, exId){
+  return exId === cursorId(c) || !!state.draft.jumped[exId];
+}
 function gatedNow(c, exId){
-  return exId === cursorId(c) && learningEx(exId, state.history) && !state.draft.watched[exId];
+  return opened(c, exId) && learningEx(exId, state.history) && !state.draft.watched[exId];
 }
 /* Checked here and not left to the stylesheet: a lock that only exists in CSS
    is not a lock. */
 function lockedNow(c, exId){
-  if (exId === cursorId(c)) return gatedNow(c, exId);
+  if (opened(c, exId)) return gatedNow(c, exId);
   var ex = exById(exId);
   return !!ex && !exDone(c, ex);
 }
@@ -906,10 +919,12 @@ function viewSession(c){
   var last = c.exercises.length - 1;
   c.exercises.forEach(function(ex, exIdx){
     var t = c.targets[ex.id], rows = d.sets[ex.id] || [];
-    var current = ex.id === cursor, gated = current && gatedNow(c, ex.id);
-    var shut = !current && !exDone(c, ex);
+    var open = opened(c, ex.id), gated = gatedNow(c, ex.id);
+    var shut = !open && !exDone(c, ex);
     if (gated) h += gateHTML(ex, timesTrained(ex.id, state.history));
-    h += '<div class="ex' + (gated ? " veiled" : shut ? " locked" : "") + '"><div class="exhead"><div><h3>' + ex.name + '</h3>' +
+    h += '<div class="ex' + (gated ? " veiled" : shut ? " locked" : "") + '">' +
+      (shut ? '<button class="jump" data-a="jump" data-ex="' + ex.id + '"><span>Do this one now</span></button>' : "") +
+      '<div class="exhead"><div><h3>' + ex.name + '</h3>' +
       '<p class="dim" style="font-size:14px">' + ex.gear + (ex.perHand ? " · each hand" : "") + (ex.perLeg ? " · per leg" : "") + '</p></div>' +
       '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">' + videoHTML(ex) +
       '<button class="chip" data-a="why" data-ex="' + ex.id + '">Why?</button></div></div>';
@@ -950,7 +965,7 @@ function viewSession(c){
 
     if (!c.dl && proofDone(ex.id)){
       h += effortHTML(ex);
-      if (current && state.draft.effort[ex.id] == null && exIdx < last){
+      if (ex.id === cursor && state.draft.effort[ex.id] == null && exIdx < last){
         h += '<p class="lockhint">Answer this and the next exercise opens.</p>';
       }
     }
@@ -1499,7 +1514,7 @@ function startSession(){
     for (var i = 0; i < n; i++) arr.push({w:"", r:"", done:false});
     sets[ex.id] = arr;
   });
-  state.draft = {index:state.index, sets:sets, effort:{}, sore:{}, watched:{}, deload:c.dl};
+  state.draft = {index:state.index, sets:sets, effort:{}, sore:{}, watched:{}, jumped:{}, deload:c.dl};
   saveState();
   view = "session"; openWhy = null; render();
 }
@@ -1564,6 +1579,11 @@ document.addEventListener("click", function(e){
   if (a === "resume"){ view = "session"; render(); return; }
   if (a === "back"){ view = "home"; render(); return; }
   if (a === "why"){ openWhy = openWhy === exId ? null : exId; render(true); return; }
+
+  /* Out of order on purpose: the machine is busy, or she wants to start
+     somewhere else. It opens that one exercise and leaves the rest as they were,
+     demo and all if the movement is still new to her. */
+  if (a === "jump"){ state.draft.jumped[exId] = true; saveState(); render(true); return; }
 
   /* Opening the demo is what unlocks the card. The re-render waits a tick so it
      cannot pull the link out from under the tap that is following it. */

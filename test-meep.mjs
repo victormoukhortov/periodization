@@ -93,6 +93,7 @@ return {
     askedMuscles: askedMuscles, soreAskable: soreAskable, plannedSets: plannedSets, isProof: isProof,
     exById: exById, slotOf: slotOf, weekOf: weekOf, loadless: loadless,
     exDone: exDone, cursorId: cursorId, lockedNow: lockedNow, gatedNow: gatedNow,
+    opened: opened,
     learningEx: learningEx, timesTrained: timesTrained, LEARN_SESSIONS: LEARN_SESSIONS,
     SLOTS: SLOTS, SLOT_COUNT: SLOT_COUNT, HARD: HARD, CAP_MUSCLE: CAP_MUSCLE,
     CAP_EX: CAP_EX, SANDBAG_TRIGGER: SANDBAG_TRIGGER, EFFORT_GOAL: EFFORT_GOAL, claimRun: claimRun,
@@ -690,6 +691,50 @@ check("everything past the exercise she is on is shut", () => {
   eq(state.draft.sets[exs[2].id].length, before, "no adding sets");
   app.click({ a: "effort", ex: exs[2].id, v: "3" });
   eq(state.draft.effort[exs[2].id], undefined, "no rating it either");
+});
+
+check("a locked exercise can be opened out of order, and says so", () => {
+  const app = boot();
+  const { state, ctx, cursorId, lockedNow } = app.api();
+  app.click({ a: "start" });
+  const exs = ctx().exercises;
+  app.click({ a: "watched", ex: exs[0].id });
+
+  // every shut card carries the way out, in plain words
+  eq((app.api().html.match(/data-a="jump"/g) || []).length, exs.length - 1, "one on every shut card");
+  ok(app.api().html.indexOf("Do this one now") >= 0, "and it says what it does");
+
+  // the machine she wanted is busy, so she starts on the fourth exercise
+  const jumped = exs[3];
+  app.click({ a: "jump", ex: jumped.id });
+  app.click({ a: "watched", ex: jumped.id });      // it is new, so it still owes its demo
+  eq(lockedNow(ctx(), jumped.id), false, "that one is open now");
+  eq(cursorId(ctx()), exs[0].id, "the session still points where it did");
+  ok(lockedNow(ctx(), exs[4].id), "and nothing else opened with it");
+  eq((app.api().html.match(/class="ex locked"/g) || []).length, exs.length - 2,
+    "one fewer shut card than before");
+
+  app.fill(jumped.id, 0, "w", 40);
+  app.click({ a: "toggle", ex: jumped.id, i: "0" });
+  eq(state.draft.sets[jumped.id][0].done, true, "and it logs");
+});
+
+check("jumping to a movement that is still new still asks for the demo first", () => {
+  const app = boot();
+  const { state, ctx, lockedNow } = app.api();
+  app.click({ a: "start" });
+  const exs = ctx().exercises;
+  app.click({ a: "jump", ex: exs[2].id });
+
+  ok(lockedNow(ctx(), exs[2].id), "opened, but the demo is still owed");
+  eq((app.api().html.match(/class="gate"/g) || []).length, 2, "so it has a gate of its own, beside the cursor's");
+  app.fill(exs[2].id, 0, "w", 40);
+  app.click({ a: "toggle", ex: exs[2].id, i: "0" });
+  eq(state.draft.sets[exs[2].id][0].done, false, "and nothing logs until it is watched");
+
+  app.click({ a: "watched", ex: exs[2].id });
+  app.click({ a: "toggle", ex: exs[2].id, i: "0" });
+  eq(state.draft.sets[exs[2].id][0].done, true, "then it logs");
 });
 
 check("an exercise she has finished stays open behind her", () => {
