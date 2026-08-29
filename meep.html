@@ -706,6 +706,15 @@ function watchHTML(ex){
 function exStarted(exId){
   return (state.draft.sets[exId] || []).some(function(r){ return r.done; });
 }
+/* The one exercise the prompt belongs on: the next one down the session with
+   nothing logged against it. Seven of them at once was wallpaper, and this way
+   the demo is in front of her during the rest before the exercise it is for. */
+function nextUpId(c){
+  for (var i = 0; i < c.exercises.length; i++){
+    if (!exStarted(c.exercises[i].id)) return c.exercises[i].id;
+  }
+  return null;
+}
 
 function loadLabel(ex, w, blank){
   if (loadless(ex)) return "bodyweight";
@@ -791,7 +800,7 @@ function viewHome(c, live){
     body:claiming.map(function(e){ return e.name; }).join(", ") + ". Every one of those answers has already made today heavier — that is the deal. " +
       "The way out is not a softer rating, it is a proof set that actually ends."});
   if (!ahead && c.learning) h += noteHTML({head:"Form prompts are on",
-    body:"Every exercise offers a demo until you log its first set. They switch themselves off in " +
+    body:"Whichever exercise you are about to start offers a demo, and the prompt moves down the session as you go. They switch themselves off in " +
       c.learnLeft + " day" + (c.learnLeft === 1 ? "" : "s") + ", once the movements are not new any more."});
   if (!ahead) h += effortNote();
   h += '</div>';
@@ -835,9 +844,10 @@ function viewSession(c){
         body:"Working sets stop with a rep or two spare. The proof set does not stop until the reps do — that is the set the whole program is built on."}))
     + '</div><div style="height:8px"></div>';
 
+  var nextUp = c.learning ? nextUpId(c) : null;
   c.exercises.forEach(function(ex){
     var t = c.targets[ex.id], rows = d.sets[ex.id] || [];
-    var watch = c.learning && !exStarted(ex.id);
+    var watch = ex.id === nextUp;
     h += '<div class="ex"><div class="exhead"><div><h3>' + ex.name + '</h3>' +
       '<p class="dim" style="font-size:14px">' + ex.gear + (ex.perHand ? " · each hand" : "") + (ex.perLeg ? " · per leg" : "") + '</p></div>' +
       '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">' + videoHTML(ex, watch) +

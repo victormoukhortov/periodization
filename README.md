@@ -91,9 +91,10 @@ dangerous to fail alone, so there is no barbell bench and no back squat.
   nothing for it.
 - **Deloads are earned.** There is no deload week on the calendar. One arrives when your proof sets
   go backwards two sessions running, which is what fatigue actually looks like.
-- **Form prompts for the first four weeks.** Every exercise offers a demo link and lights its
-  video button until you log that exercise's first set. The window runs 28 days from your first
-  logged session and then switches itself off.
+- **Form prompts for the first four weeks.** Whichever exercise you are about to start offers a
+  demo link and lights its video button — one at a time, moving down the session as you work, so
+  it is in front of you during the rest before it. The window runs 28 days from your first logged
+  session and then switches itself off.
 - **One number on the front of Progress:** the share of proof sets you took to one-more-or-nothing
   over the last four weeks. Target is 80%.
 

@@ -539,21 +539,32 @@ check("the prompts run for four weeks from the first logged session", () => {
   ok(!learning(long, now), "training for months does not reopen it");
 });
 
-check("each exercise offers the demo until its first set is logged", () => {
+check("only the exercise you are about to start is prompted, and it moves", () => {
   const app = boot();
-  const { state, ctx } = app.api();
+  const { ctx } = app.api();
   app.click({ a: "start" });
-  const first = ctx().exercises[0];
+  const exs = ctx().exercises;
+  const cards = () => app.api().html.split('<div class="ex">').slice(1);
+  const prompted = () => cards().map((c) => /class="watch"/.test(c));
+  const lit = () => cards().map((c) => /class="vid hot"/.test(c));
 
-  ok(app.api().html.indexOf("Watch the demo before your first set") >= 0, "prompted to begin with");
-  ok(app.api().html.indexOf('class="vid hot"') >= 0, "and the video button is lit");
-  const before = (app.api().html.match(/class="watch"/g) || []).length;
-  eq(before, ctx().exercises.length, "one on every exercise");
+  eq(prompted().filter(Boolean).length, 1, "exactly one prompt, not one per exercise");
+  eq(prompted()[0], true, "on the first exercise");
+  eq(lit()[0], true, "whose video button is lit");
+  eq(lit().filter(Boolean).length, 1, "and only that one");
 
-  app.fill(first.id, 0, "w", 25);
-  app.click({ a: "toggle", ex: first.id, i: "0" });
-  const after = (app.api().html.match(/class="watch"/g) || []).length;
-  eq(after, before - 1, "and it clears off the one you have started");
+  app.fill(exs[0].id, 0, "w", 25);
+  app.click({ a: "toggle", ex: exs[0].id, i: "0" });
+  eq(prompted().filter(Boolean).length, 1, "still exactly one");
+  eq(prompted()[0], false, "off the one you have started");
+  eq(prompted()[1], true, "and on to the next");
+
+  // work down the rest of the session (the first one is already under way)
+  exs.slice(1).forEach((ex) => {
+    app.fill(ex.id, 0, "w", 25);
+    app.click({ a: "toggle", ex: ex.id, i: "0" });
+  });
+  eq(prompted().filter(Boolean).length, 0, "nothing left to prompt once every exercise is under way");
 });
 
 check("the prompts are gone once the four weeks are up", () => {

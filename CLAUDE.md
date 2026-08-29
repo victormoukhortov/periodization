@@ -488,9 +488,10 @@ described is no longer the proof set.
 ## Form prompts
 
 For `LEARN_DAYS` (28) from the **first logged session** — not from install, which would burn the
-window on someone who opened the app a fortnight before starting — every exercise carries a link
-to a demo and lights its video button. Each one clears the moment that exercise's first set is
-logged, so the prompt is only ever in front of work you have not started. `learning()` and
+window on someone who opened the app a fortnight before starting — **one** exercise at a time
+carries a link to a demo and lights its video button: the next one down the session with nothing
+logged against it (`nextUpId`). It moves as she works, so the demo is in front of her during the
+rest before the exercise it is for, and there is never more than one on screen. `learning()` and
 `learnDaysLeft()` are pure and take `now`; the home screen says how many days are left, and after
 that the video button is still there, just not shouted about. A prompt that never expires stops
 being read, which is the entire reason it expires.
