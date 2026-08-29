@@ -493,18 +493,23 @@ Each exercise comes round once a week here, so four sessions of it is the same f
 would have given — except that a movement swapped in a year from now gets its own four, which a
 date could never do. A session where the sets were never logged is not an exposure.
 
-The prompt is a **gate**: it renders immediately above the exercise card, and that card carries
-`.veiled` — dimmed, `pointer-events:none`, so nothing in it can be typed in or logged — until the
-gate is answered. Only ever one is on screen, on `nextUpId(c)`, the next exercise with nothing
-logged against it, so it arrives as she reaches the movement rather than seven at a time.
+## The session runs in one order
 
-Two things that matter if you touch this:
+**Watch, work, rate, next.** `cursorId` is the exercise she is on: the first that is not finished,
+where finished means every set logged and — off a deload — the proof set rated. Everything past
+the cursor carries `.locked`; the cursor itself carries `.veiled` and a gate above it while the
+movement is still new. Exercises behind her stay open, so a mistyped set can still be fixed.
 
-- **The skip is not optional.** A phone with no signal in a basement gym must never be able to
-  stop her training, and a gate with no way past would do exactly that. It unlocks the card the
-  same way watching does.
-- **The unlock re-renders on a `setTimeout(0)`**, because the same tap is also following a link
-  out to the demo; rebuilding `#app` inside the handler would pull the anchor out from under it.
+**The lock is enforced in the action handler, not in the stylesheet.** `lockedNow` is checked
+before `toggle`, `addset`, `dropset` and `effort` — a lock that only exists in CSS is not a lock,
+the same reason `finish` checks `setsLeft()` itself rather than trusting its button to be hidden.
+
+There is **no way past the demo**. That does not strand her in a gym with no signal, because the
+unlock is the tap on the link, not the video loading: a demo that fails to open still opens the
+card. If you ever add a skip back, that is the reasoning it has to beat.
+
+The unlock re-renders on a `setTimeout(0)`, because the same tap is also following a link out to
+the demo; rebuilding `#app` inside the handler would pull the anchor out from under it.
 
 `state.draft.watched` holds the answers, so they last the session and are gone by the next one —
 a movement that is still new asks again next week, which is the point.
@@ -516,7 +521,7 @@ a movement that is still new asks again next week, which is the point.
 ```
 node test.mjs          # PPL Block, 31 checks
 node test-victor.mjs   # Rolling Five, 54 checks
-node test-meep.mjs     # Prove It, 36 checks
+node test-meep.mjs     # Prove It, 38 checks
 ```
 
 Each suite extracts the `<script>` body from its HTML file, stubs the handful of browser APIs the

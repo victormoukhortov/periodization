@@ -64,6 +64,7 @@ function runSession(pickLoad, pickReps, pickEffort, pickSore){
   click({a:"start"});
   c = ctx();
   c.exercises.forEach(function(ex){
+    click({a:"watched", ex:ex.id});          /* the gate, when the movement is still new */
     var t = c.targets[ex.id], rows = state.draft.sets[ex.id];
     rows.forEach(function(r, i){
       var proof = isProof(c, ex, i, rows);
@@ -91,6 +92,7 @@ return {
     deloadDue: deloadDue, regressed: regressed, effortScore: effortScore,
     askedMuscles: askedMuscles, plannedSets: plannedSets, isProof: isProof,
     exById: exById, slotOf: slotOf, weekOf: weekOf, loadless: loadless,
+    exDone: exDone, cursorId: cursorId, lockedNow: lockedNow, gatedNow: gatedNow,
     learningEx: learningEx, timesTrained: timesTrained, LEARN_SESSIONS: LEARN_SESSIONS,
     SLOTS: SLOTS, SLOT_COUNT: SLOT_COUNT, HARD: HARD, CAP_MUSCLE: CAP_MUSCLE,
     CAP_EX: CAP_EX, SANDBAG_TRIGGER: SANDBAG_TRIGGER, EFFORT_GOAL: EFFORT_GOAL, claimRun: claimRun,
@@ -446,18 +448,22 @@ check("a session cannot be finished without rating the proof sets", () => {
   const app = boot();
   const { state, ctx } = app.api();
   app.click({ a: "start" });
-  ctx().exercises.forEach((ex) => {
-    state.draft.sets[ex.id].forEach((r, i) => {
-      app.fill(ex.id, i, "w", 20);
-      app.click({ a: "toggle", ex: ex.id, i: String(i) });
+  const all = ctx().exercises;
+  // walk the session the way it insists on being walked, but leave the last rating
+  all.forEach((ex, i) => {
+    app.click({ a: "watched", ex: ex.id });
+    state.draft.sets[ex.id].forEach((r, j) => {
+      app.fill(ex.id, j, "w", 20);
+      app.click({ a: "toggle", ex: ex.id, i: String(j) });
     });
+    if (i < all.length - 1) app.click({ a: "effort", ex: ex.id, v: "3" });
   });
   app.click({ a: "finish" });
   eq(app.api().view, "feedback", "it stops at the questions");
   app.click({ a: "fbsave" });
-  ok(app.api().state.draft, "and will not save while any are unanswered");
+  ok(app.api().state.draft, "and will not save while the last rating is missing");
 
-  ctx().exercises.forEach((ex) => app.click({ a: "effort", ex: ex.id, v: "3" }));
+  app.click({ a: "effort", ex: all[all.length - 1].id, v: "3" });
   app.click({ a: "fbsave" });
   ok(app.api().state.draft, "still not — the soreness questions are outstanding");
   ctx().asked.forEach((m) => app.click({ a: "sore", m: m, v: "1" }));
@@ -469,6 +475,7 @@ check("rating appears once the proof set is logged, and dies if the sets change"
   const app = boot();
   const { state, ctx } = app.api();
   app.click({ a: "start" });
+  app.click({ a: "watched", ex: "a1" });
   ok(app.api().html.indexOf("How many more could you have done?") < 0, "not asked before the work");
 
   const rows = state.draft.sets.a1;
@@ -488,6 +495,7 @@ check("rating appears once the proof set is logged, and dies if the sets change"
 check("logging a set starts the rest timer", () => {
   const app = boot();
   app.click({ a: "start" });
+  app.click({ a: "watched", ex: "a1" });
   app.fill("a1", 0, "w", 25);
   app.click({ a: "toggle", ex: "a1", i: "0" });
   ok(app.api().state.timer.startedAt, "the rest is running");
@@ -497,6 +505,7 @@ check("logging a set starts the rest timer", () => {
 check("the top set's weight fills the rest when you leave the field", () => {
   const app = boot();
   app.click({ a: "start" });
+  app.click({ a: "watched", ex: "a1" });
   const rows = app.api().state.draft.sets.a1;
   app.type("a1", 0, "w", 25);
   eq(rows.map((r) => r.w), ["25", "", "", ""], "nothing moves while typing");
@@ -565,30 +574,89 @@ check("the gate sits above the exercise and holds the card shut", () => {
   eq(app.api().state.draft.watched[exs[0].id], true, "and the session remembers");
 });
 
-check("the gate moves to the next new movement as she works", () => {
+check("the gate moves on only once the exercise before it is finished", () => {
   const app = boot();
-  const { ctx } = app.api();
+  const { state, ctx } = app.api();
   app.click({ a: "start" });
   const exs = ctx().exercises;
-  /* the gated exercise is the one whose own card is held shut */
   const gatedName = () => {
     const m = app.api().html.match(/class="ex veiled">[\s\S]*?<h3>([^<]*)<\/h3>/);
     return m ? m[1] : null;
   };
-  eq(gatedName(), exs[0].name, "first exercise");
+
+  eq(gatedName(), exs[0].name, "the first exercise is behind its demo");
   app.click({ a: "watched", ex: exs[0].id });
-  app.fill(exs[0].id, 0, "w", 25);
-  app.click({ a: "toggle", ex: exs[0].id, i: "0" });
-  eq(gatedName(), exs[1].name, "moves on once that one is under way");
+  eq(gatedName(), null, "watching it opens that card");
+
+  state.draft.sets[exs[0].id].forEach((r, i) => {
+    app.fill(exs[0].id, i, "w", 25);
+    app.click({ a: "toggle", ex: exs[0].id, i: String(i) });
+  });
+  eq(gatedName(), null, "all its sets logged, but the rating is still owed — nothing has moved on");
+  ok(app.api().html.indexOf("Answer this and the next exercise opens") >= 0, "and it says why");
+
+  app.click({ a: "effort", ex: exs[0].id, v: "3" });
+  eq(gatedName(), exs[1].name, "rated, and the next movement comes up behind its own demo");
 });
 
-check("the skip is there so a gym with no signal cannot stop her training", () => {
+check("there is no way past the demo", () => {
   const app = boot();
-  const { ctx } = app.api();
+  const { state, ctx } = app.api();
   app.click({ a: "start" });
-  ok(app.api().html.indexOf("I know this one") >= 0, "there is a way past");
-  app.click({ a: "watched", ex: ctx().exercises[0].id });
-  eq(app.api().html.indexOf('class="ex veiled"'), -1, "and it opens the card the same way");
+  const first = ctx().exercises[0].id;
+  eq(app.api().html.indexOf("skip"), -1, "no skip on the gate");
+
+  // the sets behind it refuse to log, and that is checked in the handler, not
+  // left to the stylesheet
+  app.fill(first, 0, "w", 25);
+  app.click({ a: "toggle", ex: first, i: "0" });
+  eq(state.draft.sets[first][0].done, false, "a set behind an unwatched gate does not log");
+
+  app.click({ a: "watched", ex: first });
+  app.click({ a: "toggle", ex: first, i: "0" });
+  eq(state.draft.sets[first][0].done, true, "and logs once the demo has been opened");
+});
+
+check("everything past the exercise she is on is shut", () => {
+  const app = boot();
+  const { state, ctx, cursorId, lockedNow } = app.api();
+  app.click({ a: "start" });
+  const exs = ctx().exercises;
+  app.click({ a: "watched", ex: exs[0].id });
+
+  eq(cursorId(ctx()), exs[0].id, "she is on the first exercise");
+  eq(lockedNow(ctx(), exs[0].id), false, "which is open");
+  exs.slice(1).forEach((ex) => ok(lockedNow(ctx(), ex.id), ex.name + " is shut"));
+  eq((app.api().html.match(/class="ex locked"/g) || []).length, exs.length - 1, "and every one of them is dimmed");
+
+  // a locked exercise takes no input at all
+  app.fill(exs[2].id, 0, "w", 40);
+  app.click({ a: "toggle", ex: exs[2].id, i: "0" });
+  eq(state.draft.sets[exs[2].id][0].done, false, "no logging");
+  const before = state.draft.sets[exs[2].id].length;
+  app.click({ a: "addset", ex: exs[2].id });
+  eq(state.draft.sets[exs[2].id].length, before, "no adding sets");
+  app.click({ a: "effort", ex: exs[2].id, v: "3" });
+  eq(state.draft.effort[exs[2].id], undefined, "no rating it either");
+});
+
+check("an exercise she has finished stays open behind her", () => {
+  const app = boot();
+  const { state, ctx, lockedNow } = app.api();
+  app.click({ a: "start" });
+  const exs = ctx().exercises;
+  app.click({ a: "watched", ex: exs[0].id });
+  state.draft.sets[exs[0].id].forEach((r, i) => {
+    app.fill(exs[0].id, i, "w", 25);
+    app.click({ a: "toggle", ex: exs[0].id, i: String(i) });
+  });
+  app.click({ a: "effort", ex: exs[0].id, v: "3" });
+
+  eq(lockedNow(ctx(), exs[0].id), false, "still open, so a mistyped set can be fixed");
+  eq((app.api().html.match(/class="ex locked"/g) || []).length, exs.length - 2, "and it is not dimmed");
+  app.click({ a: "toggle", ex: exs[0].id, i: "0" });
+  eq(state.draft.sets[exs[0].id][0].done, false, "un-logging works");
+  eq(app.api().ctx().targets && true, true, "and the session carries on");
 });
 
 check("a movement stops gating once it is not new, and a new one still gates", () => {
@@ -611,8 +679,12 @@ check("a movement stops gating once it is not new, and a new one still gates", (
 
   eq(gateOn(), null, "the bench press has had its four sessions, so nothing gates it");
   eq(app.api().html.indexOf('class="gate"'), -1, "and no gate on screen at all");
-  app.fill(exs[0].id, 0, "w", 25);
-  app.click({ a: "toggle", ex: exs[0].id, i: "0" });
+
+  state.draft.sets[exs[0].id].forEach((r, i) => {
+    app.fill(exs[0].id, i, "w", 25);
+    app.click({ a: "toggle", ex: exs[0].id, i: String(i) });
+  });
+  app.click({ a: "effort", ex: exs[0].id, v: "3" });
   eq(gateOn(), exs[1].name, "and the next movement, which she has never done, gates as she reaches it");
   eq((app.api().html.match(/class="gate"/g) || []).length, 1, "still only one at a time");
 });

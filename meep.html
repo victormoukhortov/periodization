@@ -125,7 +125,7 @@
     border:1px solid var(--go);background:rgba(34,211,238,.14);border-radius:99px;
     color:#a5f3fc;font-size:14px;font-weight:750;text-decoration:none}
   .watch:active{background:rgba(34,211,238,.28)}
-  .skipwatch{display:block;margin-top:14px;font-size:13px;font-weight:650;color:var(--dim)}
+
   /* The gate and the card it holds are one outlined block: the gate is its top,
      open at the bottom, and the card closes it. Dimming the card's children
      rather than the card keeps that shared outline crisp — an opacity on the
@@ -135,7 +135,11 @@
      training, which is what the skip is for. */
   .ex.veiled{border:1px solid rgba(34,211,238,.45);border-top:none;
     border-radius:0 0 14px 14px;pointer-events:none}
-  .ex.veiled > *{opacity:.3}
+  /* Everything past the exercise she is on. Same dimming, no outline — there is
+     no gate above these to join. */
+  .ex.locked{pointer-events:none}
+  .ex.veiled > *, .ex.locked > *{opacity:.3}
+  .lockhint{margin-top:10px;font-size:13px;font-weight:650;color:var(--go)}
 
   .effort{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
   .effort p{font-size:14px;font-weight:700}
@@ -722,20 +726,36 @@ function gateHTML(ex, done){
     '<a class="watch" data-a="watched" data-ex="' + ex.id + '" target="_blank" rel="noopener noreferrer"' +
     ' href="https://www.youtube.com/results?search_query=' + encodeURIComponent(ex.name + " form") + '">' +
     '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" focusable="false">' +
-    '<path d="M7 5.5v13l11-6.5z" fill="currentColor"/></svg>Watch the demo</a>' +
-    '<button class="skipwatch" data-a="watched" data-ex="' + ex.id + '">I know this one — skip</button></div>';
+    '<path d="M7 5.5v13l11-6.5z" fill="currentColor"/></svg>Watch the demo</a></div>';
 }
 function exStarted(exId){
   return (state.draft.sets[exId] || []).some(function(r){ return r.done; });
 }
-/* The one exercise the prompt belongs on: the next one down the session with
-   nothing logged against it. Seven of them at once was wallpaper, and this way
-   the demo is in front of her during the rest before the exercise it is for. */
-function nextUpId(c){
+/* An exercise is finished when every set is logged and, unless this is a
+   deload, its proof set has been rated. */
+function exDone(c, ex){
+  var rows = state.draft.sets[ex.id] || [];
+  if (!rows.length || !rows.every(function(r){ return r.done; })) return false;
+  return !!c.dl || state.draft.effort[ex.id] != null;
+}
+/* The exercise she is on: the first that is not finished. The session runs in
+   that order — watch, work, rate, next — and everything past the cursor is shut.
+   Done exercises stay open behind her so a mistyped set can be fixed. */
+function cursorId(c){
   for (var i = 0; i < c.exercises.length; i++){
-    if (!exStarted(c.exercises[i].id)) return c.exercises[i].id;
+    if (!exDone(c, c.exercises[i])) return c.exercises[i].id;
   }
   return null;
+}
+function gatedNow(c, exId){
+  return exId === cursorId(c) && learningEx(exId, state.history) && !state.draft.watched[exId];
+}
+/* Checked here and not left to the stylesheet: a lock that only exists in CSS
+   is not a lock. */
+function lockedNow(c, exId){
+  if (exId === cursorId(c)) return gatedNow(c, exId);
+  var ex = exById(exId);
+  return !!ex && !exDone(c, ex);
 }
 
 function loadLabel(ex, w, blank){
@@ -863,15 +883,18 @@ function viewSession(c){
     ? noteHTML({cls:"warn wide", head:"Deload session", body:"Half the sets, about " + Math.round(DELOAD_LOAD * 100) +
         "% of the load. Stop every set well short. No proof sets, no ratings."})
     : noteHTML({cls:"push wide", head:"The last set of every exercise is the proof set",
-        body:"Working sets stop with a rep or two spare. The proof set does not stop until the reps do — that is the set the whole program is built on."}))
+        body:"Working sets stop with a rep or two spare. The proof set does not stop until the reps do — that is the set the whole program is built on. " +
+          "One exercise at a time: watch it, work it, rate it, and the next opens."}))
     + '</div>';
 
-  var nextUp = nextUpId(c);
-  c.exercises.forEach(function(ex){
+  var cursor = cursorId(c);
+  var last = c.exercises.length - 1;
+  c.exercises.forEach(function(ex, exIdx){
     var t = c.targets[ex.id], rows = d.sets[ex.id] || [];
-    var gated = ex.id === nextUp && learningEx(ex.id, state.history) && !state.draft.watched[ex.id];
+    var current = ex.id === cursor, gated = current && gatedNow(c, ex.id);
+    var shut = !current && !exDone(c, ex);
     if (gated) h += gateHTML(ex, timesTrained(ex.id, state.history));
-    h += '<div class="ex' + (gated ? " veiled" : "") + '"><div class="exhead"><div><h3>' + ex.name + '</h3>' +
+    h += '<div class="ex' + (gated ? " veiled" : shut ? " locked" : "") + '"><div class="exhead"><div><h3>' + ex.name + '</h3>' +
       '<p class="dim" style="font-size:14px">' + ex.gear + (ex.perHand ? " · each hand" : "") + (ex.perLeg ? " · per leg" : "") + '</p></div>' +
       '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">' + videoHTML(ex) +
       '<button class="chip" data-a="why" data-ex="' + ex.id + '">Why?</button></div></div>';
@@ -910,7 +933,12 @@ function viewSession(c){
       '<button class="chip" data-a="addset" data-ex="' + ex.id + '">+ Set</button>' +
       '<button class="chip" data-a="dropset" data-ex="' + ex.id + '">− Set</button></div>';
 
-    if (!c.dl && proofDone(ex.id)) h += effortHTML(ex);
+    if (!c.dl && proofDone(ex.id)){
+      h += effortHTML(ex);
+      if (current && state.draft.effort[ex.id] == null && exIdx < last){
+        h += '<p class="lockhint">Answer this and the next exercise opens.</p>';
+      }
+    }
     h += '</div>';
   });
 
@@ -1531,6 +1559,12 @@ document.addEventListener("click", function(e){
   if (a === "tnotify"){
     try { Notification.requestPermission().then(function(){ render(true); }, function(){}); } catch (err) {}
     return;
+  }
+
+  /* video, then sets, then the rating, then the next exercise. Nothing outside
+     the one she is on takes an input. */
+  if ((a === "toggle" || a === "addset" || a === "dropset" || a === "effort") && lockedNow(c, exId)){
+    render(true); return;
   }
 
   if (a === "toggle"){
