@@ -478,9 +478,18 @@ and on every summary.
 ## Feedback timing
 
 The effort rating renders **inline on the exercise card** the moment its proof set is logged, not
-in a sheet — seven interruptions a session would get tapped through without being read. Soreness
-is asked at the end, and only about muscles the session actually works (`askedMuscles`: three or
-more sets). A session cannot commit with either outstanding.
+in a sheet — seven interruptions a session would get tapped through without being read, and it is
+the door to the next exercise besides.
+
+Soreness is asked at the end, and only where the question means something. `askedMuscles` wants
+two things of a muscle: at least `ASK_SORENESS_AT` (4) sets in this session, and `soreAskable` —
+a previous outing of *this slot* in which *that muscle* was actually logged. The question is
+"how sore were you after the last Upper Push", so on the first one there is no last one and it is
+not asked at all; a muscle added to a slot later waits for its own first time. The first week
+therefore collects effort ratings only, and a first session with everything rated commits straight
+to the summary with no end screen.
+
+A session cannot commit with either outstanding.
 
 `+ Set` / `− Set` and un-logging the last set all clear that exercise's rating, because the set it
 described is no longer the proof set.
@@ -521,7 +530,7 @@ a movement that is still new asks again next week, which is the point.
 ```
 node test.mjs          # PPL Block, 31 checks
 node test-victor.mjs   # Rolling Five, 54 checks
-node test-meep.mjs     # Prove It, 38 checks
+node test-meep.mjs     # Prove It, 41 checks
 ```
 
 Each suite extracts the `<script>` body from its HTML file, stubs the handful of browser APIs the

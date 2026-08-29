@@ -88,7 +88,8 @@ dangerous to fail alone, so there is no barbell bench and no back squat.
   load was light and added to it. The only way to keep a weight is to finish the set.
 - **Volume is a reward for intensity.** Soreness moves your set counts, but only for a muscle whose
   work was actually taken near failure. Sail through work you did not really do and you get
-  nothing for it.
+  nothing for it. It is not asked until there is a previous outing of that session to be sore
+  from, so the first week collects effort ratings only.
 - **Deloads are earned.** There is no deload week on the calendar. One arrives when your proof sets
   go backwards two sessions running, which is what fatigue actually looks like.
 - **The session runs in one order: watch, work, rate, next.** You are on one exercise at a time;
@@ -146,7 +147,7 @@ python3 -m http.server 8000   # then open http://localhost:8000/
 ```
 node test.mjs          # PPL Block, 31 checks
 node test-victor.mjs   # Rolling Five, 54 checks
-node test-meep.mjs     # Prove It, 38 checks
+node test-meep.mjs     # Prove It, 41 checks
 ```
 
 They cover the progression engines, the reducers, and the fact that every screen renders. CI runs

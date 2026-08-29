@@ -90,7 +90,7 @@ return {
     proofOf: proofOf, proofRun: proofRun,
     setsDelta: setsDelta, workedHard: workedHard, setCountsFor: setCountsFor,
     deloadDue: deloadDue, regressed: regressed, effortScore: effortScore,
-    askedMuscles: askedMuscles, plannedSets: plannedSets, isProof: isProof,
+    askedMuscles: askedMuscles, soreAskable: soreAskable, plannedSets: plannedSets, isProof: isProof,
     exById: exById, slotOf: slotOf, weekOf: weekOf, loadless: loadless,
     exDone: exDone, cursorId: cursorId, lockedNow: lockedNow, gatedNow: gatedNow,
     learningEx: learningEx, timesTrained: timesTrained, LEARN_SESSIONS: LEARN_SESSIONS,
@@ -132,6 +132,13 @@ function session(exId, load, reps, effort, extra) {
   };
   row.sets[exId] = reps.map((r) => ({ w: String(load), r: String(r), done: true }));
   if (effort != null) row.effort[exId] = effort;
+  return row;
+}
+
+/* a previous outing of a slot with every exercise logged, so soreness is askable */
+function priorOuting(slotId, exercises) {
+  const row = {ts: 0, week: 1, slot: slotId, deload: false, effort: {}, sore: {}, sets: {}};
+  exercises.forEach((ex) => { row.sets[ex.id] = [{w: "20", r: "10", done: true}]; });
   return row;
 }
 
@@ -336,11 +343,12 @@ check("set counts stay inside their caps", () => {
 
 check("soreness is only asked about muscles the session actually works", () => {
   const { askedMuscles, setCountsFor, SLOTS } = boot().api();
-  const ua = askedMuscles(SLOTS[0], setCountsFor("ua", []));
+  const been = (i) => [priorOuting(SLOTS[i].id, SLOTS[i].exercises)];
+  const ua = askedMuscles(SLOTS[0], setCountsFor("ua", []), been(0));
   eq(ua, ["chest", "delts", "back"], "upper push: not the three-set triceps work");
-  const la = askedMuscles(SLOTS[1], setCountsFor("la", []));
+  const la = askedMuscles(SLOTS[1], setCountsFor("la", []), been(1));
   eq(la, ["quads", "glutes"], "lower squat: hamstrings are asked about on the day they are loaded");
-  const lb = askedMuscles(SLOTS[3], setCountsFor("lb", []));
+  const lb = askedMuscles(SLOTS[3], setCountsFor("lb", []), been(3));
   eq(lb, ["glutes", "hamstrings", "quads"], "lower hinge: hamstrings are asked here, where they are loaded");
 });
 
@@ -465,10 +473,7 @@ check("a session cannot be finished without rating the proof sets", () => {
 
   app.click({ a: "effort", ex: all[all.length - 1].id, v: "3" });
   app.click({ a: "fbsave" });
-  ok(app.api().state.draft, "still not — the soreness questions are outstanding");
-  ctx().asked.forEach((m) => app.click({ a: "sore", m: m, v: "1" }));
-  app.click({ a: "fbsave" });
-  eq(app.api().state.history.length, 1, "answered, it commits");
+  eq(app.api().state.history.length, 1, "rated, it commits — a first session has no soreness to ask about");
 });
 
 check("rating appears once the proof set is logged, and dies if the sets change", () => {
@@ -524,6 +529,53 @@ check("you can look ahead and come back", () => {
   for (let i = 0; i < 20; i++) app.click({ a: "peeknext" });
   app.click({ a: "peektoday" });
   eq(ctx().slot.id, "ua", "clamped to the week in front of you");
+});
+
+check("soreness is not asked until there is a session to be sore from", () => {
+  const app = boot();
+  const { state, ctx, soreAskable, SLOTS } = app.api();
+
+  eq(soreAskable("chest", "ua", []), false, "nothing logged, nothing to be sore from");
+  eq(ctx().asked, [], "so the first Upper Push asks about nothing");
+
+  const prior = priorOuting("ua", SLOTS[0].exercises);
+  eq(soreAskable("chest", "ua", [prior]), true, "one outing and the question means something");
+  eq(soreAskable("chest", "la", [prior]), false, "but only about the session it belongs to");
+  eq(soreAskable("quads", "ua", [prior]), false, "and only about muscles that session works");
+
+  state.history.push(prior);
+  eq(ctx().asked, ["chest", "delts", "back"], "second time round, it asks");
+});
+
+check("a first session commits without an end screen at all", () => {
+  const app = boot();
+  const { state, ctx } = app.api();
+  app.click({ a: "start" });
+  ctx().exercises.forEach((ex) => {
+    app.click({ a: "watched", ex: ex.id });
+    state.draft.sets[ex.id].forEach((r, i) => {
+      app.fill(ex.id, i, "w", 20);
+      app.click({ a: "toggle", ex: ex.id, i: String(i) });
+    });
+    app.click({ a: "effort", ex: ex.id, v: "3" });
+  });
+  app.click({ a: "finish" });
+  eq(app.api().view, "summary", "straight to the summary");
+  eq(app.api().state.history.length, 1, "logged");
+  eq(app.api().state.history[0].sore, {}, "with no soreness recorded, because none was asked");
+});
+
+check("the second time round it does ask, and the answer moves the sets", () => {
+  const app = boot();
+  for (let i = 0; i < 4; i++) app.runSession(load, grinder, SAYS_NOTHING_LEFT, HEALED_EARLY);
+  const { state, ctx } = app.api();
+  eq(ctx().slot.id, "ua", "back on Upper Push");
+  eq(ctx().asked, ["chest", "delts", "back"], "and now there is a last time to ask about");
+
+  app.runSession(load, grinder, SAYS_NOTHING_LEFT, HEALED_EARLY);
+  const logged = app.api().state.history[4];
+  eq(logged.sore.chest, 1, "the answer reached the log");
+  ok(app.api().ctx().counts !== null, "and the next session's counts come off it");
 });
 
 console.log("\nform prompts");

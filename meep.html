@@ -467,11 +467,26 @@ function setsForMuscle(exercises, counts, m){
   return exercises.reduce(function(a, e){ return a + (e.muscle === m ? counts[e.id] : 0); }, 0);
 }
 
-/* Which muscles get asked about soreness: the ones this session actually
-   works, not every muscle a rep touched. */
-function askedMuscles(slot, counts){
+/* Soreness is a question about last time, so there has to have been one. On the
+   first outing of a session there is nothing to be sore from and it is not
+   asked; a muscle only added to the slot later waits for its own first time. */
+function soreAskable(muscle, slotId, history){
+  return history.some(function(h){
+    if (h.slot !== slotId) return false;
+    return Object.keys(h.sets || {}).some(function(id){
+      var ex = exById(id);
+      return ex && ex.muscle === muscle &&
+        h.sets[id].some(function(r){ return r.done && Number(r.r) > 0; });
+    });
+  });
+}
+
+/* Which muscles get asked: the ones this session actually works, and only once
+   there is a previous outing of it to be sore from. */
+function askedMuscles(slot, counts, history){
   return musclesOf(slot.exercises).filter(function(m){
-    return setsForMuscle(slot.exercises, counts, m) >= ASK_SORENESS_AT;
+    return setsForMuscle(slot.exercises, counts, m) >= ASK_SORENESS_AT &&
+      soreAskable(m, slot.id, history || []);
   });
 }
 
@@ -698,7 +713,7 @@ function ctx(absIndex){
   return {
     abs: abs, idx: abs % SLOT_COUNT, week: weekOf(abs), slot: slot, dl: dl,
     exercises: slot.exercises, counts: counts, targets: targets,
-    asked: askedMuscles(slot, counts),
+    asked: askedMuscles(slot, counts, hist),
     learners: slot.exercises.filter(function(ex){ return learningEx(ex.id, hist); }).length
   };
 }
@@ -998,7 +1013,10 @@ function viewFeedback(c){
   var h = '<div class="fb"><div style="display:flex;justify-content:space-between;align-items:flex-start">' +
     '<h2>Before that counts</h2><button style="font-size:30px;color:var(--muted);line-height:1" data-a="fbcancel">×</button></div>' +
     '<p class="muted" style="font-size:14px;margin-top:6px">' +
-    'How hard the proof sets were decides your loads. How sore you got decides your sets. Neither moves without an answer.</p>';
+    (c.asked.length
+      ? "How hard the proof sets were decides your loads. How sore you got decides your sets. Neither moves without an answer."
+      : "How hard the proof sets were decides your loads. Nothing to say about soreness yet — that question needs a previous " +
+        c.slot.name + " to be sore from, and it starts next time.") + '</p>';
 
   effs.forEach(function(ex){
     h += '<h3 style="text-transform:none">' + ex.name + '</h3>' +
