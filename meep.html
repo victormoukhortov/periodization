@@ -55,6 +55,11 @@
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px}
   .note{padding:12px 14px;border-radius:12px;font-size:14px;border:1px solid var(--line);background:var(--card)}
   .note b{display:block;font-size:14px;font-weight:800;margin-bottom:3px}
+  /* On the session screen a note shares the column with the exercise cards,
+     which are full-bleed with 16px of padding. So it drops the wrapper's inset
+     and pays for its own border out of its padding, landing its text on the
+     same 16px rather than 14px further in. */
+  .note.wide{padding:16px 15px}
   .note.push{border-color:rgba(244,114,182,.4);background:rgba(244,114,182,.1);color:#fbcfe8}
   .note.warn{border-color:rgba(251,191,36,.35);background:rgba(251,191,36,.08);color:#fde68a}
   .note.ok{border-color:rgba(52,211,153,.35);background:rgba(52,211,153,.08);color:#a7f3d0}
@@ -854,12 +859,12 @@ function viewSession(c){
   var h = headerHTML(c, null, timerHTML()) +
     '<div style="padding:10px 16px 0"><button class="eyebrow" data-a="back">‹ Back</button></div>';
 
-  h += '<div style="padding:8px 16px 0">' + (c.dl
-    ? noteHTML({cls:"warn", head:"Deload session", body:"Half the sets, about " + Math.round(DELOAD_LOAD * 100) +
+  h += '<div style="padding:8px 0">' + (c.dl
+    ? noteHTML({cls:"warn wide", head:"Deload session", body:"Half the sets, about " + Math.round(DELOAD_LOAD * 100) +
         "% of the load. Stop every set well short. No proof sets, no ratings."})
-    : noteHTML({cls:"push", head:"The last set of every exercise is the proof set",
+    : noteHTML({cls:"push wide", head:"The last set of every exercise is the proof set",
         body:"Working sets stop with a rep or two spare. The proof set does not stop until the reps do — that is the set the whole program is built on."}))
-    + '</div><div style="height:8px"></div>';
+    + '</div>';
 
   var nextUp = nextUpId(c);
   c.exercises.forEach(function(ex){
