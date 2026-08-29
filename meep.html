@@ -136,16 +136,21 @@
   .ex.veiled{border:1px solid rgba(34,211,238,.45);border-top:none;
     border-radius:0 0 14px 14px;pointer-events:none}
   /* Everything past the exercise she is on. Same dimming, no outline — there is
-     no gate above these to join. The whole card is a tap target that opens it
-     out of order: the order is how the session wants to go, not a cage, and a
-     machine being busy is not a reason to stop training. */
+     no gate above these to join. The lock is the way out of the order: tapping
+     it opens that exercise where it stands, because the order is how the
+     session wants to go, not a cage, and a machine being busy is not a reason
+     to stop training. */
   .ex.locked{pointer-events:none;position:relative}
-  .ex.veiled > *, .ex.locked > *:not(.jump){opacity:.3}
-  .jump{pointer-events:auto;position:absolute;inset:0;width:100%;
+  .ex.veiled > *, .ex.locked > *:not(.lockbtn){opacity:.3}
+  /* Shaped like the timer's transport buttons, filled in the go colour so it
+     reads as the one live control on a dead card. It sits over the dimming
+     rather than inside it — opacity on a parent cannot be undone by a child —
+     and .exhead is padded to the same width so the title moves aside for it. */
+  .lockbtn{pointer-events:auto;position:absolute;top:18px;left:16px;width:44px;height:40px;
+    border:1px solid var(--go);background:var(--go);color:#04242b;border-radius:11px;
     display:flex;align-items:center;justify-content:center}
-  .jump span{border:1px solid var(--go);background:rgba(34,211,238,.16);border-radius:99px;
-    padding:9px 16px;color:#a5f3fc;font-size:13px;font-weight:750}
-  .jump:active span{background:rgba(34,211,238,.3)}
+  .lockbtn:active{background:var(--go-deep);border-color:var(--go-deep);color:#a5f3fc}
+  .ex.locked .exhead{padding-left:56px}
   .lockhint{margin-top:10px;font-size:13px;font-weight:650;color:var(--go)}
 
   .effort{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
@@ -798,6 +803,11 @@ function noteHTML(n){ return '<div class="note ' + (n.cls || "") + '"><b>' + n.h
 
 var TIMER_LABEL = {idle:"Rest timer", running:"Resting", paused:"Paused", over:"Rest over"};
 var PLAY = "▶", PAUSE = "❚❚";
+/* The one control on a shut exercise card. Drawn rather than typed: there is no
+   lock glyph outside the emoji block, and an emoji would not take the colour. */
+var LOCK = '<svg width="15" height="17" viewBox="0 0 14 16" aria-hidden="true">' +
+  '<path d="M3.6 7.2V4.6a3.4 3.4 0 0 1 6.8 0v2.6" fill="none" stroke="currentColor" stroke-width="1.9"/>' +
+  '<rect x="1.4" y="7" width="11.2" height="7.6" rx="1.8" fill="currentColor"/></svg>';
 
 function timerHTML(){
   var t = state.timer, now = Date.now(), ph = timerPhase(t, now), left = timerLeft(t, now);
@@ -923,7 +933,7 @@ function viewSession(c){
     var shut = !open && !exDone(c, ex);
     if (gated) h += gateHTML(ex, timesTrained(ex.id, state.history));
     h += '<div class="ex' + (gated ? " veiled" : shut ? " locked" : "") + '">' +
-      (shut ? '<button class="jump" data-a="jump" data-ex="' + ex.id + '"><span>Do this one now</span></button>' : "") +
+      (shut ? '<button class="lockbtn" data-a="jump" data-ex="' + ex.id + '" aria-label="Do ' + ex.name + ' now">' + LOCK + '</button>' : "") +
       '<div class="exhead"><div><h3>' + ex.name + '</h3>' +
       '<p class="dim" style="font-size:14px">' + ex.gear + (ex.perHand ? " · each hand" : "") + (ex.perLeg ? " · per leg" : "") + '</p></div>' +
       '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">' + videoHTML(ex) +

@@ -509,17 +509,20 @@ where finished means every set logged and — off a deload — the proof set rat
 the cursor carries `.locked`; the cursor itself carries `.veiled` and a gate above it while the
 movement is still new. Exercises behind her stay open, so a mistyped set can still be fixed.
 
-**The order is how the session wants to go, not a cage.** Every shut card is itself a button
-reading *Do this one now*, which puts that exercise in `state.draft.jumped` and opens it where it
-stands — the cursor does not move, nothing else opens, and a movement that is still new still owes
-its demo first. A busy machine is not a reason to stop training. `opened()` is cursor-or-jumped
-and is what both `gatedNow` and `lockedNow` hang off.
+**The order is how the session wants to go, not a cage.** Every shut card carries a lock beside
+its title — shaped like the timer's transport buttons, filled in the go colour, the one live
+control on a dead card. Tapping it puts that exercise in `state.draft.jumped` and opens it where
+it stands: the cursor does not move, nothing else opens, and a movement that is still new still
+owes its demo first. A busy machine is not a reason to stop training. `opened()` is
+cursor-or-jumped and is what both `gatedNow` and `lockedNow` hang off.
 
 **The lock is enforced in the action handler, not in the stylesheet.** `lockedNow` is checked
 before `toggle`, `addset`, `dropset` and `effort` — a lock that only exists in CSS is not a lock,
 the same reason `finish` checks `setsLeft()` itself rather than trusting its button to be hidden.
-The escape's own button needs `pointer-events:auto` to be clickable inside a card that is
-`pointer-events:none`, and it is excluded from the dimming with `:not(.jump)` so it stays legible.
+The lock needs `pointer-events:auto` to be clickable inside a card that is `pointer-events:none`,
+and it sits *over* the dimming rather than inside it — `:not(.lockbtn)` keeps it out of the faded
+set, because an opacity on a parent cannot be undone by a child. `.ex.locked .exhead` is padded to
+the lock's width so the title moves aside rather than sitting under it.
 
 There is **no way past the demo**. That does not strand her in a gym with no signal, because the
 unlock is the tap on the link, not the video loading: a demo that fails to open still opens the

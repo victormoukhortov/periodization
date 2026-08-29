@@ -700,9 +700,10 @@ check("a locked exercise can be opened out of order, and says so", () => {
   const exs = ctx().exercises;
   app.click({ a: "watched", ex: exs[0].id });
 
-  // every shut card carries the way out, in plain words
-  eq((app.api().html.match(/data-a="jump"/g) || []).length, exs.length - 1, "one on every shut card");
-  ok(app.api().html.indexOf("Do this one now") >= 0, "and it says what it does");
+  // every shut card carries the way out: a lit lock beside the title
+  eq((app.api().html.match(/class="lockbtn" data-a="jump"/g) || []).length, exs.length - 1,
+    "one on every shut card");
+  ok(/aria-label="Do [^"]+ now"/.test(app.api().html), "and it says which exercise it opens");
 
   // the machine she wanted is busy, so she starts on the fourth exercise
   const jumped = exs[3];

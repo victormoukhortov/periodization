@@ -95,8 +95,8 @@ dangerous to fail alone, so there is no barbell bench and no back squat.
 - **The session runs in one order: watch, work, rate, next.** You are on one exercise at a time;
   everything past it is dimmed and takes no input until the one you are on is finished — every set
   logged and the proof set rated. Exercises behind you stay open so a mistyped set can be fixed.
-  If a machine is busy, every dimmed card says **Do this one now** — tap it and that exercise opens
-  where it stands. The order is how the session wants to go, not a cage.
+  If a machine is busy, every dimmed card has a lit lock beside its title — tap it and that
+  exercise opens where it stands. The order is how the session wants to go, not a cage.
 - **New movements are gated by a form demo.** The exercise you are on sits behind a prompt to
   watch it, and its card is inert until you tap through. A movement asks for the first four
   sessions of *it*, so anything added later gets its own run however long you have been training.
