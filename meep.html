@@ -107,7 +107,9 @@
   .proof .cell{border-color:rgba(244,114,182,.55)}
   .proof .log{border-color:rgba(244,114,182,.55)}
   .proof .log.on{background:#be185d;border-color:var(--push)}
-  .pmark{text-align:center;font-size:10px;font-weight:800;color:var(--push);letter-spacing:.08em}
+  /* One letter, because the column is 30px wide and the row is already outlined
+     in pink and captioned on the target line. */
+  .pmark{text-align:center;font-size:14px;font-weight:800;color:var(--push)}
   .effort{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
   .effort p{font-size:14px;font-weight:700}
   .eopts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
@@ -815,7 +817,7 @@ function viewSession(c){
       var ph = t.weight == null ? "lb" : fmt(t.weight);
       var nag = needWeight === ex.id + ":" + i;
       h += '<div class="grid' + (pf ? " proof" : "") + '" style="margin-top:8px">' +
-        (pf ? '<span class="pmark">PROOF</span>' : '<span class="num dim" style="text-align:center;font-size:14px">' + (i + 1) + '</span>') +
+        (pf ? '<span class="pmark" aria-label="Proof set">P</span>' : '<span class="num dim" style="text-align:center;font-size:14px">' + (i + 1) + '</span>') +
         (loadless(ex)
           ? '<div class="cell dim" style="border-style:dashed">BW</div>'
           : '<input class="cell' + (nag ? " need" : "") + '" inputmode="decimal" data-ex="' + ex.id + '" data-i="' + i + '" data-f="w" value="' + r.w + '" placeholder="' + ph + '">') +

@@ -158,7 +158,7 @@ check("the last set of every exercise is the proof set, and only that one", () =
       eq(isProof(c, ex, i, rows), i === rows.length - 1, ex.name + " set " + (i + 1));
     });
   });
-  ok(app.api().html.indexOf("PROOF") >= 0, "and it is marked as such on the card");
+  ok(app.api().html.indexOf('class="pmark"') >= 0, "and it is marked as such on the card");
 });
 
 check("the load comes off the proof set, not off the working sets", () => {
