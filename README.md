@@ -91,10 +91,11 @@ dangerous to fail alone, so there is no barbell bench and no back squat.
   nothing for it.
 - **Deloads are earned.** There is no deload week on the calendar. One arrives when your proof sets
   go backwards two sessions running, which is what fatigue actually looks like.
-- **Form prompts for the first four weeks.** Whichever exercise you are about to start offers a
-  demo link and lights its video button — one at a time, moving down the session as you work, so
-  it is in front of you during the rest before it. The window runs 28 days from your first logged
-  session and then switches itself off.
+- **New movements are gated by a form demo.** Whichever exercise you are about to start sits
+  behind a prompt to watch it, and the card is dimmed and inert until you do — one at a time,
+  arriving as you reach it. A movement asks for the first four sessions of *it*, so anything added
+  later gets its own run however long you have been training. There is a skip, because a gym with
+  no signal must never stop you training.
 - **One number on the front of Progress:** the share of proof sets you took to one-more-or-nothing
   over the last four weeks. Target is 80%.
 
@@ -142,7 +143,7 @@ python3 -m http.server 8000   # then open http://localhost:8000/
 ```
 node test.mjs          # PPL Block, 31 checks
 node test-victor.mjs   # Rolling Five, 54 checks
-node test-meep.mjs     # Prove It, 34 checks
+node test-meep.mjs     # Prove It, 36 checks
 ```
 
 They cover the progression engines, the reducers, and the fact that every screen renders. CI runs

@@ -487,14 +487,27 @@ described is no longer the proof set.
 
 ## Form prompts
 
-For `LEARN_DAYS` (28) from the **first logged session** — not from install, which would burn the
-window on someone who opened the app a fortnight before starting — **one** exercise at a time
-carries a link to a demo and lights its video button: the next one down the session with nothing
-logged against it (`nextUpId`). It moves as she works, so the demo is in front of her during the
-rest before the exercise it is for, and there is never more than one on screen. `learning()` and
-`learnDaysLeft()` are pure and take `now`; the home screen says how many days are left, and after
-that the video button is still there, just not shouted about. A prompt that never expires stops
-being read, which is the entire reason it expires.
+**The learning period belongs to the movement, not the calendar.** `timesTrained` counts the
+sessions an exercise was actually logged in, and `learningEx` is true under `LEARN_SESSIONS` (4).
+Each exercise comes round once a week here, so four sessions of it is the same four weeks a date
+would have given — except that a movement swapped in a year from now gets its own four, which a
+date could never do. A session where the sets were never logged is not an exposure.
+
+The prompt is a **gate**: it renders immediately above the exercise card, and that card carries
+`.veiled` — dimmed, `pointer-events:none`, so nothing in it can be typed in or logged — until the
+gate is answered. Only ever one is on screen, on `nextUpId(c)`, the next exercise with nothing
+logged against it, so it arrives as she reaches the movement rather than seven at a time.
+
+Two things that matter if you touch this:
+
+- **The skip is not optional.** A phone with no signal in a basement gym must never be able to
+  stop her training, and a gate with no way past would do exactly that. It unlocks the card the
+  same way watching does.
+- **The unlock re-renders on a `setTimeout(0)`**, because the same tap is also following a link
+  out to the demo; rebuilding `#app` inside the handler would pull the anchor out from under it.
+
+`state.draft.watched` holds the answers, so they last the session and are gone by the next one —
+a movement that is still new asks again next week, which is the point.
 
 # All three apps
 
@@ -503,7 +516,7 @@ being read, which is the entire reason it expires.
 ```
 node test.mjs          # PPL Block, 31 checks
 node test-victor.mjs   # Rolling Five, 54 checks
-node test-meep.mjs     # Prove It, 34 checks
+node test-meep.mjs     # Prove It, 36 checks
 ```
 
 Each suite extracts the `<script>` body from its HTML file, stubs the handful of browser APIs the

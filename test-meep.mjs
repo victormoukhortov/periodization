@@ -91,7 +91,7 @@ return {
     deloadDue: deloadDue, regressed: regressed, effortScore: effortScore,
     askedMuscles: askedMuscles, plannedSets: plannedSets, isProof: isProof,
     exById: exById, slotOf: slotOf, weekOf: weekOf, loadless: loadless,
-    learning: learning, learnDaysLeft: learnDaysLeft, LEARN_DAYS: LEARN_DAYS,
+    learningEx: learningEx, timesTrained: timesTrained, LEARN_SESSIONS: LEARN_SESSIONS,
     SLOTS: SLOTS, SLOT_COUNT: SLOT_COUNT, HARD: HARD, CAP_MUSCLE: CAP_MUSCLE,
     CAP_EX: CAP_EX, SANDBAG_TRIGGER: SANDBAG_TRIGGER, EFFORT_GOAL: EFFORT_GOAL, claimRun: claimRun,
     DELOAD_LOAD: DELOAD_LOAD, DAY_MS: DAY_MS
@@ -519,67 +519,98 @@ check("you can look ahead and come back", () => {
 
 console.log("\nform prompts");
 
-check("the prompts run for four weeks from the first logged session", () => {
-  const { learning, learnDaysLeft, LEARN_DAYS, DAY_MS } = boot().api();
-  const now = Date.now();
-  eq(LEARN_DAYS, 28, "four weeks");
+check("the learning period belongs to the movement, not the calendar", () => {
+  const { timesTrained, learningEx, LEARN_SESSIONS } = boot().api();
+  eq(LEARN_SESSIONS, 4, "four sessions of a movement, which is four weeks of this rotation");
 
-  ok(learning([], now), "nothing logged yet: the window has not even opened");
-  eq(learnDaysLeft([], now), 28, "and the full four weeks are ahead");
+  const did = (n) => {
+    const h = [];
+    for (let i = 0; i < n; i++) h.push(session("a1", 25, [8, 8, 8, 9], 3));
+    return h;
+  };
+  eq(timesTrained("a1", []), 0, "never done");
+  eq(timesTrained("a1", did(3)), 3, "three times");
+  ok(learningEx("a1", did(3)), "still new at three");
+  ok(!learningEx("a1", did(4)), "not new at four");
 
-  const started = (daysAgo) => [{ts: now - daysAgo * DAY_MS}];
-  ok(learning(started(1), now), "a day in");
-  ok(learning(started(27), now), "and on day 27");
-  eq(learnDaysLeft(started(27), now), 1, "with a day to run");
-  ok(!learning(started(28), now), "but not on day 28");
-  eq(learnDaysLeft(started(40), now), 0, "and it does not go negative afterwards");
+  // and a movement that has never been done is new however long she has trained
+  ok(learningEx("d1", did(40)), "forty sessions of the bench press teaches you nothing about a hip thrust");
 
-  // the window is anchored to the first session, not the most recent one
-  const long = [{ts: now - 200 * DAY_MS}, {ts: now - DAY_MS}];
-  ok(!learning(long, now), "training for months does not reopen it");
+  // a session where the exercise was skipped does not count as an exposure
+  const skipped = [{ts: 0, slot: "ua", deload: false, sets: {a1: [{w: "25", r: "", done: false}]}, effort: {}, sore: {}}];
+  eq(timesTrained("a1", skipped), 0, "sets that were never logged are not a rep of practice");
 });
 
-check("only the exercise you are about to start is prompted, and it moves", () => {
+check("the gate sits above the exercise and holds the card shut", () => {
   const app = boot();
   const { ctx } = app.api();
   app.click({ a: "start" });
   const exs = ctx().exercises;
-  const cards = () => app.api().html.split('<div class="ex">').slice(1);
-  const prompted = () => cards().map((c) => /class="watch"/.test(c));
-  const lit = () => cards().map((c) => /class="vid hot"/.test(c));
+  const html = () => app.api().html;
 
-  eq(prompted().filter(Boolean).length, 1, "exactly one prompt, not one per exercise");
-  eq(prompted()[0], true, "on the first exercise");
-  eq(lit()[0], true, "whose video button is lit");
-  eq(lit().filter(Boolean).length, 1, "and only that one");
+  const gates = (html().match(/class="gate"/g) || []).length;
+  eq(gates, 1, "exactly one gate, on the movement she is about to start");
+  ok(html().indexOf("First time on this one.") >= 0, "which says where she is up to");
+  ok(html().indexOf('class="ex veiled"') >= 0, "and the card behind it is dimmed and inert");
+  eq((html().match(/class="ex veiled"/g) || []).length, 1, "only that one card");
 
-  app.fill(exs[0].id, 0, "w", 25);
-  app.click({ a: "toggle", ex: exs[0].id, i: "0" });
-  eq(prompted().filter(Boolean).length, 1, "still exactly one");
-  eq(prompted()[0], false, "off the one you have started");
-  eq(prompted()[1], true, "and on to the next");
+  // the gate is rendered before the card it gates
+  ok(html().indexOf('class="gate"') < html().indexOf('class="ex veiled"'), "gate first, card second");
 
-  // work down the rest of the session (the first one is already under way)
-  exs.slice(1).forEach((ex) => {
-    app.fill(ex.id, 0, "w", 25);
-    app.click({ a: "toggle", ex: ex.id, i: "0" });
-  });
-  eq(prompted().filter(Boolean).length, 0, "nothing left to prompt once every exercise is under way");
+  app.click({ a: "watched", ex: exs[0].id });
+  eq((app.api().html.match(/class="gate"/g) || []).length, 0, "watching it opens the card");
+  eq(app.api().html.indexOf('class="ex veiled"'), -1, "nothing dimmed any more");
+  eq(app.api().state.draft.watched[exs[0].id], true, "and the session remembers");
 });
 
-check("the prompts are gone once the four weeks are up", () => {
+check("the gate moves to the next new movement as she works", () => {
   const app = boot();
-  const { state, DAY_MS } = app.api();
-  // a first session logged five weeks ago
-  state.history.push({
-    ts: Date.now() - 35 * DAY_MS, week: 1, slot: "ua", deload: false,
-    sets: {a1:[{w:"25",r:"8",done:true}]}, effort: {a1: 3}, sore: {}
-  });
-  state.index = 4;                       // back round to Upper Push
+  const { ctx } = app.api();
   app.click({ a: "start" });
-  eq((app.api().html.match(/class="watch"/g) || []).length, 0, "no prompts");
-  eq(app.api().html.indexOf('class="vid hot"'), -1, "and nothing lit");
-  ok(app.api().html.indexOf('class="vid"') >= 0, "the demo link itself is still there, just not shouted about");
+  const exs = ctx().exercises;
+  const gatedName = () => {
+    const m = app.api().html.match(/class="gate">.*?<h3>([^<]*)<\/h3>/);
+    return m ? m[1] : null;
+  };
+  eq(gatedName(), exs[0].name, "first exercise");
+  app.click({ a: "watched", ex: exs[0].id });
+  app.fill(exs[0].id, 0, "w", 25);
+  app.click({ a: "toggle", ex: exs[0].id, i: "0" });
+  eq(gatedName(), exs[1].name, "moves on once that one is under way");
+});
+
+check("the skip is there so a gym with no signal cannot stop her training", () => {
+  const app = boot();
+  const { ctx } = app.api();
+  app.click({ a: "start" });
+  ok(app.api().html.indexOf("I know this one") >= 0, "there is a way past");
+  app.click({ a: "watched", ex: ctx().exercises[0].id });
+  eq(app.api().html.indexOf('class="ex veiled"'), -1, "and it opens the card the same way");
+});
+
+check("a movement stops gating once it is not new, and a new one still gates", () => {
+  const app = boot();
+  const { state, ctx } = app.api();
+  // four sessions of Upper Push in which only the bench press was actually done
+  for (let i = 0; i < 4; i++){
+    state.history.push({
+      ts: Date.now(), week: 1, slot: "ua", deload: false,
+      sets: {a1: [{w: "25", r: "8", done: true}]}, effort: {a1: 3}, sore: {}
+    });
+  }
+  state.index = 4;                        // round to Upper Push again
+  app.click({ a: "start" });
+  const exs = ctx().exercises;
+  const gateOn = () => {
+    const m = app.api().html.match(/class="gate">[\s\S]*?<h3>([^<]*)<\/h3>/);
+    return m ? m[1] : null;
+  };
+
+  eq(gateOn(), null, "the bench press has had its four sessions, so nothing gates it");
+  app.fill(exs[0].id, 0, "w", 25);
+  app.click({ a: "toggle", ex: exs[0].id, i: "0" });
+  eq(gateOn(), exs[1].name, "and the next movement, which she has never done, gates as she reaches it");
+  eq((app.api().html.match(/class="gate"/g) || []).length, 1, "still only one at a time");
 });
 
 console.log("\nscreens");

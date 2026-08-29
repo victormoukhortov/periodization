@@ -110,14 +110,22 @@
   /* One letter, because the column is 30px wide and the row is already outlined
      in pink and captioned on the target line. */
   .pmark{text-align:center;font-size:14px;font-weight:800;color:var(--push)}
-  /* form prompt, shown per exercise until its first set is logged and only for
-     the first few weeks of training */
-  .watch{display:inline-flex;align-items:center;gap:7px;margin-top:10px;padding:7px 12px;
-    border:1px solid rgba(34,211,238,.35);background:rgba(34,211,238,.09);
-    border-radius:99px;color:#a5f3fc;font-size:13px;font-weight:650;text-decoration:none}
-  .watch:active{background:rgba(34,211,238,.18)}
-  .vid.hot{border-color:var(--go);color:var(--go);animation:vpulse 2.4s ease-out infinite}
-  @keyframes vpulse{0%,100%{box-shadow:0 0 0 0 rgba(34,211,238,.4)}60%{box-shadow:0 0 0 6px rgba(34,211,238,0)}}
+  /* The form prompt sits above the exercise it is for and holds that card shut
+     until it is answered. Only ever one on screen: the movement she is about to
+     start, and only while it is still new to her. */
+  .gate{background:var(--card);border:1px solid rgba(34,211,238,.4);border-bottom:none;
+    border-radius:14px 14px 0 0;padding:16px 16px 18px}
+  .gate h3{font-size:17px;font-weight:800;margin-top:3px}
+  .gate p.g{font-size:14px;color:var(--muted);margin-top:6px}
+  .watch{display:inline-flex;align-items:center;gap:8px;margin-top:14px;padding:11px 16px;
+    border:1px solid var(--go);background:rgba(34,211,238,.14);border-radius:99px;
+    color:#a5f3fc;font-size:14px;font-weight:750;text-decoration:none}
+  .watch:active{background:rgba(34,211,238,.28)}
+  .skipwatch{display:block;margin-top:14px;font-size:13px;font-weight:650;color:var(--dim)}
+  /* Dimmed and inert: no typing, no logging, until the gate is answered. A nudge
+     with a way past, not a lock — no signal in the gym must never mean no
+     training, which is what the skip is for. */
+  .ex.veiled{opacity:.32;pointer-events:none;border-radius:0 0 14px 14px}
 
   .effort{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
   .effort p{font-size:14px;font-weight:700}
@@ -267,7 +275,7 @@ var CAP_EX = 5;            /* sets per exercise */
 var ASK_SORENESS_AT = 4;   /* muscles with at least this many sets get a soreness question */
 var DELOAD_LOAD = 0.7;
 var EFFORT_GOAL = 0.8;     /* share of proof sets that should be rated 1-more or nothing-left */
-var LEARN_DAYS = 28;       /* how long the form prompts stay up */
+var LEARN_SESSIONS = 4;    /* times a movement is prompted before it stops being new */
 var DAY_MS = 86400000;
 
 var TIMER_STEPS = [60, 75, 90, 120, 150, 180];
@@ -561,23 +569,22 @@ function effortScore(history, now, days){
   return all ? {score: hard / all, sets: all} : null;
 }
 
-/* --- the form-prompt window ------------------------------------------ */
+/* --- the form prompt -------------------------------------------------- */
 
-/* Four weeks from the first logged session — not from the day the app was
-   installed, which would burn the window on someone who opened it a fortnight
-   before starting. Nothing logged yet means the window has not opened, and the
-   prompts show. A prompt that never goes away stops being read, which is the
-   whole reason this expires. */
-function learnUntil(history){
-  return history.length ? history[0].ts + LEARN_DAYS * DAY_MS : null;
+/* The learning period belongs to the movement, not the calendar. Each exercise
+   comes round once a week here, so four sessions of it is the same four weeks —
+   except that a movement swapped in a year from now gets its own four, which a
+   date could never do. */
+function timesTrained(exId, history){
+  var n = 0;
+  history.forEach(function(h){
+    var rows = (h.sets || {})[exId];
+    if (rows && rows.some(function(r){ return r.done && Number(r.r) > 0; })) n++;
+  });
+  return n;
 }
-function learning(history, now){
-  var until = learnUntil(history);
-  return until == null || now < until;
-}
-function learnDaysLeft(history, now){
-  var until = learnUntil(history);
-  return until == null ? LEARN_DAYS : Math.max(0, Math.ceil((until - now) / DAY_MS));
+function learningEx(exId, history){
+  return timesTrained(exId, history) < LEARN_SESSIONS;
 }
 
 /* --- the rest timer, as a value -------------------------------------- */
@@ -633,6 +640,7 @@ function loadState(){
       if (!s.timer) s.timer = timerBlank();
       if (s.draft && !s.draft.effort) s.draft.effort = {};
       if (s.draft && !s.draft.sore) s.draft.sore = {};
+      if (s.draft && !s.draft.watched) s.draft.watched = {};
       if (timerPhase(s.timer, Date.now()) === "over") s.timer = timerReset(s.timer);
       return s;
     }
@@ -677,7 +685,7 @@ function ctx(absIndex){
     abs: abs, idx: abs % SLOT_COUNT, week: weekOf(abs), slot: slot, dl: dl,
     exercises: slot.exercises, counts: counts, targets: targets,
     asked: askedMuscles(slot, counts),
-    learning: learning(hist, now), learnLeft: learnDaysLeft(hist, now)
+    learners: slot.exercises.filter(function(ex){ return learningEx(ex.id, hist); }).length
   };
 }
 function plannedSets(c, ex){
@@ -687,21 +695,26 @@ function isProof(c, ex, i, rows){ return !c.dl && i === rows.length - 1; }
 
 /* ============================== VIEWS ============================== */
 
-function videoHTML(ex, hot){
-  return '<a class="vid' + (hot ? " hot" : "") + '" target="_blank" rel="noopener noreferrer"' +
+function videoHTML(ex){
+  return '<a class="vid" target="_blank" rel="noopener noreferrer"' +
     ' aria-label="Search YouTube for ' + ex.name + '"' +
     ' href="https://www.youtube.com/results?search_query=' + encodeURIComponent(ex.name) + '">' +
     '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" focusable="false">' +
     '<rect x="2" y="4.5" width="20" height="15" rx="4.5" fill="none" stroke="currentColor" stroke-width="2"/>' +
     '<path d="M10 8.9v6.2l5.2-3.1z" fill="currentColor"/></svg></a>';
 }
-/* The prompt itself is the link, so it is a real tap target rather than a note
+/* The prompt is itself the link, so it is a real tap target rather than a note
    telling you to go and find one. */
-function watchHTML(ex){
-  return '<a class="watch" target="_blank" rel="noopener noreferrer"' +
+function gateHTML(ex, done){
+  return '<div class="gate"><p class="eyebrow">Next up · still new</p>' +
+    '<h3>' + ex.name + '</h3>' +
+    '<p class="g">' + (done === 0 ? "First time on this one." : "Time " + (done + 1) + " of " + LEARN_SESSIONS + " on this one.") +
+    ' Watch the demo and the sets below open up.</p>' +
+    '<a class="watch" data-a="watched" data-ex="' + ex.id + '" target="_blank" rel="noopener noreferrer"' +
     ' href="https://www.youtube.com/results?search_query=' + encodeURIComponent(ex.name + " form") + '">' +
-    '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" focusable="false">' +
-    '<path d="M7 5.5v13l11-6.5z" fill="currentColor"/></svg>Watch the demo before your first set</a>';
+    '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" focusable="false">' +
+    '<path d="M7 5.5v13l11-6.5z" fill="currentColor"/></svg>Watch the demo</a>' +
+    '<button class="skipwatch" data-a="watched" data-ex="' + ex.id + '">I know this one — skip</button></div>';
 }
 function exStarted(exId){
   return (state.draft.sets[exId] || []).some(function(r){ return r.done; });
@@ -799,9 +812,9 @@ function viewHome(c, live){
   if (claiming.length) h += noteHTML({cls:"push", head:"You have left reps in the tank " + SANDBAG_TRIGGER + "+ sessions running",
     body:claiming.map(function(e){ return e.name; }).join(", ") + ". Every one of those answers has already made today heavier — that is the deal. " +
       "The way out is not a softer rating, it is a proof set that actually ends."});
-  if (!ahead && c.learning) h += noteHTML({head:"Form prompts are on",
-    body:"Whichever exercise you are about to start offers a demo, and the prompt moves down the session as you go. They switch themselves off in " +
-      c.learnLeft + " day" + (c.learnLeft === 1 ? "" : "s") + ", once the movements are not new any more."});
+  if (!ahead && c.learners) h += noteHTML({head:c.learners + " movement" + (c.learners === 1 ? " is" : "s are") + " still new",
+    body:"Each one holds its card shut until you have watched the demo, one at a time as you reach it. " +
+      "A movement stops asking after " + LEARN_SESSIONS + " sessions of it — so anything added later gets its own run, however long you have been training."});
   if (!ahead) h += effortNote();
   h += '</div>';
 
@@ -844,15 +857,15 @@ function viewSession(c){
         body:"Working sets stop with a rep or two spare. The proof set does not stop until the reps do — that is the set the whole program is built on."}))
     + '</div><div style="height:8px"></div>';
 
-  var nextUp = c.learning ? nextUpId(c) : null;
+  var nextUp = nextUpId(c);
   c.exercises.forEach(function(ex){
     var t = c.targets[ex.id], rows = d.sets[ex.id] || [];
-    var watch = ex.id === nextUp;
-    h += '<div class="ex"><div class="exhead"><div><h3>' + ex.name + '</h3>' +
+    var gated = ex.id === nextUp && learningEx(ex.id, state.history) && !state.draft.watched[ex.id];
+    if (gated) h += gateHTML(ex, timesTrained(ex.id, state.history));
+    h += '<div class="ex' + (gated ? " veiled" : "") + '"><div class="exhead"><div><h3>' + ex.name + '</h3>' +
       '<p class="dim" style="font-size:14px">' + ex.gear + (ex.perHand ? " · each hand" : "") + (ex.perLeg ? " · per leg" : "") + '</p></div>' +
-      '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">' + videoHTML(ex, watch) +
+      '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">' + videoHTML(ex) +
       '<button class="chip" data-a="why" data-ex="' + ex.id + '">Why?</button></div></div>';
-    if (watch) h += watchHTML(ex);
 
     h += '<div class="target"><span>Target</span><b>' + loadLabel(ex, t.weight) + ' × ' + ex.lo + '–' + ex.hi + '</b>';
     if (!c.dl) h += '<span style="color:var(--push)">proof: beat ' + t.proof + '</span>';
@@ -1431,7 +1444,7 @@ function startSession(){
     for (var i = 0; i < n; i++) arr.push({w:"", r:"", done:false});
     sets[ex.id] = arr;
   });
-  state.draft = {index:state.index, sets:sets, effort:{}, sore:{}, deload:c.dl};
+  state.draft = {index:state.index, sets:sets, effort:{}, sore:{}, watched:{}, deload:c.dl};
   saveState();
   view = "session"; openWhy = null; render();
 }
@@ -1497,6 +1510,14 @@ document.addEventListener("click", function(e){
   if (a === "back"){ view = "home"; render(); return; }
   if (a === "why"){ openWhy = openWhy === exId ? null : exId; render(true); return; }
 
+  /* Opening the demo is what unlocks the card. The re-render waits a tick so it
+     cannot pull the link out from under the tap that is following it. */
+  if (a === "watched"){
+    state.draft.watched[exId] = true;
+    saveState();
+    setTimeout(function(){ render(true); }, 0);
+    return;
+  }
   if (a === "tplay" || a === "treset" || a === "tdur"){ timerDo(a, el.dataset.v); return; }
   if (a === "tnotify"){
     try { Notification.requestPermission().then(function(){ render(true); }, function(){}); } catch (err) {}
