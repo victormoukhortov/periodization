@@ -246,7 +246,7 @@ Same section banners as `indie.html`, and the same responsibilities:
   `now` as arguments.
 - `STORAGE` — `localStorage` under `rolling-five-v1`, in-memory fallback when storage is blocked.
   A different key from PPL Block, so the two apps cannot see each other.
-- `STATE` — `state` (`index`, `history`, `draft`, `tests`, `plates`) plus `ctx(absIndex)`.
+- `STATE` — `state` (`index`, `history`, `draft`, `tests`, `plates`, `notes`) plus `ctx(absIndex)`.
 - `ALARM` — the rest timer's side effects: the alarm file, the wake lock, the media-session
   transport, the notification, the tick, and `paintTimer`. Nothing in here may throw; a phone that
   will not play a sound must still log a set.
@@ -383,6 +383,33 @@ Consequences to keep in mind when changing any of this:
 rule as the `input` handler: the session screen is full of text fields, and a clock that stole the
 keyboard once a second would be unusable. If you add anything to the bar, paint it — do not reach
 for `render()`.
+
+## Training notes
+
+`state.notes` is a map of exercise id to a line or two you wrote about the movement — the seat
+pin, the grip, what the left shoulder does. It is the one thing in the app that is neither
+program nor log:
+
+- **It is authored, not derived**, so it lives on `state` rather than being replayed out of
+  history — the "history is the source of truth" rule is about what the engine computes, and the
+  engine never reads a note.
+- **It belongs to the exercise, not the session**, keyed by the same id history uses, so it comes
+  back every time that movement comes round and survives every cycle. Retiring a movement leaves
+  its note behind harmlessly, the same way `RETIRED` leaves its history.
+- **Empty and absent are one state.** `noteFor` treats whitespace as nothing, and closing the
+  editor on an empty note deletes the key rather than storing `""`. That is what makes "hidden
+  when there is no content" a single condition instead of two.
+- The button sits beside the demo link and is always there; the note is not. It lights up
+  (`.vid.on`) when there is something written, and the note itself is a tap target back into the
+  editor.
+- The textarea is on the **no-render path**, exactly like the set fields: the `input` handler
+  writes `state.notes[id]` and debounces a save, and never calls `render()`. Re-rendering under a
+  textarea takes the keyboard away mid-sentence. Opening one focuses it from the action handler
+  after the render, guarded, because a note you must tap twice to write is a note you do not
+  write.
+- Note text is the only user-authored string the app puts on screen, so it goes through `esc()`
+  in both the display and the textarea. It is the only place in any of the three apps that needs
+  it — everything else rendered is program text or a number.
 
 ## Peeking
 
@@ -540,7 +567,7 @@ a movement that is still new asks again next week, which is the point.
 
 ```
 node test.mjs          # PPL Block, 31 checks
-node test-victor.mjs   # Rolling Five, 54 checks
+node test-victor.mjs   # Rolling Five, 59 checks
 node test-meep.mjs     # Prove It, 43 checks
 ```
 

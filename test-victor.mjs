@@ -52,6 +52,9 @@ function type(exId, i, f, val){
 function typeTest(id, val){
   __handlers.input({ target: {dataset:{t:id}, value:String(val)} });
 }
+function typeNote(exId, val){
+  __handlers.input({ target: {dataset:{note:exId}, value:String(val)} });
+}
 /* typing then leaving the field, which is what carries a weight down */
 function fill(exId, i, f, val){
   type(exId, i, f, val);
@@ -93,7 +96,8 @@ function runSession(pickLoad, pickReps, answer){
   return c;
 }
 return {
-  click: click, type: type, fill: fill, typeTest: typeTest, runSession: runSession,
+  click: click, type: type, fill: fill, typeTest: typeTest, typeNote: typeNote,
+  runSession: runSession,
   api: function(){ return {
     state: state, ctx: ctx, ask: ask, view: view, html: app.innerHTML,
     roundLoad: roundLoad, platesPerSide: platesPerSide, prescribe: prescribe,
@@ -101,6 +105,7 @@ return {
     startLevel: startLevel, straightArmCut: straightArmCut, skillBTrim: skillBTrim,
     pressCut: pressCut, cyclesPerMonth: cyclesPerMonth, questionsFor: questionsFor,
     restAdvice: restAdvice, nearCeiling: nearCeiling, plannedSets: plannedSets,
+    noteFor: noteFor,
     exById: exById, slotOf: slotOf, cycleOf: cycleOf, loadless: loadless,
     SLOTS: SLOTS, SKILLS: SKILLS, SLOT_COUNT: SLOT_COUNT, DAY_MS: DAY_MS,
     CEILING_GAP: CEILING_GAP, ELBOW_DAYS: ELBOW_DAYS, CYCLE_FLOOR: CYCLE_FLOOR,
@@ -955,6 +960,84 @@ check("erasing returns to cycle 1, slot 1", () => {
   eq(ctx().cycle, 1, "cycle 1");
   eq(ctx().slot.id, "push", "slot 1");
   eq(state.tests, {}, "and the baseline tests with it");
+  eq(state.notes, {}, "and the notes");
+});
+
+check("an exercise with nothing written on it shows no note", () => {
+  const app = boot();
+  app.click({ a: "start" });
+  const html = app.api().html;
+  ok(html.indexOf('class="exnote"') < 0, "no note anywhere in the session");
+  ok(/data-a="note"/.test(html), "but every card offers one");
+  ok(html.indexOf('class="vid on"') < 0, "and the button is not lit");
+});
+
+check("a note is written once and comes back every session after", () => {
+  const app = boot();
+  app.click({ a: "start" });
+  const ex = app.api().ctx().exercises[0];
+
+  app.click({ a: "note", ex: ex.id });
+  ok(/data-note="/.test(app.api().html), "tapping the button opens an editor");
+  app.typeNote(ex.id, "Seat pin 4, elbows tucked");
+  ok(app.api().html.indexOf("Seat pin 4") < 0, "typing does not re-render");
+
+  app.click({ a: "notedone", ex: ex.id });
+  const html = app.api().html;
+  ok(html.indexOf('class="exnote"') >= 0, "and it is on the card once done");
+  ok(html.indexOf("Seat pin 4, elbows tucked") >= 0, "with what was written");
+  ok(html.indexOf('class="vid on"') >= 0, "the button is lit now");
+  ok(html.indexOf('data-note="') < 0, "and the editor is closed");
+
+  /* a whole cycle later, the same exercise still carries it */
+  app.click({ a: "back" });
+  const { state, noteFor } = app.api();
+  for (let i = 0; i < 5; i++) app.runSession(load, topOfRange, clean);
+  eq(noteFor(ex.id), "Seat pin 4, elbows tucked", "still there a cycle on");
+  eq(state.history.length > 0, true, "and the log is not what carried it");
+});
+
+check("a note is edited from the card, and emptying it deletes it", () => {
+  const app = boot();
+  app.click({ a: "start" });
+  const ex = app.api().ctx().exercises[0];
+
+  app.click({ a: "note", ex: ex.id });
+  app.typeNote(ex.id, "first pass");
+  app.click({ a: "notedone", ex: ex.id });
+
+  /* the note itself is the way back in */
+  ok(/<div class="exnote" data-a="note"/.test(app.api().html), "the note reopens the editor");
+  app.click({ a: "note", ex: ex.id });
+  ok(app.api().html.indexOf(">first pass</textarea>") >= 0, "with what was there in it");
+  app.typeNote(ex.id, "second pass");
+  app.click({ a: "notedone", ex: ex.id });
+  eq(app.api().noteFor(ex.id), "second pass", "and it overwrites");
+
+  /* whitespace is not content */
+  app.click({ a: "note", ex: ex.id });
+  app.typeNote(ex.id, "   \n  ");
+  app.click({ a: "notedone", ex: ex.id });
+  eq(app.api().state.notes[ex.id], undefined, "an emptied note is deleted, not stored blank");
+  ok(app.api().html.indexOf('class="exnote"') < 0, "and nothing renders for it");
+});
+
+check("Clear throws a note away, and note text cannot inject markup", () => {
+  const app = boot();
+  app.click({ a: "start" });
+  const ex = app.api().ctx().exercises[1];
+
+  app.click({ a: "note", ex: ex.id });
+  app.typeNote(ex.id, '<img src=x onerror="boom">');
+  app.click({ a: "notedone", ex: ex.id });
+  const html = app.api().html;
+  ok(html.indexOf("<img src=x") < 0, "the tag is not written into the page");
+  ok(html.indexOf("&lt;img src=x onerror=&quot;boom&quot;&gt;") >= 0, "it is shown as text");
+
+  app.click({ a: "note", ex: ex.id });
+  app.click({ a: "noteclear", ex: ex.id });
+  eq(app.api().state.notes[ex.id], undefined, "Clear removes it");
+  ok(app.api().html.indexOf('class="exnote"') < 0, "and the card is as it was");
 });
 
 console.log(

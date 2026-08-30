@@ -44,6 +44,10 @@ program actually cares about, and tells you where the rest days want to go.
   off. Pick a duration from the chips, play / pause / reset by hand. The alarm is a real sound, and
   it works with the app in your pocket or the screen locked, because it is delivered as media
   playback rather than as a notification — see the note below.
+- **Notes stick to the movement.** Beside the demo link on every exercise is a button for a note
+  of your own — the seat pin, the grip, the cue that works. It shows up every time that exercise
+  comes round, for as long as you keep it, and an exercise you never wrote on looks exactly as it
+  always did.
 - **Baseline tests** live on the Skills tab. Retest every four to six cycles. Eight strict pike
   pushups plus a 30-second chest-to-wall hold is what starts the handstand pushup ladder on the
   wall instead of on a box.
@@ -148,7 +152,7 @@ python3 -m http.server 8000   # then open http://localhost:8000/
 
 ```
 node test.mjs          # PPL Block, 31 checks
-node test-victor.mjs   # Rolling Five, 54 checks
+node test-victor.mjs   # Rolling Five, 59 checks
 node test-meep.mjs     # Prove It, 43 checks
 ```
 

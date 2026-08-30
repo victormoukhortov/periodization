@@ -92,6 +92,7 @@
   .vid{display:inline-flex;align-items:center;justify-content:center;width:36px;height:30px;
     border:1px solid var(--line);border-radius:99px;color:var(--muted);text-decoration:none}
   .vid:active{color:var(--ink);border-color:var(--muted)}
+  .vid.on{color:var(--go);border-color:var(--go)}
   .cell-slot{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 4px;text-align:center}
   .cell-slot.now{border-color:rgba(251,191,36,.5);background:rgba(251,191,36,.08)}
   .cell-slot.peek{border-color:var(--ink)}
@@ -105,6 +106,16 @@
   .target b{color:var(--ink);font-weight:700}
   .target.sk{color:var(--skill)}
   .why{margin-top:10px;background:#292524;border-radius:10px;padding:12px;font-size:14px;color:#d6d3d1}
+  /* A note you wrote about the movement, not about a session: the seat pin, the
+     grip, the thing your shoulder does. Rendered only when there is something
+     in it, so an exercise you never annotated looks exactly as it always did. */
+  .exnote{margin-top:10px;background:#292524;border-left:3px solid var(--go);
+    border-radius:0 10px 10px 0;padding:10px 12px;font-size:14px;color:#e7e5e4;
+    white-space:pre-wrap;overflow-wrap:anywhere}
+  .notein{width:100%;margin-top:10px;background:var(--bg);border:1px solid var(--go);
+    border-radius:10px;padding:10px 12px;font-size:15px;line-height:1.4;color:var(--ink);
+    font-family:inherit;min-height:86px;resize:none;display:block}
+  .notein:focus{outline:none}
   .cue{margin-top:8px;font-size:13px;color:var(--muted)}
   .grid{display:grid;grid-template-columns:26px 1fr 1fr 52px;gap:8px;align-items:center}
   .grid .eyebrow{text-align:center}
@@ -697,7 +708,8 @@ var KEY = "rolling-five-v1";
 var memory = null;
 
 function blank(){
-  return {index:0, history:[], draft:null, tests:{}, plates:DEFAULT_PLATES, timer:timerBlank()};
+  return {index:0, history:[], draft:null, tests:{}, plates:DEFAULT_PLATES,
+    notes:{}, timer:timerBlank()};
 }
 
 function loadState(){
@@ -707,6 +719,7 @@ function loadState(){
       var s = JSON.parse(raw);
       if (!s.tests) s.tests = {};
       if (!s.plates) s.plates = DEFAULT_PLATES;
+      if (!s.notes) s.notes = {};
       if (s.draft && !s.draft.fb) s.draft.fb = {};
       if (s.draft && !s.draft.exs) s.draft.exs = Object.keys(s.draft.sets);
       if (!s.timer) s.timer = timerBlank();
@@ -726,6 +739,7 @@ function saveState(){
 
 var state = loadState();
 var tab = "cycle", view = "home", summary = null, openWhy = null, selEx = null, confirmErase = false;
+var noteEx = null;       /* the exercise whose note is open for editing */
 var needWeight = null;   /* "exId:i" of a set that was tapped with no weight in it */
 var ask = null;          /* {keys:[...]} — the sheet interrupting the session */
 var testDraft = {};      /* typed-but-unsaved baseline test numbers */
@@ -794,6 +808,45 @@ function videoHTML(ex){
     '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true" focusable="false">' +
     '<rect x="2" y="4.5" width="20" height="15" rx="4.5" fill="none" stroke="currentColor" stroke-width="2"/>' +
     '<path d="M10 8.9v6.2l5.2-3.1z" fill="currentColor"/></svg></a>';
+}
+
+function esc(s){
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/* The note button sits beside the demo link and is always there; the note
+   itself is not. An exercise with nothing written on it renders no note at
+   all, so the card is unchanged until you have something to say about the
+   movement. The button lights up when there is. */
+function noteBtnHTML(ex){
+  var has = !!noteFor(ex.id);
+  return '<button class="vid' + (has ? " on" : "") + '" data-a="note" data-ex="' + ex.id + '"' +
+    ' aria-label="' + (has ? "Edit your note on " : "Add a note on ") + esc(ex.name) + '">' +
+    '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"' +
+    ' fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">' +
+    '<path d="M4 6.5h11M4 12h11M4 17.5h6"/></svg></button>';
+}
+
+/* Notes are per exercise and outlive every session, so they live on state
+   rather than on the draft. Trimmed away to nothing when emptied, which is
+   what keeps "no content" and "hidden" the same condition. */
+function noteFor(exId){
+  var n = state.notes && state.notes[exId];
+  return n && n.trim() ? n : "";
+}
+function exNoteHTML(ex){
+  if (noteEx === ex.id){
+    return '<textarea class="notein" data-note="' + ex.id + '" rows="3"' +
+      ' placeholder="Seat height, grip, a cue that works. Kept for next time.">' +
+      esc(state.notes[ex.id] || "") + '</textarea>' +
+      '<div style="display:flex;gap:10px;margin-top:10px">' +
+      '<button class="chip on" data-a="notedone" data-ex="' + ex.id + '">Done</button>' +
+      (noteFor(ex.id) ? '<button class="chip" data-a="noteclear" data-ex="' + ex.id + '">Clear</button>' : "") +
+      '</div>';
+  }
+  var n = noteFor(ex.id);
+  return n ? '<div class="exnote" data-a="note" data-ex="' + ex.id + '">' + esc(n) + '</div>' : "";
 }
 
 function loadLabel(ex, w, blank){
@@ -926,6 +979,7 @@ function viewSession(c){
     h += '<div class="ex"><div class="exhead"><div><h3>' + ex.name + '</h3>' +
       '<p class="dim" style="font-size:14px">' + ex.gear + (ex.rest ? " · " + ex.rest : "") + '</p></div>' +
       '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0">' + videoHTML(ex) +
+      noteBtnHTML(ex) +
       '<button class="chip" data-a="why" data-ex="' + ex.id + '">Why?</button></div></div>';
 
     h += '<div class="target' + (ex.skill ? " sk" : "") + '"><span>Target</span><b>' +
@@ -942,6 +996,7 @@ function viewSession(c){
       h += '<p class="num dim" style="font-size:12px;margin-top:3px">' + (ps ? "bar + " + ps + " per side" : "empty bar") + '</p>';
     }
     if (openWhy === ex.id) h += '<div class="why">' + t.why + '</div>';
+    h += exNoteHTML(ex);
 
     h += '<div class="grid" style="margin-top:14px"><span class="eyebrow">Set</span>' +
       '<span class="eyebrow">' + (ex.gear === "Added" ? "Added" : "Weight") + '</span>' +
@@ -1356,7 +1411,7 @@ function viewSettings(c){
 
   h += '<div class="card" style="padding:14px;margin-top:12px;border-color:rgba(127,29,29,.6);background:rgba(69,10,10,.25)">' +
     '<p style="font-size:14px;font-weight:700;color:#fca5a5">Erase all training data</p>' +
-    '<p class="muted" style="font-size:12px;margin-top:4px">Removes every logged session, every baseline test, and returns you to cycle 1, slot 1.</p>';
+    '<p class="muted" style="font-size:12px;margin-top:4px">Removes every logged session, every baseline test, every note you have written, and returns you to cycle 1, slot 1.</p>';
   h += confirmErase
     ? '<div style="display:flex;gap:8px;margin-top:12px"><button class="chip" style="flex:1;text-align:center" data-a="erase-no">Keep it</button>' +
       '<button class="chip" style="flex:1;text-align:center;background:#dc2626;border-color:#dc2626;color:#fff" data-a="erase-yes">Erase</button></div>'
@@ -1391,6 +1446,18 @@ function render(keepScroll){
   }).join("");
   if (keepScroll) window.scrollTo(0, y); else window.scrollTo(0, 0);
   if (deferredPrompt) { var box = document.getElementById("install"); if (box) box.style.display = "block"; }
+}
+
+/* Opening a note puts the caret at the end of what is already there. Guarded
+   the way everything that touches the DOM outside render is: a browser that
+   will not do it must still let the note be typed. */
+function focusNote(exId){
+  var el = document.querySelector('[data-note="' + exId + '"]');
+  if (!el || !el.focus) return;
+  try {
+    el.focus();
+    if (el.setSelectionRange) el.setSelectionRange(el.value.length, el.value.length);
+  } catch (e) {}
 }
 
 /* ============================== ALARM ============================== */
@@ -1614,7 +1681,7 @@ function startSession(){
   });
   state.draft = {index:state.index, exs:exs, sets:sets, fb:{}};
   saveState();
-  view = "session"; openWhy = null; ask = null; render();
+  view = "session"; openWhy = null; noteEx = null; ask = null; render();
 }
 
 /* What the session just changed about the program itself, for the summary. */
@@ -1681,7 +1748,7 @@ document.addEventListener("click", function(e){
   if (a === "nav"){
     tab = el.dataset.tab;
     if (tab === "cycle" && view === "summary") view = "home";
-    confirmErase = false; peek = null;
+    confirmErase = false; peek = null; noteEx = null;
     render(); return;
   }
 
@@ -1696,8 +1763,28 @@ document.addEventListener("click", function(e){
 
   if (a === "start"){ peek = null; startSession(); return; }
   if (a === "resume"){ view = "session"; render(); return; }
-  if (a === "back"){ view = "home"; render(); return; }
+  if (a === "back"){ view = "home"; noteEx = null; render(); return; }
   if (a === "why"){ openWhy = openWhy === exId ? null : exId; render(true); return; }
+
+  /* The note editor. One open at a time, and the tap that opens it puts the
+     cursor in it — a note you have to tap twice to write is a note you do not
+     write. Closing trims, and an emptied note is deleted rather than kept as
+     an empty string, so "nothing written" stays a single condition. */
+  if (a === "note"){
+    noteEx = noteEx === exId ? null : exId;
+    render(true);
+    if (noteEx) focusNote(noteEx);
+    return;
+  }
+  if (a === "notedone"){
+    var txt = (state.notes[exId] || "").trim();
+    if (txt) state.notes[exId] = txt; else delete state.notes[exId];
+    noteEx = null; saveState(); render(true); return;
+  }
+  if (a === "noteclear"){
+    delete state.notes[exId];
+    noteEx = null; saveState(); render(true); return;
+  }
 
   if (a === "toggle"){
     var i = Number(el.dataset.i), row = state.draft.sets[exId][i];
@@ -1776,7 +1863,7 @@ document.addEventListener("click", function(e){
   if (a === "erase-no"){ confirmErase = false; render(true); return; }
   if (a === "erase-yes"){
     state = blank();
-    confirmErase = false; peek = null; testDraft = {};
+    confirmErase = false; peek = null; testDraft = {}; noteEx = null;
     syncTimer(); saveState(); tab = "cycle"; view = "home"; render(); return;
   }
   if (a === "install" && deferredPrompt){ deferredPrompt.prompt(); deferredPrompt = null; return; }
@@ -1799,6 +1886,14 @@ function carryWeightDown(exId, rows, value){
 document.addEventListener("input", function(e){
   var t = e.target;
   if (!t.dataset) return;
+  /* Same rule as the set fields: write the state, never re-render. Rebuilding
+     the page under a textarea would take the keyboard away mid-sentence. */
+  if (t.dataset.note){
+    state.notes[t.dataset.note] = t.value;
+    clearTimeout(window.__saveT);
+    window.__saveT = setTimeout(saveState, 400);
+    return;
+  }
   if (t.dataset.t){ testDraft[t.dataset.t] = t.value; return; }
   if (!t.dataset.ex || !state.draft) return;
   var rows = state.draft.sets[t.dataset.ex];
