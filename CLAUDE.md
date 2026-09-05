@@ -411,6 +411,24 @@ program nor log:
   in both the display and the textarea. It is the only place in any of the three apps that needs
   it — everything else rendered is program text or a number.
 
+## The past-sessions log
+
+Beside the note button, and on the same rule: `pastSessions(exId, history)` returns every session
+that logged this exercise, newest first, with the sets as they were logged, and the button only
+exists once that list is non-empty. It is `lastPerformance`'s wider sibling — that one keeps the
+working load and the reps at it because that is all `prescribe` needs, while this keeps every set,
+because a person reading their own log wants the sets that did not count too.
+
+- Pure, in `ENGINE`, reading history and returning values. Nothing derived from it is stored.
+- Only logged sets with reps on them appear. A row typed and never checked off did not happen.
+- `setsLine` prints one weight and the reps under it when the whole outing was at one load, which
+  is what `carryWeightDown` makes almost every outing; a session where the load moved mid-exercise
+  is spelled out set by set rather than averaged into a number that was never lifted.
+- The panel scrolls inside itself (`max-height`), so opening it cannot push the sets you are
+  working on off the screen.
+- `openWhy`, `noteEx` and `openLog` are all view state on the same footing: never persisted, and
+  cleared by anything that leaves the session.
+
 ## Peeking
 
 Same as PPL Block, bounded to `[state.index, state.index + SLOT_COUNT - 1]` — the cycle in front
@@ -567,7 +585,7 @@ a movement that is still new asks again next week, which is the point.
 
 ```
 node test.mjs          # PPL Block, 31 checks
-node test-victor.mjs   # Rolling Five, 59 checks
+node test-victor.mjs   # Rolling Five, 63 checks
 node test-meep.mjs     # Prove It, 43 checks
 ```
 

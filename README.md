@@ -48,6 +48,8 @@ program actually cares about, and tells you where the rest days want to go.
   of your own — the seat pin, the grip, the cue that works. It shows up every time that exercise
   comes round, for as long as you keep it, and an exercise you never wrote on looks exactly as it
   always did.
+- **Every past outing is a tap away.** Beside the note button is the log for that exercise: every
+  session that trained it, newest first, with the weight and the reps you actually logged.
 - **Baseline tests** live on the Skills tab. Retest every four to six cycles. Eight strict pike
   pushups plus a 30-second chest-to-wall hold is what starts the handstand pushup ladder on the
   wall instead of on a box.
@@ -152,7 +154,7 @@ python3 -m http.server 8000   # then open http://localhost:8000/
 
 ```
 node test.mjs          # PPL Block, 31 checks
-node test-victor.mjs   # Rolling Five, 59 checks
+node test-victor.mjs   # Rolling Five, 63 checks
 node test-meep.mjs     # Prove It, 43 checks
 ```
 

@@ -105,7 +105,7 @@ return {
     startLevel: startLevel, straightArmCut: straightArmCut, skillBTrim: skillBTrim,
     pressCut: pressCut, cyclesPerMonth: cyclesPerMonth, questionsFor: questionsFor,
     restAdvice: restAdvice, nearCeiling: nearCeiling, plannedSets: plannedSets,
-    noteFor: noteFor,
+    noteFor: noteFor, pastSessions: pastSessions, setsLine: setsLine,
     exById: exById, slotOf: slotOf, cycleOf: cycleOf, loadless: loadless,
     SLOTS: SLOTS, SKILLS: SKILLS, SLOT_COUNT: SLOT_COUNT, DAY_MS: DAY_MS,
     CEILING_GAP: CEILING_GAP, ELBOW_DAYS: ELBOW_DAYS, CYCLE_FLOOR: CYCLE_FLOOR,
@@ -1020,6 +1020,65 @@ check("a note is edited from the card, and emptying it deletes it", () => {
   app.click({ a: "notedone", ex: ex.id });
   eq(app.api().state.notes[ex.id], undefined, "an emptied note is deleted, not stored blank");
   ok(app.api().html.indexOf('class="exnote"') < 0, "and nothing renders for it");
+});
+
+check("an exercise you have never done offers no log", () => {
+  const app = boot();
+  app.click({ a: "start" });
+  const html = app.api().html;
+  ok(html.indexOf('data-a="log"') < 0, "no button on the first session");
+  ok(html.indexOf('class="exlog"') < 0, "and nothing to open");
+});
+
+check("the log lists every session that trained the exercise, with the sets", () => {
+  const app = boot();
+  /* three whole cycles, so Push has come round three times */
+  for (let i = 0; i < 15; i++) app.runSession(load, topOfRange, clean);
+  const { pastSessions, state } = app.api();
+
+  app.click({ a: "start" });
+  const ex = app.api().ctx().exercises[0];
+  const past = pastSessions(ex.id, state.history);
+  eq(past.length, 3, "three outings in the log");
+  eq(past[0].ts >= past[1].ts, true, "newest first");
+  eq(past[0].sets.length > 0, true, "with the sets that were logged");
+
+  ok(app.api().html.indexOf('data-a="log"') >= 0, "and the card offers them");
+  ok(app.api().html.indexOf('class="exlog"') < 0, "closed until asked");
+  app.click({ a: "log", ex: ex.id });
+  const open = app.api().html;
+  ok(open.indexOf('class="exlog"') >= 0, "tapping opens it");
+  eq((open.match(/class="lg"/g) || []).length, 3, "one row per session");
+  ok(/<b>\d+ lb<\/b> × \d+/.test(open), "each row carries the weight and the reps");
+
+  app.click({ a: "log", ex: ex.id });
+  ok(app.api().html.indexOf('class="exlog"') < 0, "and tapping again closes it");
+});
+
+check("the log skips sessions the exercise was not in, and unlogged sets", () => {
+  const app = boot();
+  const { pastSessions, state, ctx } = app.api();
+  app.runSession(load, topOfRange, clean);          // Push
+  app.runSession(load, topOfRange, clean);          // Pull
+  const pushEx = ctx(0).exercises[0].id;
+  eq(pastSessions(pushEx, state.history).length, 1, "only the session it was in");
+
+  /* a set typed but never checked off is not something that happened */
+  const raw = state.history[0].sets[pushEx];
+  raw.push({ w: "500", r: "20", done: false });
+  eq(pastSessions(pushEx, state.history)[0].sets.length, raw.length - 1, "the unlogged set is not in it");
+});
+
+check("a session where the load moved is spelled out set by set", () => {
+  const app = boot();
+  const { setsLine, exById } = app.api();
+  const bar = exById("p1"), band = exById("b4"), chin = exById("u1");
+
+  eq(setsLine(bar, [{w:135,r:8},{w:135,r:8},{w:135,r:7}]), "<b>135 lb</b> × 8, 8, 7", "one weight, one label");
+  eq(setsLine(bar, [{w:135,r:8},{w:145,r:5}]), "135×8   145×5", "two weights, both shown");
+  eq(setsLine(band, [{w:0,r:10},{w:0,r:10}]), "10, 10", "no load on band work");
+  eq(setsLine(chin, [{w:0,r:6},{w:0,r:6}]), "6, 6 <b>bodyweight</b>", "an unweighted chin-up says so");
+  eq(setsLine(chin, [{w:25,r:6}]), "<b>25 added</b> × 6", "and a weighted one says added");
 });
 
 check("Clear throws a note away, and note text cannot inject markup", () => {
