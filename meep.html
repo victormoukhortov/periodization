@@ -671,7 +671,7 @@ var KEY = "prove-it-v1";
 var memory = null;
 
 function blank(){
-  return {index:0, history:[], draft:null, timer:timerBlank()};
+  return {index:0, history:[], draft:null, timer:timerBlank(), alarmHold:false};
 }
 function loadState(){
   try {
@@ -679,6 +679,7 @@ function loadState(){
     if (raw){
       var s = JSON.parse(raw);
       if (!s.timer) s.timer = timerBlank();
+      if (typeof s.alarmHold !== "boolean") s.alarmHold = false;
       if (s.draft && !s.draft.effort) s.draft.effort = {};
       if (s.draft && !s.draft.sore) s.draft.sore = {};
       if (s.draft && !s.draft.watched) s.draft.watched = {};
@@ -1262,6 +1263,18 @@ function viewSettings(c){
   h += '<div class="card" style="padding:14px;margin-top:12px"><p style="font-size:14px;font-weight:700">Weights</p>' +
     '<p class="muted" style="font-size:14px;margin-top:6px">Pounds throughout. Dumbbell loads are per hand. Machine numbers are the pin — round to the nearest one the stack has.</p></div>';
 
+  h += '<div class="card" style="padding:14px;margin-top:12px">' +
+    '<p style="font-size:14px;font-weight:700">Rest alarm</p>' +
+    '<p class="muted" style="font-size:14px;margin-top:6px">The alarm is a sound, not a notification, so it has to hold the phone\'s audio to survive a locked screen — and whatever else is playing goes quiet while it does.</p>' +
+    '<div style="display:flex;gap:8px;margin-top:12px">' +
+    '<button class="chip' + (state.alarmHold ? "" : " on") + '" style="flex:1;text-align:center" data-a="alarmhold" data-v="0">Leave my music</button>' +
+    '<button class="chip' + (state.alarmHold ? " on" : "") + '" style="flex:1;text-align:center" data-a="alarmhold" data-v="1">Always ring</button></div>' +
+    '<p class="dim" style="font-size:12px;margin-top:8px">' +
+    (state.alarmHold
+      ? "The audio is held from the moment a rest starts. The alarm cannot be missed, and nothing else plays until it rings."
+      : "Nothing plays until you leave the app or the bell rings, so your music runs through the rest. If an alarm ever fails to reach you in your pocket, switch to Always ring.") +
+    '</p></div>';
+
   h += '<div class="card" id="install" style="padding:14px;margin-top:12px;display:none">' +
     '<p style="font-size:14px;font-weight:700">Install</p>' +
     '<p class="muted" style="font-size:14px;margin-top:4px">Add it to your home screen so it opens full screen.</p>' +
@@ -1308,14 +1321,31 @@ function render(keepScroll){
 
 /* The whole point of this section: a static page cannot schedule a future
    notification, and a backgrounded or locked phone stops running timers. What
-   it will keep doing is playing media. So a rest arms an audio file that is
+   it will keep doing is playing media. So a rest can arm an audio file that is
    `left` seconds of inaudible signal followed by the tone, and the phone plays
    it to the end on its own. Nothing here has to be awake for the alarm to
    sound. Everything is feature-detected and swallowed: no alarm must ever stop
-   a set being logged. */
+   a set being logged.
+
+   That file costs something, and it is her music: a phone gives the audio to
+   one app, so a stream held for the whole rest holds her music silent for the
+   whole rest. It is only needed while nothing here is running. So the file is
+   armed **when the page goes away**, not when the rest starts:
+
+   - On screen, nothing plays. The rest is counted by the tick, which is
+     reliable because a visible page is not throttled and the wake lock keeps it
+     visible. The bell is struck at zero, and only then.
+   - Going away — locked, switched apart — is the last moment anything can be
+     started, so visibilitychange arms the rest of the rest there.
+   - Coming back hands the audio straight back, so her music returns with it.
+
+   `state.alarmHold` is the way out for a phone where that hand-off does not
+   hold: it arms at the start of the rest, as though the page were always away. */
 
 var alarmEl = document.getElementById("alarm");
 var alarmUrl = null, tickHandle = null, fired = false, wakeLock = null;
+var armed = false;      /* a lead-in file is playing, and holds the phone's audio */
+var unlocked = false;   /* play() has been allowed once, which is all iOS asks */
 
 /* The alarm sound: a desk bell, one strike, 32 kHz 16-bit mono PCM. The source
    recording opens with 33ms of the striker rattling before the bell speaks and
@@ -1355,10 +1385,10 @@ function canAsk(){
    worth keeping alive. Then the bell, twice. */
 var LE = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
 
-function alarmSrc(silentSec){
+function alarmSrc(silentSec, noBell){
   var b = bell(), RATE = BELL_RATE;
   var gap = Math.round(BELL_GAP * RATE);
-  var tail = gap + b.length;
+  var tail = noBell ? 0 : gap + b.length;
   var lead = Math.round(Math.max(0, silentSec) * RATE);
   var n = lead + tail, bytes = 44 + n * 2;
   var buf = new ArrayBuffer(bytes), dv = new DataView(buf), i;
@@ -1386,18 +1416,31 @@ function alarmSrc(silentSec){
   return URL.createObjectURL(new Blob([buf], {type: "audio/wav"}));
 }
 
-function armAlarm(secs){
+/* Which of the phone's audio behaviours this file wants. A file that has to
+   survive the screen locking needs the one that keeps playing in the
+   background, and that one takes the audio outright. The bell on its own only
+   has to be heard now, and "transient" is the type other audio comes back
+   after. Safari-only and best-effort; every other browser ignores it. */
+function audioType(kind){
+  try { if (navigator.audioSession) navigator.audioSession.type = kind; } catch (e) {}
+}
+
+function armAlarm(secs, quiet){
   if (!hasAudio()) return;
   stopAlarm();
   try {
-    alarmUrl = alarmSrc(secs);
+    audioType(quiet ? "ambient" : secs > 0 ? "playback" : "transient");
+    alarmUrl = alarmSrc(secs, quiet);
     alarmEl.src = alarmUrl;
     var p = alarmEl.play();
     if (p && p.catch) p.catch(function(){});
-    wireMedia();
+    armed = !quiet && secs > 0;
+    unlocked = true;
+    if (!quiet) wireMedia();
   } catch (e) {}
 }
 function stopAlarm(){
+  armed = false;
   try { if (hasAudio()) alarmEl.pause(); } catch (e) {}
   if (alarmUrl){
     try { URL.revokeObjectURL(alarmUrl); } catch (e) {}
@@ -1405,10 +1448,25 @@ function stopAlarm(){
   }
 }
 
-/* If the armed file was stopped somewhere along the way — the phone reclaimed
-   it, the tab was frozen — the rest still ends, so sound it now. */
-function alarmFallback(){
-  try { if (hasAudio() && alarmEl.paused) armAlarm(0); } catch (e) {}
+/* iOS grants a page the right to play audio once, to an element, from a play()
+   inside a tap; everything after that is allowed without one. Nothing plays
+   during the rest any more, so the tap that starts one spends 50ms of mixable
+   near-silence buying that right instead. Once per page load, not per rest. */
+function unlockAudio(){
+  if (unlocked) return;
+  armAlarm(0.05, true);
+}
+
+/* The rest is over. If the armed file is still running, the bell is in it and
+   about to sound on its own; if it has run to the end it already has. Anything
+   else — on screen with nothing playing, or a file the phone took back — has to
+   be struck now. */
+function soundNow(){
+  try {
+    if (!hasAudio()) return;
+    if (armed && (!alarmEl.paused || alarmEl.ended)) return;
+    armAlarm(0);
+  } catch (e) {}
 }
 
 /* Lock-screen transport, so pausing there pauses the rest rather than leaving
@@ -1477,7 +1535,7 @@ function tick(){
   var ph = timerPhase(state.timer, Date.now());
   paintTimer();
   if (ph === "over"){
-    if (!fired){ fired = true; alarmFallback(); notifyOver(); }
+    if (!fired){ fired = true; soundNow(); notifyOver(); }
     stopTicking(); holdScreen(false);
   } else if (ph !== "running") stopTicking();
 }
@@ -1495,7 +1553,10 @@ function syncTimer(){
   var t = state.timer, ph = timerPhase(t, Date.now());
   if (ph === "running"){
     fired = false;
-    armAlarm(timerLeft(t, Date.now()));
+    /* Hold the audio only where nothing else can carry the alarm: she has
+       already left, or she has asked for it to be held every time. */
+    if (state.alarmHold || document.visibilityState === "hidden") armAlarm(timerLeft(t, Date.now()));
+    else { stopAlarm(); unlockAudio(); }
     holdScreen(true);
     startTicking();
   } else {
@@ -1668,6 +1729,10 @@ document.addEventListener("click", function(e){
     confirmErase = false; peek = null;
     syncTimer(); saveState(); tab = "train"; view = "home"; render(); return;
   }
+  if (a === "alarmhold"){
+    state.alarmHold = el.dataset.v === "1";
+    syncTimer(); saveState(); render(true); return;
+  }
   if (a === "install" && deferredPrompt){ deferredPrompt.prompt(); deferredPrompt = null; return; }
 });
 
@@ -1734,8 +1799,18 @@ if (!ONDISK && "serviceWorker" in navigator){
   try { navigator.serviceWorker.register("sw.js").catch(function(){}); } catch (e) {}
 }
 
+/* The two moments the alarm changes hands. Going away is the last instant
+   anything can be started, so the rest of the rest is armed there; coming back
+   gives the audio up again, because the tick can carry it from here and her
+   music cannot come back while this is holding it. */
 document.addEventListener("visibilitychange", function(){
-  if (document.visibilityState === "visible"){ paintTimer(); syncTicking(); }
+  var running = timerPhase(state.timer, Date.now()) === "running";
+  if (document.visibilityState === "hidden"){
+    if (running && !armed) armAlarm(timerLeft(state.timer, Date.now()));
+    return;
+  }
+  if (running && armed && !state.alarmHold) stopAlarm();
+  paintTimer(); syncTicking();
 });
 function syncTicking(){
   var ph = timerPhase(state.timer, Date.now());

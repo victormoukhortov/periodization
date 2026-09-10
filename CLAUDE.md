@@ -496,7 +496,8 @@ The same section banners and the same responsibilities as the other two. What di
 - `ENGINE` — pure. `proofOf`, `claimRun`, `prescribe`, `setsDelta`, `deloadDue` and `effortScore`
   all take history and return values.
 - `STORAGE` — `localStorage` under `prove-it-v1`, its own key.
-- `ALARM` — a copy of Rolling Five's rest timer and bell, defaults changed to a 90 second rest.
+- `ALARM` — a copy of Rolling Five's rest timer and bell, defaults changed to a 90 second rest,
+  and the one place the copy has since diverged: see below.
 
 ## How the load moves
 
@@ -538,6 +539,40 @@ A session cannot commit with either outstanding.
 
 `+ Set` / `− Set` and un-logging the last set all clear that exercise's rating, because the set it
 described is no longer the proof set.
+
+## The alarm arms when the page leaves, not when the rest starts
+
+Rolling Five arms the whole rest as a media file the moment a set is logged. That works, and it
+costs her music: a phone hands the audio to one app, so a stream held for ninety seconds holds
+whatever she is listening to silent for ninety seconds. This app splits the difference by asking
+*when* the file is actually needed, which is only while nothing here is running:
+
+- **On screen, nothing plays.** The rest is counted by the tick, which is reliable because a
+  visible page is not throttled and `holdScreen` keeps it visible. `soundNow` strikes the bell at
+  zero and not before — a 2.5 second file rather than a 92 second one.
+- **`visibilitychange` → hidden is where the file is armed**, for the seconds that are left. It is
+  the last instant anything can be started, and a page is not frozen before the handler runs.
+- **→ visible releases it again**, so her music comes back with the app.
+- `armed` tracks whether a lead-in file is holding the audio; `unlocked` tracks the one thing iOS
+  actually requires, which is a `play()` inside a tap. Since the tap that logs a set no longer
+  plays anything real, it spends 50ms of mixable near-silence (`armAlarm(0.05, true)`) buying that
+  right instead — once per page load, not once per rest.
+- `audioType` sets `navigator.audioSession.type`: `playback` for the file that must survive a
+  locked screen, `transient` for the bell alone because that is the one other audio resumes after,
+  `ambient` for the unlock blip so even that mixes. Safari-only, best-effort, and correctness never
+  depends on it.
+- `soundNow` will not strike a bell that already rang: an armed file that is playing is about to
+  ring on its own, and one that has `ended` already did. Opening the app after a rest finished in
+  her pocket is not a second alarm.
+
+**`state.alarmHold` is the way out.** A phone where the hand-off on hide does not hold would lose
+the alarm entirely, which is the one thing this section exists to prevent, so Settings offers
+*Always ring*: arm at the start of the rest, as Rolling Five does, and keep it armed across the
+hand-off. Default is off. If you ever verify the hide path on real hardware and it holds, this
+setting is the thing to delete.
+
+There is a real limit left, and it is not fixable from a web page: coming back to the app releases
+the audio, but a phone that has already paused Spotify will not always resume it by itself.
 
 ## Form prompts
 
@@ -586,7 +621,7 @@ a movement that is still new asks again next week, which is the point.
 ```
 node test.mjs          # PPL Block, 31 checks
 node test-victor.mjs   # Rolling Five, 63 checks
-node test-meep.mjs     # Prove It, 43 checks
+node test-meep.mjs     # Prove It, 49 checks
 ```
 
 Each suite extracts the `<script>` body from its HTML file, stubs the handful of browser APIs the

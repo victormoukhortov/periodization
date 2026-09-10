@@ -21,8 +21,18 @@ const STUB = `
 var __handlers = {};
 var localStorage = { _d:{}, getItem:function(k){return this._d[k]||null;}, setItem:function(k,v){this._d[k]=v;} };
 function mkEl(){ return {innerHTML:"", style:{}, dataset:{}, appendChild:function(){}}; }
+/* Enough of an <audio> element to tell whether the alarm is holding the phone's
+   audio, which is the whole question this section answers. */
+var __audio = {
+  src: "", paused: true, ended: false, plays: 0,
+  play: function(){ this.paused = false; this.ended = false; this.plays++;
+    return {catch:function(){}, then:function(){}}; },
+  pause: function(){ this.paused = true; }
+};
+var __lastBlob = null;
 var document = {
-  getElementById: function(){ return mkEl(); },
+  visibilityState: "visible",
+  getElementById: function(id){ return id === "alarm" ? __audio : mkEl(); },
   querySelector: function(){ return null; },
   querySelectorAll: function(){ return []; },
   addEventListener: function(t,f){ __handlers[t] = f; },
@@ -33,7 +43,7 @@ var window = { scrollY:0, scrollTo:function(){}, addEventListener:function(){} }
 var location = { protocol:"file:" };
 var navigator = {};
 var URL = { createObjectURL: function(){ return "blob:stub"; }, revokeObjectURL: function(){} };
-function Blob(){}
+function Blob(parts){ __lastBlob = parts; }
 var setTimeout = function(f){ f(); };
 var clearTimeout = function(){};
 var setInterval = function(){ return 1; };
@@ -51,6 +61,15 @@ function type(exId, i, f, val){
 function fill(exId, i, f, val){
   type(exId, i, f, val);
   __handlers.focusout({ target: {dataset:{ex:exId, i:String(i), f:f}, value:String(val)} });
+}
+/* Leaving the app and coming back, which is when the alarm changes hands. */
+function visibility(v){
+  document.visibilityState = v;
+  __handlers.visibilitychange();
+}
+/* How long the file the app last built runs for, lead-in and bell together. */
+function lastFileSeconds(){
+  return __lastBlob ? (__lastBlob[0].byteLength - 44) / 2 / BELL_RATE : null;
 }
 /**
  * Run one whole session.
@@ -97,8 +116,12 @@ return {
     learningEx: learningEx, timesTrained: timesTrained, LEARN_SESSIONS: LEARN_SESSIONS,
     SLOTS: SLOTS, SLOT_COUNT: SLOT_COUNT, HARD: HARD, CAP_MUSCLE: CAP_MUSCLE,
     CAP_EX: CAP_EX, SANDBAG_TRIGGER: SANDBAG_TRIGGER, EFFORT_GOAL: EFFORT_GOAL, claimRun: claimRun,
-    DELOAD_LOAD: DELOAD_LOAD, DAY_MS: DAY_MS
-  };}
+    DELOAD_LOAD: DELOAD_LOAD, DAY_MS: DAY_MS,
+    audio: __audio, armed: function(){ return armed; },
+    fileSeconds: lastFileSeconds, bellSeconds: BELL_GAP + bell().length / BELL_RATE
+  };},
+  visibility: visibility,
+  saved: function(){ return localStorage.getItem(KEY); }
 };
 `;
 
@@ -506,6 +529,95 @@ check("logging a set starts the rest timer", () => {
   app.click({ a: "toggle", ex: "a1", i: "0" });
   ok(app.api().state.timer.startedAt, "the rest is running");
   eq(app.api().state.timer.dur, 90, "90 seconds by default, which is a hypertrophy rest");
+});
+
+/* Start a rest the way a set does, and hand back the app. */
+function resting(){
+  const app = boot();
+  app.click({ a: "start" });
+  app.click({ a: "watched", ex: "a1" });
+  app.fill("a1", 0, "w", 25);
+  app.click({ a: "toggle", ex: "a1", i: "0" });
+  return app;
+}
+
+check("a rest on screen does not take the phone's audio", () => {
+  const app = resting();
+  const { audio, armed, fileSeconds } = app.api();
+  eq(armed(), false, "nothing is holding the audio");
+  ok(fileSeconds() < 1, "and the only file built is the unlock blip, not the rest");
+  eq(audio.plays, 1, "which played once, to buy the right to play later");
+});
+
+check("leaving the app arms the rest of the rest, coming back hands it back", () => {
+  const app = resting();
+  const before = app.api().audio.plays;
+
+  app.visibility("hidden");
+  const { armed, fileSeconds, audio, state } = app.api();
+  eq(armed(), true, "away, so the alarm has to carry itself");
+  ok(fileSeconds() > 80 && fileSeconds() < state.timer.dur + 5,
+    "and the file is the rest that is left, plus the bell");
+  eq(audio.paused, false, "playing");
+  eq(audio.plays, before + 1, "one new file, not one per second");
+
+  app.visibility("visible");
+  eq(app.api().armed(), false, "back on screen, the audio goes straight back");
+  eq(app.api().audio.paused, true, "nothing is playing");
+});
+
+check("the bell is struck at zero when nothing was armed", () => {
+  const app = resting();
+  const { state, audio, fileSeconds, bellSeconds } = app.api();
+  const plays = audio.plays;
+
+  state.timer.startedAt = Date.now() - (state.timer.dur + 1) * 1000;
+  app.visibility("visible");                       /* the tick, in other words */
+  eq(audio.plays, plays + 1, "the bell played");
+  ok(Math.abs(fileSeconds() - bellSeconds) < 0.1, "and it is the bell alone, with no lead-in");
+});
+
+check("a bell that already rang in her pocket does not ring again", () => {
+  const app = resting();
+  app.visibility("hidden");
+  const { state, audio } = app.api();
+  state.timer.startedAt = Date.now() - (state.timer.dur + 1) * 1000;
+  audio.ended = true; audio.paused = true;         /* the armed file ran to its end */
+  const plays = audio.plays;
+
+  app.visibility("visible");
+  eq(audio.plays, plays, "she heard it once; opening the app is not a second alarm");
+});
+
+check("Always ring holds the audio from the start of the rest", () => {
+  const app = boot();
+  app.click({ a: "nav", tab: "settings" });
+  app.click({ a: "alarmhold", v: "1" });
+  ok(app.api().html.indexOf("cannot be missed") >= 0, "the screen says what it costs");
+
+  app.click({ a: "nav", tab: "train" });
+  app.click({ a: "start" });
+  app.click({ a: "watched", ex: "a1" });
+  app.fill("a1", 0, "w", 25);
+  app.click({ a: "toggle", ex: "a1", i: "0" });
+  eq(app.api().armed(), true, "held from the moment the set is logged");
+  ok(app.api().fileSeconds() > 80, "the whole rest is in the file");
+
+  app.visibility("hidden");
+  app.visibility("visible");
+  eq(app.api().armed(), true, "and coming back does not give it up");
+});
+
+check("the setting survives a reload, and erasing clears it", () => {
+  const app = boot();
+  app.click({ a: "nav", tab: "settings" });
+  app.click({ a: "alarmhold", v: "1" });
+  eq(app.api().state.alarmHold, true, "set");
+  eq(JSON.parse(app.saved()).alarmHold, true, "and written to storage");
+
+  app.click({ a: "erase-ask" });
+  app.click({ a: "erase-yes" });
+  eq(app.api().state.alarmHold, false, "erasing puts it back to leaving the music alone");
 });
 
 check("the top set's weight fills the rest when you leave the field", () => {
