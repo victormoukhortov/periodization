@@ -41,7 +41,23 @@ var document = {
 };
 var window = { scrollY:0, scrollTo:function(){}, addEventListener:function(){} };
 var location = { protocol:"file:" };
-var navigator = {};
+/* A wake lock that behaves like the real one, including the part that matters:
+   the browser releases it behind the page's back whenever the page is hidden. */
+var __locks = { held:false, taken:0, _w:null, listeners:[],
+  drop: function(){
+    this.held = false; var ls = this.listeners; this.listeners = [];
+    for (var i = 0; i < ls.length; i++) ls[i]();
+  }
+};
+var navigator = {
+  wakeLock: { request: function(){
+    __locks.held = true; __locks.taken++;
+    var w = { release: function(){ __locks.held = false; },
+      addEventListener: function(t, f){ if (t === "release") __locks.listeners.push(f); } };
+    __locks._w = w;
+    return { then: function(ok){ ok(w); return this; } };
+  }}
+};
 var URL = { createObjectURL: function(){ return "blob:stub"; }, revokeObjectURL: function(){} };
 function Blob(parts){ __lastBlob = parts; }
 var setTimeout = function(f){ f(); };
@@ -117,7 +133,7 @@ return {
     SLOTS: SLOTS, SLOT_COUNT: SLOT_COUNT, HARD: HARD, CAP_MUSCLE: CAP_MUSCLE,
     CAP_EX: CAP_EX, SANDBAG_TRIGGER: SANDBAG_TRIGGER, EFFORT_GOAL: EFFORT_GOAL, claimRun: claimRun,
     DELOAD_LOAD: DELOAD_LOAD, DAY_MS: DAY_MS,
-    audio: __audio, armed: function(){ return armed; },
+    audio: __audio, locks: __locks,
     fileSeconds: lastFileSeconds, bellSeconds: BELL_GAP + bell().length / BELL_RATE
   };},
   visibility: visibility,
@@ -541,83 +557,59 @@ function resting(){
   return app;
 }
 
-check("a rest on screen does not take the phone's audio", () => {
+check("a rest never takes the phone's audio", () => {
   const app = resting();
-  const { audio, armed, fileSeconds } = app.api();
-  eq(armed(), false, "nothing is holding the audio");
-  ok(fileSeconds() < 1, "and the only file built is the unlock blip, not the rest");
+  const { audio, fileSeconds, state } = app.api();
+  ok(fileSeconds() < 1, "the only file built is the unlock blip, not the rest");
   eq(audio.plays, 1, "which played once, to buy the right to play later");
+
+  /* and it is bought once, not re-bought every time the timer changes */
+  app.click({ a: "tdur", v: "120" });
+  app.click({ a: "tplay" });
+  app.click({ a: "tplay" });
+  eq(audio.plays, 1, "nothing plays again for the rest of the rest");
+  ok(fileSeconds() < 1, "and no file the length of a rest is ever built");
+  eq(state.timer.dur, 120, "the rest itself changed, though");
 });
 
-check("leaving the app arms the rest of the rest, coming back hands it back", () => {
-  const app = resting();
-  const before = app.api().audio.plays;
-
-  app.visibility("hidden");
-  const { armed, fileSeconds, audio, state } = app.api();
-  eq(armed(), true, "away, so the alarm has to carry itself");
-  ok(fileSeconds() > 80 && fileSeconds() < state.timer.dur + 5,
-    "and the file is the rest that is left, plus the bell");
-  eq(audio.paused, false, "playing");
-  eq(audio.plays, before + 1, "one new file, not one per second");
-
-  app.visibility("visible");
-  eq(app.api().armed(), false, "back on screen, the audio goes straight back");
-  eq(app.api().audio.paused, true, "nothing is playing");
-});
-
-check("the bell is struck at zero when nothing was armed", () => {
+check("the bell is struck at zero, and only then", () => {
   const app = resting();
   const { state, audio, fileSeconds, bellSeconds } = app.api();
   const plays = audio.plays;
 
+  app.visibility("visible");                    /* the tick, mid-rest */
+  eq(audio.plays, plays, "nothing rings while the rest is running");
+
   state.timer.startedAt = Date.now() - (state.timer.dur + 1) * 1000;
-  app.visibility("visible");                       /* the tick, in other words */
+  app.visibility("visible");
   eq(audio.plays, plays + 1, "the bell played");
   ok(Math.abs(fileSeconds() - bellSeconds) < 0.1, "and it is the bell alone, with no lead-in");
 });
 
-check("a bell that already rang in her pocket does not ring again", () => {
+check("the screen is held awake for as long as a rest runs", () => {
   const app = resting();
-  app.visibility("hidden");
-  const { state, audio } = app.api();
+  const { locks, state } = app.api();
+  eq(locks.held, true, "held from the moment the set is logged");
+
+  /* the browser drops the lock behind our back whenever the page hides */
+  locks.drop();
+  eq(locks.held, false, "and the phone can sleep once it is gone");
+  app.visibility("visible");
+  eq(locks.held, true, "so coming back asks for it again");
+  eq(locks.taken, 2, "a second lock, not the same stale handle");
+
   state.timer.startedAt = Date.now() - (state.timer.dur + 1) * 1000;
-  audio.ended = true; audio.paused = true;         /* the armed file ran to its end */
-  const plays = audio.plays;
-
   app.visibility("visible");
-  eq(audio.plays, plays, "she heard it once; opening the app is not a second alarm");
+  eq(locks.held, false, "and the rest ending lets the screen go");
 });
 
-check("Always ring holds the audio from the start of the rest", () => {
-  const app = boot();
-  app.click({ a: "nav", tab: "settings" });
-  app.click({ a: "alarmhold", v: "1" });
-  ok(app.api().html.indexOf("cannot be missed") >= 0, "the screen says what it costs");
-
-  app.click({ a: "nav", tab: "train" });
-  app.click({ a: "start" });
-  app.click({ a: "watched", ex: "a1" });
-  app.fill("a1", 0, "w", 25);
-  app.click({ a: "toggle", ex: "a1", i: "0" });
-  eq(app.api().armed(), true, "held from the moment the set is logged");
-  ok(app.api().fileSeconds() > 80, "the whole rest is in the file");
-
-  app.visibility("hidden");
-  app.visibility("visible");
-  eq(app.api().armed(), true, "and coming back does not give it up");
-});
-
-check("the setting survives a reload, and erasing clears it", () => {
-  const app = boot();
-  app.click({ a: "nav", tab: "settings" });
-  app.click({ a: "alarmhold", v: "1" });
-  eq(app.api().state.alarmHold, true, "set");
-  eq(JSON.parse(app.saved()).alarmHold, true, "and written to storage");
-
-  app.click({ a: "erase-ask" });
-  app.click({ a: "erase-yes" });
-  eq(app.api().state.alarmHold, false, "erasing puts it back to leaving the music alone");
+check("pausing the rest lets the screen go, resuming takes it back", () => {
+  const app = resting();
+  const { locks } = app.api();
+  app.click({ a: "tplay" });
+  eq(locks.held, false, "paused, so nothing is keeping the phone up");
+  app.click({ a: "tplay" });
+  eq(locks.held, true, "and running again takes it back");
 });
 
 check("the top set's weight fills the rest when you leave the field", () => {

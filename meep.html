@@ -671,7 +671,7 @@ var KEY = "prove-it-v1";
 var memory = null;
 
 function blank(){
-  return {index:0, history:[], draft:null, timer:timerBlank(), alarmHold:false};
+  return {index:0, history:[], draft:null, timer:timerBlank()};
 }
 function loadState(){
   try {
@@ -679,7 +679,6 @@ function loadState(){
     if (raw){
       var s = JSON.parse(raw);
       if (!s.timer) s.timer = timerBlank();
-      if (typeof s.alarmHold !== "boolean") s.alarmHold = false;
       if (s.draft && !s.draft.effort) s.draft.effort = {};
       if (s.draft && !s.draft.sore) s.draft.sore = {};
       if (s.draft && !s.draft.watched) s.draft.watched = {};
@@ -1265,15 +1264,8 @@ function viewSettings(c){
 
   h += '<div class="card" style="padding:14px;margin-top:12px">' +
     '<p style="font-size:14px;font-weight:700">Rest alarm</p>' +
-    '<p class="muted" style="font-size:14px;margin-top:6px">The alarm is a sound, not a notification, so it has to hold the phone\'s audio to survive a locked screen — and whatever else is playing goes quiet while it does.</p>' +
-    '<div style="display:flex;gap:8px;margin-top:12px">' +
-    '<button class="chip' + (state.alarmHold ? "" : " on") + '" style="flex:1;text-align:center" data-a="alarmhold" data-v="0">Leave my music</button>' +
-    '<button class="chip' + (state.alarmHold ? " on" : "") + '" style="flex:1;text-align:center" data-a="alarmhold" data-v="1">Always ring</button></div>' +
-    '<p class="dim" style="font-size:12px;margin-top:8px">' +
-    (state.alarmHold
-      ? "The audio is held from the moment a rest starts. The alarm cannot be missed, and nothing else plays until it rings."
-      : "Nothing plays until you leave the app or the bell rings, so your music runs through the rest. If an alarm ever fails to reach you in your pocket, switch to Always ring.") +
-    '</p></div>';
+    '<p class="muted" style="font-size:14px;margin-top:6px">The bell rings with the app open. Nothing plays before it, so your music runs through the rest — and the screen is held awake while a rest is going, so the app stays open on its own.</p>' +
+    '<p class="dim" style="font-size:12px;margin-top:8px">Leave the app or lock the phone mid-rest and the bell will not reach you.</p></div>';
 
   h += '<div class="card" id="install" style="padding:14px;margin-top:12px;display:none">' +
     '<p style="font-size:14px;font-weight:700">Install</p>' +
@@ -1319,32 +1311,21 @@ function render(keepScroll){
 
 /* ============================== ALARM ============================== */
 
-/* The whole point of this section: a static page cannot schedule a future
-   notification, and a backgrounded or locked phone stops running timers. What
-   it will keep doing is playing media. So a rest can arm an audio file that is
-   `left` seconds of inaudible signal followed by the tone, and the phone plays
-   it to the end on its own. Nothing here has to be awake for the alarm to
-   sound. Everything is feature-detected and swallowed: no alarm must ever stop
-   a set being logged.
+/* The bell rings while the app is open, and that is the whole contract.
 
-   That file costs something, and it is her music: a phone gives the audio to
-   one app, so a stream held for the whole rest holds her music silent for the
-   whole rest. It is only needed while nothing here is running. So the file is
-   armed **when the page goes away**, not when the rest starts:
+   A page could hold the phone's audio for the length of the rest — a file of
+   inaudible signal with the tone on the end — and then survive a locked screen.
+   The cost of that is her music: a phone gives the audio to one app, so holding
+   it for ninety seconds holds whatever she is listening to silent for ninety
+   seconds, every set. Not worth it. So nothing plays until the bell.
 
-   - On screen, nothing plays. The rest is counted by the tick, which is
-     reliable because a visible page is not throttled and the wake lock keeps it
-     visible. The bell is struck at zero, and only then.
-   - Going away — locked, switched apart — is the last moment anything can be
-     started, so visibilitychange arms the rest of the rest there.
-   - Coming back hands the audio straight back, so her music returns with it.
-
-   `state.alarmHold` is the way out for a phone where that hand-off does not
-   hold: it arms at the start of the rest, as though the page were always away. */
+   What makes that enough is the wake lock. A rest holds the screen up for as
+   long as it runs, so the app stays open and the tick — reliable, because a
+   visible page is not throttled — strikes the bell at zero. Everything is
+   feature-detected and swallowed: no alarm must ever stop a set being logged. */
 
 var alarmEl = document.getElementById("alarm");
 var alarmUrl = null, tickHandle = null, fired = false, wakeLock = null;
-var armed = false;      /* a lead-in file is playing, and holds the phone's audio */
 var unlocked = false;   /* play() has been allowed once, which is all iOS asks */
 
 /* The alarm sound: a desk bell, one strike, 32 kHz 16-bit mono PCM. The source
@@ -1380,9 +1361,10 @@ function canAsk(){
   return typeof Notification !== "undefined" && Notification.permission === "default";
 }
 
-/* The lead-in is a ±2 LSB dither rather than digital silence, which is some 84
-   dB down — inaudible, but real audio, so the phone treats this as playback
-   worth keeping alive. Then the bell, twice. */
+/* Two files come out of here and nothing else: the bell struck twice, and the
+   50ms of lead-in on its own that unlocks playback. The lead-in is a ±2 LSB
+   dither rather than digital silence, some 84 dB down — inaudible, but real
+   audio, which a phone treats as playback rather than as nothing at all. */
 var LE = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
 
 function alarmSrc(silentSec, noBell){
@@ -1400,9 +1382,8 @@ function alarmSrc(silentSec, noBell){
   tag(36, "data"); dv.setUint32(40, n * 2, true);
 
   function mix(k){ return clamp((k < b.length ? b[k] : 0) + (k >= gap ? b[k - gap] : 0), -32768, 32767); }
-  /* The lead runs to nine million samples at five minutes, so it goes in as
-     repeated memory copies rather than a write per sample. WAV is little-endian;
-     so is every platform this runs on, but check rather than assume. */
+  /* WAV is little-endian; so is every platform this runs on, but check rather
+     than assume. */
   if (LE){
     var pcm = new Int16Array(buf, 44, n);
     var pat = new Int16Array(512);
@@ -1425,22 +1406,19 @@ function audioType(kind){
   try { if (navigator.audioSession) navigator.audioSession.type = kind; } catch (e) {}
 }
 
-function armAlarm(secs, quiet){
+function playWav(secs, quiet){
   if (!hasAudio()) return;
   stopAlarm();
   try {
-    audioType(quiet ? "ambient" : secs > 0 ? "playback" : "transient");
+    audioType(quiet ? "ambient" : "transient");
     alarmUrl = alarmSrc(secs, quiet);
     alarmEl.src = alarmUrl;
     var p = alarmEl.play();
     if (p && p.catch) p.catch(function(){});
-    armed = !quiet && secs > 0;
     unlocked = true;
-    if (!quiet) wireMedia();
   } catch (e) {}
 }
 function stopAlarm(){
-  armed = false;
   try { if (hasAudio()) alarmEl.pause(); } catch (e) {}
   if (alarmUrl){
     try { URL.revokeObjectURL(alarmUrl); } catch (e) {}
@@ -1449,45 +1427,28 @@ function stopAlarm(){
 }
 
 /* iOS grants a page the right to play audio once, to an element, from a play()
-   inside a tap; everything after that is allowed without one. Nothing plays
-   during the rest any more, so the tap that starts one spends 50ms of mixable
-   near-silence buying that right instead. Once per page load, not per rest. */
+   inside a tap; everything after that is allowed without one, and the bell at
+   the end of a rest is not inside one. So the tap that starts the rest spends
+   50ms of mixable near-silence buying that right. Once per page load. */
 function unlockAudio(){
   if (unlocked) return;
-  armAlarm(0.05, true);
+  playWav(0.05, true);
 }
-
-/* The rest is over. If the armed file is still running, the bell is in it and
-   about to sound on its own; if it has run to the end it already has. Anything
-   else — on screen with nothing playing, or a file the phone took back — has to
-   be struck now. */
-function soundNow(){
-  try {
-    if (!hasAudio()) return;
-    if (armed && (!alarmEl.paused || alarmEl.ended)) return;
-    armAlarm(0);
-  } catch (e) {}
-}
-
-/* Lock-screen transport, so pausing there pauses the rest rather than leaving
-   a phantom player running. */
-function wireMedia(){
-  try {
-    if (!navigator.mediaSession) return;
-    if (typeof MediaMetadata === "function"){
-      navigator.mediaSession.metadata = new MediaMetadata({title: "Rest timer", artist: "Rolling Five"});
-    }
-    navigator.mediaSession.setActionHandler("pause", function(){ timerDo("tplay"); });
-    navigator.mediaSession.setActionHandler("play", function(){ timerDo("tplay"); });
-  } catch (e) {}
-}
+function soundNow(){ playWav(0); }
 
 /* Keeps the screen up while a rest runs, which is the case where nothing can go
    wrong at all. Released the moment it is not needed. */
 function holdScreen(on){
   try {
     if (on && !wakeLock && navigator.wakeLock && navigator.wakeLock.request){
-      navigator.wakeLock.request("screen").then(function(w){ wakeLock = w; }, function(){});
+      navigator.wakeLock.request("screen").then(function(w){
+        wakeLock = w;
+        /* Released behind our back when the page is hidden. Drop the handle so
+           the next request is not skipped as already held. */
+        if (w && w.addEventListener){
+          w.addEventListener("release", function(){ if (wakeLock === w) wakeLock = null; });
+        }
+      }, function(){});
     } else if (!on && wakeLock){
       wakeLock.release(); wakeLock = null;
     }
@@ -1553,10 +1514,7 @@ function syncTimer(){
   var t = state.timer, ph = timerPhase(t, Date.now());
   if (ph === "running"){
     fired = false;
-    /* Hold the audio only where nothing else can carry the alarm: she has
-       already left, or she has asked for it to be held every time. */
-    if (state.alarmHold || document.visibilityState === "hidden") armAlarm(timerLeft(t, Date.now()));
-    else { stopAlarm(); unlockAudio(); }
+    unlockAudio();
     holdScreen(true);
     startTicking();
   } else {
@@ -1729,10 +1687,6 @@ document.addEventListener("click", function(e){
     confirmErase = false; peek = null;
     syncTimer(); saveState(); tab = "train"; view = "home"; render(); return;
   }
-  if (a === "alarmhold"){
-    state.alarmHold = el.dataset.v === "1";
-    syncTimer(); saveState(); render(true); return;
-  }
   if (a === "install" && deferredPrompt){ deferredPrompt.prompt(); deferredPrompt = null; return; }
 });
 
@@ -1799,17 +1753,12 @@ if (!ONDISK && "serviceWorker" in navigator){
   try { navigator.serviceWorker.register("sw.js").catch(function(){}); } catch (e) {}
 }
 
-/* The two moments the alarm changes hands. Going away is the last instant
-   anything can be started, so the rest of the rest is armed there; coming back
-   gives the audio up again, because the tick can carry it from here and her
-   music cannot come back while this is holding it. */
+/* A screen wake lock is dropped by the browser the moment the page is hidden
+   and is not handed back on its own, so a rest that was running while she took
+   a call comes back with nothing holding the screen. Ask again. */
 document.addEventListener("visibilitychange", function(){
-  var running = timerPhase(state.timer, Date.now()) === "running";
-  if (document.visibilityState === "hidden"){
-    if (running && !armed) armAlarm(timerLeft(state.timer, Date.now()));
-    return;
-  }
-  if (running && armed && !state.alarmHold) stopAlarm();
+  if (document.visibilityState !== "visible") return;
+  if (timerPhase(state.timer, Date.now()) === "running") holdScreen(true);
   paintTimer(); syncTicking();
 });
 function syncTicking(){

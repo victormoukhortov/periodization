@@ -108,11 +108,10 @@ dangerous to fail alone, so there is no barbell bench and no back squat.
   sessions of *it*, so anything added later gets its own run however long you have been training.
   There is no skip — but the unlock is the tap, not the video loading, so a gym with no signal
   still lets you train.
-- **The alarm gets out of your music's way.** Nothing plays during a rest while the app is on
-  screen — the bell is struck at the end and that is all. Leave the app mid-rest and it arms the
-  full sound then, because that is the only way it survives a locked pocket; come back and it
-  hands the audio straight back. Settings has *Always ring* if you would rather it hold the audio
-  the whole time and never risk a missed alarm.
+- **The alarm stays out of your music.** Nothing plays during a rest — the bell is struck at the
+  end and that is all, so whatever you are listening to runs straight through. The screen is held
+  awake while a rest is going, so the app stays open on its own and the bell lands. Leave the app
+  or lock the phone mid-rest and it will not reach you; that is the trade.
 - **One number on the front of Progress:** the share of proof sets you took to one-more-or-nothing
   over the last four weeks. Target is 80%.
 
@@ -160,7 +159,7 @@ python3 -m http.server 8000   # then open http://localhost:8000/
 ```
 node test.mjs          # PPL Block, 31 checks
 node test-victor.mjs   # Rolling Five, 63 checks
-node test-meep.mjs     # Prove It, 49 checks
+node test-meep.mjs     # Prove It, 47 checks
 ```
 
 They cover the progression engines, the reducers, and the fact that every screen renders. CI runs
