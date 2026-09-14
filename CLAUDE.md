@@ -429,6 +429,28 @@ because a person reading their own log wants the sets that did not count too.
 - `openWhy`, `noteEx` and `openLog` are all view state on the same footing: never persisted, and
   cleared by anything that leaves the session.
 
+## Skipping a session
+
+`skipSession` advances `state.index` and writes **nothing** to history, and that is the entire
+mechanism. Because history is the source of truth, a slot that was never trained leaves every
+load, every rep target and every skill position exactly where the last real session put them —
+it comes round next cycle with the same numbers, neither reset nor advanced. `prescribe` reads
+`lastPerformance`, `levelRun` replays the ladder, and both simply do not see a session that is
+not there. Nothing had to be carried forward, because nothing moved.
+
+- The one thing a skip *does* move is `cyclesPerMonth`, which counts logged sessions in the last
+  thirty days. That is honest: a session you did not do is a session you did not do, and if the
+  rate falls under `CYCLE_FLOOR` the program cuts Skill B for it. That is the rule working, not
+  the rule being cheated. Do not exempt skips from it.
+- It clears what `commit` clears — the draft, the rest timer, `ask`, `peek`, the open panels —
+  because the session those belonged to is gone. It does not build a summary: there is nothing
+  to summarise.
+- **Logged sets are the only thing a skip can destroy**, so `draftLogged()` is the only thing it
+  asks about. A session not yet started, or started and untouched, goes on one tap; one with sets
+  in it confirms and says how many. Settings → Skip back is the undo either way.
+- It lives at the very bottom of the home screen, under a rule, below Start — and only on the
+  live session, never on a peeked one, which cannot be skipped any more than it can be logged.
+
 ## Peeking
 
 Same as PPL Block, bounded to `[state.index, state.index + SLOT_COUNT - 1]` — the cycle in front
@@ -617,7 +639,7 @@ a movement that is still new asks again next week, which is the point.
 
 ```
 node test.mjs          # PPL Block, 31 checks
-node test-victor.mjs   # Rolling Five, 63 checks
+node test-victor.mjs   # Rolling Five, 66 checks
 node test-meep.mjs     # Prove It, 47 checks
 ```
 

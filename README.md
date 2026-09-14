@@ -44,6 +44,10 @@ program actually cares about, and tells you where the rest days want to go.
   off. Pick a duration from the chips, play / pause / reset by hand. The alarm is a real sound, and
   it works with the app in your pocket or the screen locked, because it is delivered as media
   playback rather than as a notification — see the note below.
+- **A session you are not doing can be skipped.** At the bottom of the home screen, under Start.
+  It moves the cycle on and writes nothing down, so every load, rep target and skill position
+  stays where it is and the slot comes round again next cycle at the same numbers. It does count
+  against your cycles-a-month, because it should.
 - **Notes stick to the movement.** Beside the demo link on every exercise is a button for a note
   of your own — the seat pin, the grip, the cue that works. It shows up every time that exercise
   comes round, for as long as you keep it, and an exercise you never wrote on looks exactly as it
@@ -158,7 +162,7 @@ python3 -m http.server 8000   # then open http://localhost:8000/
 
 ```
 node test.mjs          # PPL Block, 31 checks
-node test-victor.mjs   # Rolling Five, 63 checks
+node test-victor.mjs   # Rolling Five, 66 checks
 node test-meep.mjs     # Prove It, 47 checks
 ```
 

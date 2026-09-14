@@ -1022,6 +1022,77 @@ check("a note is edited from the card, and emptying it deletes it", () => {
   ok(app.api().html.indexOf('class="exnote"') < 0, "and nothing renders for it");
 });
 
+check("skipping moves the cycle on and leaves every number where it was", () => {
+  const app = boot();
+  const { state, ctx, exById } = app.api();
+  app.runSession(load, topOfRange, clean);          // Push, logged at the top
+
+  const before = ctx();                             // Pull, up next
+  ok(app.api().html.indexOf('data-a="skip"') >= 0, "the home screen offers the skip");
+  app.click({ a: "skip" });
+
+  eq(ctx().slot.id, "legs", "one tap, and Pull has gone by");
+  eq(state.history.length, 1, "nothing was written down for it");
+  eq(state.draft, null, "and no session is open");
+
+  /* round the cycle to Pull again: the prescription is the one it had before */
+  for (let i = 0; i < 4; i++) app.click({ a: "skip" });
+  eq(ctx().slot.id, "pull", "back at Pull a cycle later");
+  const ex = ctx().exercises[0];
+  eq(ctx().targets[ex.id].weight, before.targets[ex.id].weight, "same load");
+  eq(ctx().targets[ex.id].reps, before.targets[ex.id].reps, "same reps");
+  eq(ctx().counts[ex.id], before.counts[ex.id], "same set count");
+  eq(exById(ex.id).name, before.exercises[0].name, "and the same exercises in it");
+});
+
+check("skipping a skill day leaves the ladder standing", () => {
+  const app = boot();
+  const { state, ctx, levelRun } = app.api();
+  /* three whole cycles of clean work at the criterion moves the positions up */
+  for (let i = 0; i < 15; i++) app.runSession(load, topOfRange, clean);
+  const before = levelRun("hspu", state.history, state.tests);
+
+  for (let i = 0; i < 5; i++) app.click({ a: "skip" });
+  const after = levelRun("hspu", state.history, state.tests);
+  eq(after.level, before.level, "the position held");
+  eq(after.n, before.n, "and the sessions at it were not counted twice");
+  eq(ctx().slot.id, "push", "a whole cycle skipped, back where it started");
+});
+
+check("a skip only asks when there are logged sets to lose", () => {
+  const app = boot();
+  const { state, ctx } = app.api();
+  const first = ctx().slot.id;
+
+  app.click({ a: "start" });
+  ok(app.api().html.indexOf("skip") < 0, "no skip offered from inside the session");
+  app.click({ a: "back" });
+  app.click({ a: "skip" });
+  eq(ctx().slot.id === first, false, "an untouched session skips on one tap");
+
+  /* now put a real set in one */
+  app.click({ a: "start" });
+  const ex = ctx().exercises[0];
+  app.fill(ex.id, 0, "w", 100);
+  app.type(ex.id, 0, "r", 8);
+  app.click({ a: "toggle", ex: ex.id, i: "0" });
+  app.click({ a: "back" });
+
+  const at = ctx().slot.id;
+  app.click({ a: "skip" });
+  eq(ctx().slot.id, at, "that one asks first");
+  ok(/\b1<\/b> set you have logged goes with it/.test(app.api().html),
+    "and says what it would throw away, counted and in agreement");
+
+  app.click({ a: "skip-no" });
+  eq(state.draft === null, false, "backing out keeps the session");
+  app.click({ a: "skip" });
+  app.click({ a: "skip" });
+  eq(ctx().slot.id === at, false, "asked and answered, it skips");
+  eq(state.draft, null, "and the draft goes with it");
+  eq(state.history.length, 0, "logged or not, a skip writes nothing to history");
+});
+
 check("an exercise you have never done offers no log", () => {
   const app = boot();
   app.click({ a: "start" });

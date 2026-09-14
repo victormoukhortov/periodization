@@ -211,6 +211,12 @@
 
   .stack>*+*{margin-top:8px}
   .mt{margin-top:20px}
+  /* The last thing on the home screen, under a rule, because skipping is a
+     normal part of running a rolling cycle but it is not what you opened the
+     app to do. */
+  .skip{margin-top:28px;padding-top:18px;border-top:1px solid var(--line);text-align:center}
+  .skip button.eyebrow{padding:6px 4px;color:var(--muted)}
+  .skip button.eyebrow:active{color:var(--ink)}
   .center{text-align:center}
 </style>
 </head>
@@ -771,6 +777,7 @@ function saveState(){
 var state = loadState();
 var tab = "cycle", view = "home", summary = null, openWhy = null, selEx = null, confirmErase = false;
 var noteEx = null;       /* the exercise whose note is open for editing */
+var confirmSkip = false; /* the skip is asking about sets it would throw away */
 var openLog = null;      /* the exercise whose past sessions are open */
 var needWeight = null;   /* "exId:i" of a set that was tapped with no weight in it */
 var ask = null;          /* {keys:[...]} — the sheet interrupting the session */
@@ -1026,10 +1033,35 @@ function viewHome(c, live){
   h += '</div>';
 
   h += ahead
-    ? '<button class="btn ghost mt" data-a="peektoday">Back to the session in front of you</button></div>'
+    ? '<button class="btn ghost mt" data-a="peektoday">Back to the session in front of you</button>'
     : '<button class="btn go mt" data-a="' + (state.draft ? "resume" : "start") + '">' +
-      (state.draft ? "Resume session" : "Start " + c.slot.name) + '</button></div>';
-  return h;
+      (state.draft ? "Resume session" : "Start " + c.slot.name) + '</button>' + skipHTML(c);
+  return h + '</div>';
+}
+
+/* Skipping is at the very bottom, quiet, and it says where it goes. The second
+   line is the question it exists to answer: nothing is lost by not training. */
+function draftLogged(){
+  if (!state.draft) return 0;
+  var n = 0;
+  Object.keys(state.draft.sets).forEach(function(k){
+    n += state.draft.sets[k].filter(function(r){ return r.done; }).length;
+  });
+  return n;
+}
+function skipHTML(c){
+  var logged = draftLogged();
+  if (confirmSkip){
+    return '<div class="skip"><p class="muted" style="font-size:14px">Skip it and the <b class="num" style="color:var(--ink)">' +
+      logged + '</b> set' + (logged === 1 ? " you have logged goes" : "s you have logged go") + ' with it. ' +
+      c.slot.name + ' comes round again next cycle at the same numbers.</p>' +
+      '<div style="display:flex;gap:8px;margin-top:12px">' +
+      '<button class="chip" style="flex:1;text-align:center" data-a="skip-no">Keep it</button>' +
+      '<button class="chip" style="flex:1;text-align:center;border-color:var(--warn);color:var(--warn)" data-a="skip">Skip it</button></div></div>';
+  }
+  return '<div class="skip"><button class="eyebrow" data-a="skip">Skip ' + c.slot.name + ' →</button>' +
+    '<p class="dim" style="font-size:12px;margin-top:4px">Moves the cycle on to ' + slotOf(c.abs + 1).name +
+    '. Nothing is logged, so every load, rep target and skill position stays exactly where it is.</p></div>';
 }
 
 function viewSession(c){
@@ -1783,6 +1815,28 @@ function snapshot(){
   return {levels:levels, cut:straightArmCut(state.history, now), trim:skillBTrim(state.history, now), press:pressCut(state.history)};
 }
 
+/* Skipping moves the cycle on without writing anything down, and that is the
+   whole of it. History is the source of truth, so a slot that was never trained
+   leaves every load, every rep target and every skill position exactly where
+   the last real session put them — the slot comes round next cycle with the
+   same numbers, not reset and not advanced.
+
+   The one thing a skip does move is the cycle rate, and that is honest: a
+   session you did not do is a session you did not do, and if the rate falls
+   under CYCLE_FLOOR the program cuts Skill B for it, which is the rule working
+   rather than the rule being cheated. Settings has Skip back if it was a
+   mis-tap. */
+function skipSession(){
+  state.index += 1;
+  state.draft = null;
+  state.timer = timerReset(state.timer);
+  syncTimer();
+  ask = null; summary = null; peek = null; needWeight = null;
+  openWhy = null; noteEx = null; openLog = null; confirmSkip = false;
+  saveState();
+  tab = "cycle"; view = "home"; render();
+}
+
 function commit(){
   var c = ctx(), before = snapshot();
   state.history.push({
@@ -1820,7 +1874,7 @@ document.addEventListener("click", function(e){
   if (a === "nav"){
     tab = el.dataset.tab;
     if (tab === "cycle" && view === "summary") view = "home";
-    confirmErase = false; peek = null; noteEx = null; openLog = null;
+    confirmErase = false; confirmSkip = false; peek = null; noteEx = null; openLog = null;
     render(); return;
   }
 
@@ -1833,8 +1887,8 @@ document.addEventListener("click", function(e){
     tab = "cycle"; view = "home"; render(); return;
   }
 
-  if (a === "start"){ peek = null; startSession(); return; }
-  if (a === "resume"){ view = "session"; render(); return; }
+  if (a === "start"){ peek = null; confirmSkip = false; startSession(); return; }
+  if (a === "resume"){ view = "session"; confirmSkip = false; render(); return; }
   if (a === "back"){ view = "home"; noteEx = null; openLog = null; render(); return; }
   if (a === "why"){ openWhy = openWhy === exId ? null : exId; render(true); return; }
 
@@ -1929,6 +1983,14 @@ document.addEventListener("click", function(e){
     state.plates = clamp(state.plates + Number(el.dataset.v), 100, 800);
     saveState(); render(true); return;
   }
+
+  /* One tap when there is nothing in the session yet. Sets already logged are
+     the only thing a skip can destroy, so that is the only thing it asks about. */
+  if (a === "skip"){
+    if (!confirmSkip && draftLogged() > 0){ confirmSkip = true; render(true); return; }
+    skipSession(); return;
+  }
+  if (a === "skip-no"){ confirmSkip = false; render(true); return; }
 
   if (a === "skipback"){ state.index = Math.max(0, state.index - 1); state.draft = null; peek = null; saveState(); render(); return; }
   if (a === "skipahead"){ state.index += 1; state.draft = null; peek = null; saveState(); render(); return; }
