@@ -694,9 +694,22 @@ counts box and the Undo button by hand. The name field is on the same no-render 
 reason as the set fields in the training apps: rebuilding `#app` under a finger loses the gesture,
 and under a keyboard loses the keyboard.
 
-`drawCells` draws the visible cells as five batched paths (grout, white, black, fixed, rings) rather
-than a path per tile; that is what keeps a pan smooth with fourteen thousand cells in view. The
-same function draws the Layouts thumbnails and the exported PNG, at other scales.
+**The floor is a bitmap.** `buildCache` draws the cells once into an offscreen canvas covering the
+view plus a margin (`cacheRegion`, capped at twelve million pixels because phones refuse bigger
+canvases, dropping resolution before it drops coverage), and every frame after that is one
+`drawImage` plus the guides and labels. A pan never redraws a tile. A tap or a brush move
+patches its one hexagon onto the bitmap with `repaintCell`. A pinch or a wheel sets `zooming`,
+which draws the stale bitmap scaled until the gesture settles, then rebuilds once. Anything that
+replaces the whole draft (New, Open, Undo) drops the cache. `drawCells` itself walks `CELLS`, the
+floor as a flat array with precomputed centres, and fills four batched paths (grout, white,
+black, fixed) plus the rings; the same function draws the Layouts thumbnails and the exported PNG.
+
+Brush strokes change the draft on every move but write to storage through `saveSoon`, on the
+lift or after a moment of stillness, so a long stroke is not a JSON serialisation per pixel.
+
+`GUIDES` are the centre lines, one cross per room, drawn over the bitmap in screen space and
+toggled from the toolbar. The main room's upright is the centre of the door, column 25, not the
+centre of its walls: a pattern symmetric about that line reads as centred from the doorway.
 
 ## What was inferred
 
@@ -722,7 +735,7 @@ cell; they decide which tiles exist to paint, not where any black dot sits.
 node test.mjs          # PPL Block, 31 checks
 node test-victor.mjs   # Rolling Five, 66 checks
 node test-meep.mjs     # Prove It, 47 checks
-node test-hex.mjs      # Hex Floor, 20 checks
+node test-hex.mjs      # Hex Floor, 22 checks
 ```
 
 Each suite extracts the `<script>` body from its HTML file, stubs the handful of browser APIs the

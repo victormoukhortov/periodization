@@ -71,7 +71,8 @@ return { click:click, typeIn:typeIn, H:__handlers, els:__els, S:{
   toggleCell:toggleCell, paintCell:paintCell, undo:undo, counts:counts, serialize:serialize,
   deserialize:deserialize, blankLayout:blankLayout, state:function(){return state;}, render:render,
   saveState:saveState, loadState:loadState, viewFor:viewFor, tab:function(){return tab;},
-  fitView:fitView, KEY:KEY, segmentCells:segmentCells
+  fitView:fitView, KEY:KEY, segmentCells:segmentCells, GUIDES:GUIDES, cacheRegion:cacheRegion,
+  cacheCovers:cacheCovers, BOUNDS:BOUNDS, guides:function(){return guides;}
 }};
 `)(store || mkStore());
 
@@ -162,6 +163,30 @@ check("the floor is one connected region", () => {
     nb.forEach(([x,y]) => { const k = x + "," + y; if (S.floor[k] && !seen[k]){ seen[k] = true; stack.push(k); } });
   }
   eq(Object.keys(seen).length, keys.length);
+});
+
+check("centre guides: the main upright is the door's centre, the others bisect their rooms", () => {
+  const by = room => S.GUIDES.filter(g => g.room === room);
+  const main = by("main"), sh = by("shower"), wc = by("wc");
+  eq(main.find(g => g.v != null).v, (10 + 40) / 2);
+  ok(main.find(g => g.v != null).r1 >= 82, "runs through the threshold");
+  eq(main.find(g => g.h != null).h, (0 + 68) / 2);
+  eq(sh.find(g => g.v != null).v, (-41 + -9) / 2); eq(sh.find(g => g.h != null).h, (8 + 42) / 2);
+  eq(wc.find(g => g.v != null).v, (-41 + -9) / 2); eq(wc.find(g => g.h != null).h, (50 + 68) / 2);
+});
+
+check("the bitmap cache covers the view, stays under the pixel cap, and is invalidated by a zoom", () => {
+  const fit = S.fitView(400, 600);
+  const q = S.cacheRegion(fit, 400, 600, 3);
+  ok(S.cacheCovers(q, fit, 400, 600), "fit view covered");
+  ok(q.x0 >= S.BOUNDS.minx && q.x1 <= S.BOUNDS.maxx, "clamped to the floor");
+  const big = {scale: 90, tx: -2000, ty: -3000};
+  const qb = S.cacheRegion(big, 1400, 1000, 3);
+  ok((qb.x1 - qb.x0) * 90 * qb.dpr * (qb.y1 - qb.y0) * 90 * qb.dpr <= 12e6 + 1, "under the cap");
+  ok(S.cacheCovers(qb, big, 1400, 1000), "zoomed view covered");
+  ok(!S.cacheCovers(qb, {scale: 45, tx: -2000, ty: -3000}, 1400, 1000), "a different scale needs a rebuild");
+  ok(!S.cacheCovers(qb, {scale: 90, tx: -5000, ty: -3000}, 1400, 1000), "leaving the region needs a rebuild");
+  ok(S.cacheCovers(q, {scale: fit.scale, tx: fit.tx - 500, ty: fit.ty}, 400, 600), "the whole floor cached: a pan never rebuilds");
 });
 
 /* ---- hex maths --------------------------------------------------------- */
@@ -344,6 +369,9 @@ check("tap toggles a tile, a drag pans, and brush mode paints along the drag", (
   eq(st.draft.cells.indexOf("20,20") >= 0, true, "brush keeps the start black rather than flipping it");
   a.click({a:"undo"});
   ok(st.draft.cells.length < 3, "undo removed the brush stroke");
+  eq(a.S.guides(), true);
+  a.click({a:"guides"});
+  eq(a.S.guides(), false);
 });
 
 console.log("\n" + passed + " passed, " + failed + " failed");
