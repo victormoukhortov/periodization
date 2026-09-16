@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+<title>Hex Floor</title>
+<meta name="theme-color" content="#0b0f14" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Hex Floor" />
+<link rel="manifest" href="hex.webmanifest" />
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAIAAADdvvtQAAAE70lEQVR42u3dPXbbRhSG4eucdCnSZFPuXHoHLtTYldfgSmlYcAcu3WV7KZjoSBQIzB9m8PO8lY6PhrgzfAmBmIvPH/74868ASvnNEoBAIBAIBAIBBAKBQCAQCCAQCAQCgUAAgUAgEAgEAloI9Hy57nf4Furf+wL+Xnnsz58+Rlwj4tvTl4Lh378+3X7oPHwj9X/+9DEiRhdQuIA3PhT0RL+d/H/8/PVPYh0vM3/9jz/+vvQZvpH6744+vID0o1cJ9GjyiXVMzjx9FSqHb6T+maMPL6BAo1SBUiY/U8fizOdXoXL4RupPPPrwArI0ShLo+XJNn/zrOm5FPF+uiTO/W4XK4S+rMLz+gqMPL+Dl6Cf9Gl+w4nAfCAQCgUAggEAgEAgEAgEEAoH2ym136ZAccDM1VthNPNVubvvN1PQ67o79fLlmrcLkzF+/2uIi3r3CZAFZ/QxZBczX338B66ffWKCZOt7P/PY7iR+mmQ/N5Cu/X8T3azdfwGJHVVYB6fX3WcD66a8oUEqJiW/P969Pj07471/h0SJOvnnzw8uWuGH9BQs4OXyygPT1nzx6J4EKTpKTq5B+rfBoFRILmFypyQJm6p//C1VfwHrDE9e/t0CJS594qkx8hfWGp1xprlpAh+E155u1BGrVsln5JaXP8EPWP1KgJi2blS2n/YcfqX43EjEMAoFAIBAIBAIBBAKBQCAQCFjEXpj6NyBQ1jS2vJsdduM7CzS2n6Z5O07/+qNpP1P/fqD2IZvfnr7c/iWxo+9uEf//Iakj8cHRl4e3qr+4gEchm5X1zwx/bOpWQzZX6imuPHqr+tsOj/ye6MqW6t2EbDZ8qqHy6K3qX294pD2VUflQx3lDNmsea/ItL84csll29GgXsnnmjseT3kgse8+QizvRIBAIBAKBQACBQCAQCAQCCLQJhGwe5H/8G7gZuaPd3IOHbPZsh4jR/STHaedY1KhzyObaDVkxuqPtmA1lkxoNDNm8/U5NSGVlyOajkMpuIZuV6y9kU8imkM38V/BYz0rrP0wgD+Z5sHDdE8/8h0nLqZBNnBQCgUAgEAgEAgEEAoFAIBAIWMRemPo3IFDWNIRs2o1/U7SQzZr6Q8imkM0Qsln/p0rIZgjZrL/KEbIZQjbrv2cJ2Qwhm7mX9zOXbEI2hWzuDyGbfXAnGgQCgUAgEAggEAgEAoFAAIE2gZBNIZtCNusESqxDyGYI2SzTSMhmCNks00jIZgjZLEbIppBNIZt5V5oe62kvkAfzPFi47oln/sOk5VTIJk4KgUAgEAgEAoEAAoFAIBAIBCxiL0z9GxAoaxpCNu3GvylayGZN/SFkU8hmCNms/1MlZDOEbNZf5QjZDCGb9d+zhGyGkM3cy/uZSzYhm0I294eQzT64Ew0CgUAgEAgEEAgEAoFAIIBAm0DIppBNIZt1AiXWIWQzhGyWaSRkM4RslmkkZDOEbBYjZFPIppDNvCtNj/W0F8iDeR4sXPfEM/9h0nIqZBMnhUAgEAgEAoFAAIFAIBAIBAIWsRem/g0IlDUNIZt24xc0Su+nyXoXOwzfe/25/UBbFCjSOvpy38XOw/def6uO1TEC3b0NZdWPHb73+lt1rI4U6GUmNdWPHb73+uunP14guA8EEAgEAoFAIIBAIBAIBAKBQACBQCAQCAQCCAQCgUAgEEAgEAgEwiH5F2UhUEvm+EGQAAAAAElFTkSuQmCC" />
+<link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAIAAADdvvtQAAAE70lEQVR42u3dPXbbRhSG4eucdCnSZFPuXHoHLtTYldfgSmlYcAcu3WV7KZjoSBQIzB9m8PO8lY6PhrgzfAmBmIvPH/74868ASvnNEoBAIBAIBAIBBAKBQCAQCCAQCAQCgUAAgUAgEAgEAloI9Hy57nf4Furf+wL+Xnnsz58+Rlwj4tvTl4Lh378+3X7oPHwj9X/+9DEiRhdQuIA3PhT0RL+d/H/8/PVPYh0vM3/9jz/+vvQZvpH6744+vID0o1cJ9GjyiXVMzjx9FSqHb6T+maMPL6BAo1SBUiY/U8fizOdXoXL4RupPPPrwArI0ShLo+XJNn/zrOm5FPF+uiTO/W4XK4S+rMLz+gqMPL+Dl6Cf9Gl+w4nAfCAQCgUAggEAgEAgEAgEEAoH2ym136ZAccDM1VthNPNVubvvN1PQ67o79fLlmrcLkzF+/2uIi3r3CZAFZ/QxZBczX338B66ffWKCZOt7P/PY7iR+mmQ/N5Cu/X8T3azdfwGJHVVYB6fX3WcD66a8oUEqJiW/P969Pj07471/h0SJOvnnzw8uWuGH9BQs4OXyygPT1nzx6J4EKTpKTq5B+rfBoFRILmFypyQJm6p//C1VfwHrDE9e/t0CJS594qkx8hfWGp1xprlpAh+E155u1BGrVsln5JaXP8EPWP1KgJi2blS2n/YcfqX43EjEMAoFAIBAIBAIBBAKBQCAQCFjEXpj6NyBQ1jS2vJsdduM7CzS2n6Z5O07/+qNpP1P/fqD2IZvfnr7c/iWxo+9uEf//Iakj8cHRl4e3qr+4gEchm5X1zwx/bOpWQzZX6imuPHqr+tsOj/ye6MqW6t2EbDZ8qqHy6K3qX294pD2VUflQx3lDNmsea/ItL84csll29GgXsnnmjseT3kgse8+QizvRIBAIBAKBQACBQCAQCAQCCLQJhGwe5H/8G7gZuaPd3IOHbPZsh4jR/STHaedY1KhzyObaDVkxuqPtmA1lkxoNDNm8/U5NSGVlyOajkMpuIZuV6y9kU8imkM38V/BYz0rrP0wgD+Z5sHDdE8/8h0nLqZBNnBQCgUAgEAgEAgEEAoFAIBAIWMRemPo3IFDWNIRs2o1/U7SQzZr6Q8imkM0Qsln/p0rIZgjZrL/KEbIZQjbrv2cJ2Qwhm7mX9zOXbEI2hWzuDyGbfXAnGgQCgUAgEAggEAgEAoFAAIE2gZBNIZtCNusESqxDyGYI2SzTSMhmCNks00jIZgjZLEbIppBNIZt5V5oe62kvkAfzPFi47oln/sOk5VTIJk4KgUAgEAgEAoEAAoFAIBAIBCxiL0z9GxAoaxpCNu3GvylayGZN/SFkU8hmCNms/1MlZDOEbNZf5QjZDCGb9d+zhGyGkM3cy/uZSzYhm0I294eQzT64Ew0CgUAgEAgEEAgEAoFAIIBAm0DIppBNIZt1AiXWIWQzhGyWaSRkM4RslmkkZDOEbBYjZFPIppDNvCtNj/W0F8iDeR4sXPfEM/9h0nIqZBMnhUAgEAgEAoFAAIFAIBAIBAIWsRem/g0IlDUNIZt24xc0Su+nyXoXOwzfe/25/UBbFCjSOvpy38XOw/def6uO1TEC3b0NZdWPHb73+lt1rI4U6GUmNdWPHb73+uunP14guA8EEAgEAoFAIIBAIBAIBAKBQACBQCAQCAQCCAQCgUAgEEAgEAgEwiH5F2UhUEvm+EGQAAAAAElFTkSuQmCC" />
+<style>
+  :root{
+    --bg:#0b0f14; --card:#141a21; --line:#232c36; --ink:#f2f5f7; --muted:#97a6b3; --dim:#66768a;
+    --go:#f5c542; --go-deep:#7a5f10; --danger:#fb7185; --ok:#34d399;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased;
+    overscroll-behavior:none;display:flex;flex-direction:column;height:100dvh
+  }
+  h1,h2,h3{margin:0;letter-spacing:-0.02em}
+  p{margin:0}
+  button,input{font:inherit;color:inherit}
+  button{background:none;border:none;padding:0;cursor:pointer}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .muted{color:var(--muted)}
+  .dim{color:var(--dim)}
+  .eyebrow{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--dim)}
+
+  #app{display:flex;flex-direction:column;flex:1;min-height:0}
+  header{background:rgba(11,15,20,.96);border-bottom:1px solid var(--line);
+    padding:calc(10px + env(safe-area-inset-top)) 14px 8px;flex:none}
+  .htop{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+  .htop h1{font-size:22px;font-weight:900}
+  .htop h1 span{color:var(--dim);font-weight:700}
+  main{flex:1;min-height:0;display:flex;flex-direction:column}
+  main.scroll{overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .wrap{padding:16px 16px 24px}
+
+  nav{flex:none;display:flex;border-top:1px solid var(--line);background:var(--bg);
+    padding-bottom:env(safe-area-inset-bottom)}
+  nav button{flex:1;padding:12px 0 10px;font-size:12px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.1em;color:var(--dim)}
+  nav button.on{color:var(--go)}
+
+  /* --- design ------------------------------------------------------------ */
+  .bar{display:flex;gap:6px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line);flex:none;
+    overflow-x:auto;scrollbar-width:none}
+  .bar::-webkit-scrollbar{display:none}
+  .bar input{flex:1;min-width:90px;background:var(--card);border:1px solid var(--line);border-radius:9px;
+    padding:7px 10px;font-size:15px;font-weight:700;outline:none}
+  .bar input:focus{border-color:var(--go)}
+  .btn{flex:none;padding:7px 9px;border-radius:9px;border:1px solid var(--line);background:var(--card);
+    font-size:12px;font-weight:700;white-space:nowrap}
+  .btn.go{background:var(--go);color:#111;border-color:var(--go)}
+  .btn.on{border-color:var(--go);color:var(--go)}
+  .btn:disabled{opacity:.4}
+  .seg{display:flex;flex:none;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .seg button{padding:7px 8px;font-size:12px;font-weight:700;color:var(--dim);background:var(--card)}
+  .seg button.on{background:var(--go);color:#111}
+  .swatch{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:5px;
+    border:1px solid #888}
+  .swatch.b{background:#111}
+  .swatch.w{background:#f4f4f2}
+  .stage{flex:1;min-height:0;position:relative;background:#0b0f14}
+  canvas#floor{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+  .counts{position:absolute;left:10px;bottom:10px;background:rgba(11,15,20,.85);border:1px solid var(--line);
+    border-radius:9px;padding:5px 9px;font-size:12px;pointer-events:none}
+  .counts b{font-weight:800}
+  .hint{position:absolute;left:10px;top:10px;background:rgba(11,15,20,.85);border:1px solid var(--line);
+    border-radius:9px;padding:5px 9px;font-size:12px;color:var(--muted);pointer-events:none}
+  .dirty{color:var(--go)}
+
+  /* --- layouts ------------------------------------------------------------ */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .card canvas{display:block;width:100%;background:#0b0f14}
+  .card .body{padding:10px 12px 12px}
+  .card h3{font-size:15px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .card .meta{font-size:12px;color:var(--muted);margin-top:2px}
+  .card .acts{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+  .card .acts .btn{padding:6px 9px;font-size:12px}
+  .card.now{border-color:var(--go)}
+  .empty{padding:32px 16px;text-align:center;color:var(--muted)}
+  .rename{display:flex;gap:6px;margin-top:8px}
+  .rename input{flex:1;min-width:0;background:var(--bg);border:1px solid var(--go);border-radius:8px;padding:6px 9px;outline:none}
+  .warn{border:1px solid var(--danger);border-radius:10px;padding:8px 10px;margin-top:8px;font-size:13px}
+  .warn .btn{margin-top:6px}
+
+  /* --- plan ---------------------------------------------------------------- */
+  .plan h2{font-size:18px;font-weight:900;margin:22px 0 8px}
+  .plan h2:first-child{margin-top:0}
+  .plan p{margin:0 0 10px;color:var(--muted);font-size:14px}
+  .plan p b{color:var(--ink)}
+  table{border-collapse:collapse;width:100%;font-size:13px;margin:8px 0 4px}
+  th,td{text-align:left;padding:6px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);font-weight:700}
+  td.n{text-align:right;font-family:var(--mono);font-weight:700;white-space:nowrap}
+  td.c{font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap}
+  tr.inf td{color:var(--muted)}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin:6px 0 2px}
+  .legend i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:6px}
+  .install{margin:14px 0 0;display:none}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+
+/* ============================== PROGRAM ============================== */
+
+/* The floor is a hex mosaic, pointy-top hexagons in horizontal rows. A cell is
+   (c, r): column c, row r. Odd rows sit half a cell east. Units are one hex
+   width; a row is HEX_H of that. North is row decreasing, east is column
+   increasing, so the plan reads with the bay window at the top, the entry door
+   at the bottom, the vanity wall on the right and the shower on the left.
+
+   Origin (0, 0) is the north-west corner dot of the main border. Every number
+   below was read off the four site photos by counting black dots along each
+   run; the Plan tab says which photos each run was counted in. */
+
+var HEX_H = 0.8660254;
+
+/* Where tile exists, as inclusive rectangles [c0, c1, r0, r1], plus the bay,
+   which is chamfered one column per row on each side. These only decide which
+   cells can be painted; they do not move a black dot. Margins between a border
+   and its wall are read off the photos to about a cell. */
+var FLOOR = {
+  rects: [
+    [-3, 61, -2, 70],   /* main room out to its walls */
+    [-8, -4, 7, 70],    /* strip between the shower mouth and the main border */
+    [-42, -9, 7, 43],   /* shower */
+    [-9, -4, 44, 47],   /* past the east end of the shower's south wall */
+    [-42, -9, 48, 70],  /* passage south of the shower, north of the toilet room */
+    [8, 42, 71, 84],    /* door neck out to the threshold */
+    [-30, -7, 71, 113]  /* toilet room */
+  ],
+  bay: {top: -14, bottom: -3, c0: 2, c1: 56}
+};
+
+/* Solid walls drawn inside the floor's bounding box, for orientation only. */
+var LABELS = [
+  {t:"BAY WINDOW", c:29, r:-9}, {t:"VANITY", c:63.5, r:34, rot:1}, {t:"DOOR", c:25, r:88},
+  {t:"SHOWER", c:-25, r:25}, {t:"WC", c:-18.5, r:94}, {t:"NICHE WALL", c:-26, r:45.6, small:1}
+];
+
+/* The fixed border. Each run is a straight dotted line from one dot to another,
+   stepping two cells: along a row that leaves one white between blacks, down a
+   column it leaves one row, which reads as a straight line because rows two
+   apart share an offset. `dots` is the count read off the photos, corners
+   included, and the test suite checks the geometry produces exactly that. */
+var SEGMENTS = [
+  {id:"main-north", name:"Main border, north row, along the bay", from:[0,0], to:[58,0], dots:30, seen:"B, C"},
+  {id:"main-east", name:"Main border, east column, vanity wall", from:[58,0], to:[58,68], dots:35, seen:"B, C"},
+  {id:"main-west", name:"Main border, west column", from:[0,0], to:[0,68], dots:35, seen:"A, B, C"},
+  {id:"step-east", name:"South wall, east of the door", from:[40,68], to:[58,68], dots:10, seen:"B, C"},
+  {id:"neck-east", name:"Door recess, east side", from:[40,68], to:[40,82], dots:8, seen:"B, C"},
+  {id:"threshold", name:"Door threshold", from:[10,82], to:[40,82], dots:16, seen:"C"},
+  {id:"neck-west", name:"Door recess, west side", from:[10,68], to:[10,82], dots:8, seen:"A, B, C"},
+  {id:"step-west", name:"South wall, west of the door", from:[0,68], to:[10,68], dots:6, seen:"A, B, C"},
+  {id:"shower-north", name:"Shower, north row", from:[-41,8], to:[-9,8], dots:17, seen:"A, B"},
+  {id:"shower-south", name:"Shower, south row, along the niche wall", from:[-41,42], to:[-9,42], dots:17, seen:"A, C"},
+  {id:"shower-west", name:"Shower, west column, back wall", from:[-41,8], to:[-41,42], dots:18, seen:"A"},
+  {id:"west-run", name:"West column: shower mouth, then on to the passage", from:[-9,8], to:[-9,68], dots:31, seen:"A, B, C, D", inferred:"rows 44 to 60 are behind the niche wall in every photo"},
+  {id:"passage-south", name:"Passage, south row, across the toilet room door", from:[-41,68], to:[-9,68], dots:17, seen:"C, D", inferred:"west of column -33 is out of frame"},
+  {id:"wc-north", name:"Toilet room, north row", from:[-27,78], to:[-9,78], dots:10, seen:"D"},
+  {id:"wc-south", name:"Toilet room, south row", from:[-27,110], to:[-9,110], dots:10, seen:"D"},
+  {id:"wc-east", name:"Toilet room, east column", from:[-9,78], to:[-9,110], dots:17, seen:"D"},
+  {id:"wc-west", name:"Toilet room, west column", from:[-27,78], to:[-27,110], dots:17, seen:"D"}
+];
+
+function segmentCells(seg){
+  var out = [], dc = seg.to[0] > seg.from[0] ? 2 : 0, dr = seg.to[1] > seg.from[1] ? 2 : 0;
+  for (var c = seg.from[0], r = seg.from[1]; c <= seg.to[0] && r <= seg.to[1]; c += dc, r += dr){
+    out.push([c, r]);
+    if (!dc && !dr) break;
+  }
+  return out;
+}
+
+/* ============================== ENGINE ============================== */
+
+function key(c, r){ return c + "," + r; }
+function unkey(k){ var p = k.split(","); return [+p[0], +p[1]]; }
+function isOdd(r){ return ((r % 2) + 2) % 2 === 1; }
+
+function hexCenter(c, r){
+  return {x: c + (isOdd(r) ? 0.5 : 0), y: r * HEX_H};
+}
+/* Nearest centre wins, which is exactly the hexagon the point is in. */
+function hexAt(x, y){
+  var r0 = Math.round(y / HEX_H), best = null, bd = 1e9;
+  for (var r = r0 - 1; r <= r0 + 1; r++){
+    var c0 = Math.round(x - (isOdd(r) ? 0.5 : 0));
+    for (var c = c0 - 1; c <= c0 + 1; c++){
+      var p = hexCenter(c, r), d = (p.x - x) * (p.x - x) + (p.y - y) * (p.y - y);
+      if (d < bd){ bd = d; best = [c, r]; }
+    }
+  }
+  return best;
+}
+/* Corners of a pointy-top hex of width w centred at (x, y), as a flat array. */
+function hexCorners(x, y, w){
+  var R = w / Math.sqrt(3), out = [];
+  for (var i = 0; i < 6; i++){
+    var a = Math.PI / 180 * (60 * i + 30);
+    out.push(x + R * Math.cos(a), y + R * Math.sin(a));
+  }
+  return out;
+}
+
+/* The set of every cell that exists, and of every cell that is a fixed dot. */
+var floor = {}, fixed = {}, BOUNDS = null;
+(function buildFloor(){
+  var i, c, r, k;
+  for (i = 0; i < FLOOR.rects.length; i++){
+    var q = FLOOR.rects[i];
+    for (c = q[0]; c <= q[1]; c++) for (r = q[2]; r <= q[3]; r++) floor[key(c, r)] = 1;
+  }
+  var b = FLOOR.bay;
+  for (r = b.bottom; r >= b.top; r--){
+    var k0 = b.bottom - r;
+    for (c = b.c0 + k0; c <= b.c1 - k0; c++) floor[key(c, r)] = 1;
+  }
+  for (i = 0; i < SEGMENTS.length; i++){
+    var cells = segmentCells(SEGMENTS[i]);
+    for (var j = 0; j < cells.length; j++) fixed[key(cells[j][0], cells[j][1])] = 1;
+  }
+  var minx = 1e9, maxx = -1e9, miny = 1e9, maxy = -1e9;
+  for (k in floor){
+    var cr = unkey(k), p = hexCenter(cr[0], cr[1]);
+    if (p.x < minx) minx = p.x; if (p.x > maxx) maxx = p.x;
+    if (p.y < miny) miny = p.y; if (p.y > maxy) maxy = p.y;
+  }
+  BOUNDS = {minx: minx - 0.5, maxx: maxx + 0.5, miny: miny - 0.6, maxy: maxy + 0.6};
+})();
+var FLOOR_N = Object.keys(floor).length, FIXED_N = Object.keys(fixed).length;
+
+/* --- a layout, as a value ------------------------------------------------ */
+
+/* Only the tiles the user turned black are stored; the border is in the
+   program, so a layout is a name and a list of cell keys. `past` is the undo
+   stack, previous cell lists, newest last. */
+function blankLayout(){
+  return {id:null, name:"", created:null, updated:null, cells:[], past:[]};
+}
+function paintable(c, r){
+  var k = key(c, r);
+  return !!floor[k] && !fixed[k];
+}
+function withCells(L, cells, cont){
+  var past = cont ? L.past : L.past.concat([L.cells]);
+  if (past.length > 200) past = past.slice(past.length - 200);
+  return {id:L.id, name:L.name, created:L.created, updated:L.updated, cells:cells, past:past};
+}
+function toggleCell(L, c, r){
+  if (!paintable(c, r)) return L;
+  var k = key(c, r), i = L.cells.indexOf(k);
+  var cells = i >= 0 ? L.cells.slice(0, i).concat(L.cells.slice(i + 1)) : L.cells.concat([k]);
+  return withCells(L, cells, false);
+}
+/* Paint sets rather than flips, so a brush passing twice over a tile leaves it
+   the colour asked for. `cont` continues a stroke: no new undo step. */
+function paintCell(L, c, r, black, cont){
+  if (!paintable(c, r)) return L;
+  var k = key(c, r), i = L.cells.indexOf(k);
+  if (black && i >= 0) return L;
+  if (!black && i < 0) return L;
+  var cells = black ? L.cells.concat([k]) : L.cells.slice(0, i).concat(L.cells.slice(i + 1));
+  return withCells(L, cells, cont);
+}
+function undo(L){
+  if (!L.past.length) return L;
+  return {id:L.id, name:L.name, created:L.created, updated:L.updated,
+    cells:L.past[L.past.length - 1], past:L.past.slice(0, L.past.length - 1)};
+}
+function counts(L){
+  var black = FIXED_N + L.cells.length;
+  return {black: black, white: FLOOR_N - black, fixed: FIXED_N, user: L.cells.length};
+}
+function serialize(L){
+  return {id:L.id, name:L.name, created:L.created, updated:L.updated, cells:L.cells.slice()};
+}
+/* Anything that is not a paintable tile is dropped on the way in, so a layout
+   saved against an older reading of the floor cannot paint a wall. */
+function deserialize(o){
+  var L = blankLayout(), seen = {};
+  if (!o) return L;
+  L.id = o.id || null; L.name = typeof o.name === "string" ? o.name : "";
+  L.created = o.created || null; L.updated = o.updated || null;
+  var src = Array.isArray(o.cells) ? o.cells : [];
+  for (var i = 0; i < src.length; i++){
+    var k = String(src[i]);
+    if (!/^-?\d+,-?\d+$/.test(k) || seen[k]) continue;
+    var cr = unkey(k);
+    if (!paintable(cr[0], cr[1])) continue;
+    seen[k] = 1; L.cells.push(k);
+  }
+  return L;
+}
+function newId(now){
+  return "L" + now.toString(36) + Math.floor(Math.random() * 1e6).toString(36);
+}
+function untitled(layouts){
+  var n = layouts.length + 1, names = {};
+  for (var i = 0; i < layouts.length; i++) names[layouts[i].name] = 1;
+  while (names["Layout " + n]) n++;
+  return "Layout " + n;
+}
+
+/* --- the view transform, as a value -------------------------------------- */
+
+/* screen = hex * scale + t. Fit leaves a little air around the floor. */
+function fitView(w, h){
+  var bw = BOUNDS.maxx - BOUNDS.minx, bh = BOUNDS.maxy - BOUNDS.miny, pad = 14;
+  var scale = Math.min((w - pad * 2) / bw, (h - pad * 2) / bh);
+  if (!(scale > 0)) scale = 1;
+  return {scale: scale, tx: (w - bw * scale) / 2 - BOUNDS.minx * scale, ty: (h - bh * scale) / 2 - BOUNDS.miny * scale};
+}
+function zoomAt(v, factor, x, y, w, h){
+  var s = v.scale * factor, lo = fitView(w, h).scale * 0.5, hi = 90;
+  if (s < lo) s = lo; if (s > hi) s = hi;
+  var f = s / v.scale;
+  return {scale: s, tx: x - (x - v.tx) * f, ty: y - (y - v.ty) * f};
+}
+function panBy(v, dx, dy){ return {scale: v.scale, tx: v.tx + dx, ty: v.ty + dy}; }
+function toHex(v, x, y){ return hexAt((x - v.tx) / v.scale, (y - v.ty) / v.scale); }
+
+/* ============================== STORAGE ============================== */
+
+var KEY = "hex-floor-v1";
+var memory = null;
+
+function blank(){ return {layouts:[], draft:blankLayout()}; }
+function loadState(){
+  try {
+    var raw = localStorage.getItem(KEY);
+    if (raw){
+      var s = JSON.parse(raw), out = blank();
+      var ls = Array.isArray(s.layouts) ? s.layouts : [];
+      for (var i = 0; i < ls.length; i++){
+        var L = deserialize(ls[i]);
+        if (L.id) out.layouts.push(serialize(L));
+      }
+      out.draft = deserialize(s.draft);
+      return out;
+    }
+  } catch (e) { /* storage blocked — fall through */ }
+  return memory || blank();
+}
+function saveState(){
+  memory = state;
+  try {
+    localStorage.setItem(KEY, JSON.stringify({layouts: state.layouts, draft: serialize(state.draft)}));
+  } catch (e) {}
+}
+
+/* ============================== STATE ============================== */
+
+var state = loadState();
+var tab = "design";
+var view = null;            /* {scale, tx, ty}, null until the canvas has a size */
+var brush = false, paintBlack = true;
+var renaming = null, confirmDel = null;
+var pointers = {}, gesture = null;
+
+function savedOf(L){
+  for (var i = 0; i < state.layouts.length; i++) if (state.layouts[i].id === L.id) return state.layouts[i];
+  return null;
+}
+function isDirty(){
+  var s = savedOf(state.draft);
+  if (!s) return state.draft.cells.length > 0 || state.draft.name !== "";
+  return s.cells.join("|") !== state.draft.cells.join("|") || s.name !== state.draft.name;
+}
+function commitDraft(asNew, now){
+  var L = state.draft, s = asNew ? null : savedOf(L);
+  var name = (L.name || "").trim() || (s ? s.name : untitled(state.layouts));
+  if (s){
+    s.name = name; s.cells = L.cells.slice(); s.updated = now;
+  } else {
+    s = {id: newId(now), name: name, created: now, updated: now, cells: L.cells.slice()};
+    state.layouts.push(s);
+  }
+  state.draft = {id: s.id, name: name, created: s.created, updated: now, cells: L.cells.slice(), past: L.past};
+  saveState();
+}
+function openLayout(id){
+  var s = null;
+  for (var i = 0; i < state.layouts.length; i++) if (state.layouts[i].id === id) s = state.layouts[i];
+  if (!s) return;
+  state.draft = deserialize(s);
+  saveState();
+}
+
+/* ============================== VIEWS ============================== */
+
+function esc(s){
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function fmtDate(t){
+  if (!t) return "";
+  var d = new Date(t);
+  return d.toLocaleDateString(undefined, {month:"short", day:"numeric"}) + " " +
+    d.toLocaleTimeString(undefined, {hour:"numeric", minute:"2-digit"});
+}
+
+function viewHeader(){
+  var L = state.draft, dirty = isDirty();
+  var sub = tab === "design"
+    ? (L.name ? esc(L.name) : "<span>Untitled</span>") + (dirty ? ' <span class="dirty">•</span>' : "")
+    : (tab === "layouts" ? "<span>" + state.layouts.length + " saved</span>" : "<span>How the floor was read</span>");
+  return '<header><div class="htop"><h1>Hex Floor</h1><div class="muted" id="hsub" style="font-size:14px;font-weight:700">' + sub + '</div></div></header>';
+}
+function viewNav(){
+  function b(t, label){ return '<button data-a="tab" data-t="' + t + '" class="' + (tab === t ? "on" : "") + '">' + label + '</button>'; }
+  return '<nav>' + b("design", "Design") + b("layouts", "Layouts") + b("plan", "Plan") + '</nav>';
+}
+
+function viewDesign(){
+  var L = state.draft, n = counts(L), saved = savedOf(L);
+  return '<main>' +
+    '<div class="bar">' +
+      '<input data-f="name" placeholder="Name this layout" value="' + esc(L.name) + '" />' +
+      '<button class="btn go" data-a="save">Save</button>' +
+      (saved ? '<button class="btn" data-a="saveas">Save as</button>' : "") +
+      '<button class="btn" data-a="new">New</button>' +
+    '</div>' +
+    '<div class="bar">' +
+      '<div class="seg"><button data-a="tap" class="' + (brush ? "" : "on") + '">Tap</button>' +
+        '<button data-a="brush" class="' + (brush ? "on" : "") + '">Brush</button></div>' +
+      '<div class="seg"><button data-a="black" class="' + (paintBlack ? "on" : "") + '"><i class="swatch b"></i>Black</button>' +
+        '<button data-a="white" class="' + (paintBlack ? "" : "on") + '"><i class="swatch w"></i>White</button></div>' +
+      '<button class="btn" data-a="undo"' + (L.past.length ? "" : " disabled") + '>Undo</button>' +
+      '<button class="btn" data-a="fit">Fit</button>' +
+      '<button class="btn" data-a="image">Image</button>' +
+    '</div>' +
+    '<div class="stage"><canvas id="floor"></canvas>' +
+      '<div class="counts" id="counts">' + countsText(n) + '</div>' +
+      '<div class="hint">' + (brush ? "Drag to paint " + (paintBlack ? "black" : "white") + ". Two fingers move." : "Tap a tile to flip it. Drag to move, pinch to zoom.") + '</div>' +
+    '</div>' +
+  '</main>';
+}
+function countsText(n){
+  return '<b class="num">' + n.black + '</b> black <span class="dim">(' + n.fixed + ' fixed)</span> &nbsp; <b class="num">' + n.white + '</b> white';
+}
+
+function viewLayouts(){
+  var ls = state.layouts.slice().sort(function(a, b){ return (b.updated || 0) - (a.updated || 0); });
+  var h = '<main class="scroll"><div class="wrap">';
+  if (!ls.length){
+    h += '<div class="empty">Nothing saved yet. Design a floor and tap Save.</div>';
+  } else {
+    h += '<div class="grid">';
+    for (var i = 0; i < ls.length; i++){
+      var L = ls[i], now = L.id === state.draft.id;
+      h += '<div class="card' + (now ? " now" : "") + '">' +
+        '<canvas class="pv" data-pv="' + L.id + '" width="320" height="380"></canvas>' +
+        '<div class="body"><h3>' + esc(L.name) + '</h3>' +
+        '<div class="meta"><span class="num">' + (FIXED_N + L.cells.length) + '</span> black · ' + esc(fmtDate(L.updated)) + (now ? ' · <span class="dirty">open</span>' : "") + '</div>';
+      if (renaming === L.id){
+        h += '<div class="rename"><input data-f="rename" value="' + esc(L.name) + '" /><button class="btn go" data-a="renameok" data-id="' + L.id + '">OK</button></div>';
+      } else if (confirmDel === L.id){
+        h += '<div class="warn">Delete “' + esc(L.name) + '”? There is no undo.<br/>' +
+          '<button class="btn" data-a="delok" data-id="' + L.id + '" style="border-color:var(--danger);color:var(--danger)">Delete</button> ' +
+          '<button class="btn" data-a="delno">Keep</button></div>';
+      } else {
+        h += '<div class="acts">' +
+          '<button class="btn go" data-a="open" data-id="' + L.id + '">Open</button>' +
+          '<button class="btn" data-a="dup" data-id="' + L.id + '">Duplicate</button>' +
+          '<button class="btn" data-a="rename" data-id="' + L.id + '">Rename</button>' +
+          '<button class="btn" data-a="del" data-id="' + L.id + '">Delete</button></div>';
+      }
+      h += '</div></div>';
+    }
+    h += '</div>';
+  }
+  h += '<div class="install" id="install"><button class="btn" data-a="install">Add to home screen</button></div>';
+  return h + '</div></main>';
+}
+
+function viewPlan(){
+  var h = '<main class="scroll"><div class="wrap plan">';
+  h += '<h2>The floor</h2>' +
+    '<p>Pointy-top hex mosaic in horizontal rows. The plan is drawn with the <b>bay window at the top</b>, the <b>entry door at the bottom</b>, the <b>vanity wall on the right</b> and the <b>shower and toilet room on the left</b>. Cell (0, 0) is the north-west corner dot of the main border; columns count east, rows count south, and odd rows sit half a cell east.</p>' +
+    '<p>The dotted border is grouted in and cannot be changed here. Along a row it puts a black on every other tile; down a column it puts one on every other row, which lands in a straight line. Every run below was counted dot by dot in the photos it names: A looks west into the shower, B looks north from the door, C looks south from the bay, D looks into the toilet room.</p>' +
+    '<div class="legend"><span><i style="background:#f4f4f2"></i>tile</span><span><i style="background:#111;box-shadow:inset 0 0 0 2px #f5c542"></i>fixed dot</span><span><i style="background:#111"></i>your tile</span><span><i style="background:#0b0f14;border:1px solid #444"></i>wall</span></div>';
+  h += '<table><tr><th>Run</th><th>From → to</th><th style="text-align:right">Dots</th><th>Photos</th></tr>';
+  for (var i = 0; i < SEGMENTS.length; i++){
+    var s = SEGMENTS[i];
+    h += '<tr' + (s.inferred ? ' class="inf"' : "") + '><td>' + esc(s.name) + (s.inferred ? '<br/><span class="dim" style="font-size:12px">Partly inferred: ' + esc(s.inferred) + '</span>' : "") + '</td>' +
+      '<td class="c">(' + s.from[0] + ', ' + s.from[1] + ') → (' + s.to[0] + ', ' + s.to[1] + ')</td>' +
+      '<td class="n">' + s.dots + '</td><td class="c">' + esc(s.seen) + '</td></tr>';
+  }
+  h += '</table>';
+  h += '<p style="margin-top:10px"><b class="num">' + FIXED_N + '</b> fixed dots in all, corners counted once. <b class="num">' + FLOOR_N + '</b> tiles on the floor, so <b class="num">' + (FLOOR_N - FIXED_N) + '</b> can be painted.</p>';
+  h += '<h2>What checks out</h2>' +
+    '<p>The main border is 30 dots across at the bay and 35 down each side. Its south side is stepped around the door: 10 dots east of the door, 8 down the recess, 16 across the threshold, 8 back up and 6 to the west corner. 9 + 15 + 5 intervals is the same 29 as the north row, so the shape closes.</p>' +
+    '<p>The shower rectangle is 17 dots east–west by 18 north–south in both photos that show it. The toilet room is 10 by 17. Both hang off the same column, nine cells west of the main border, which runs from the shower mouth south to the toilet room door.</p>';
+  h += '<h2>What is estimated</h2>' +
+    '<p>The white margins between each border and its wall, the bay window’s chamfered shape, and the depth of the door recess beyond the threshold row are read to about one cell. They decide which tiles exist to paint, not where any black dot sits. The two greyed runs above are partly hidden or out of frame; their visible ends fix them, the middle is continued straight.</p>' +
+    '<p>Edit the rectangles in <span class="num">FLOOR</span> and the runs in <span class="num">SEGMENTS</span> at the top of the file if the site says otherwise. The tests count every run.</p>';
+  h += '<h2>Using it</h2>' +
+    '<p>Tap a tile to flip it. Drag to move around, pinch or scroll to zoom, Fit to see the whole floor. Brush paints along a drag in the chosen colour; two fingers still move the view. Undo steps back one tap or one stroke. Save keeps the design on this device under its name; Save as keeps a copy. Image downloads the plan as a PNG for the tile setter.</p>';
+  return h + '</div></main>';
+}
+
+function viewFor(t){
+  return t === "layouts" ? viewLayouts() : (t === "plan" ? viewPlan() : viewDesign());
+}
+
+/* ============================== RENDER ============================== */
+
+var raf = 0;
+
+function render(){
+  var app = document.getElementById("app");
+  app.innerHTML = viewHeader() + viewFor(tab) + viewNav();
+  if (tab === "design") mountCanvas();
+  else if (tab === "layouts") paintPreviews();
+  var box = document.getElementById("install");
+  if (box && deferredPrompt) box.style.display = "block";
+}
+
+/* The stage canvas is rebuilt with every render, so it is sized and wired here.
+   The view transform survives across renders; only a first paint fits it. */
+function mountCanvas(){
+  var cv = document.getElementById("floor");
+  if (!cv) return;
+  sizeCanvas(cv);
+  if (!view) view = fitView(cv.clientWidth, cv.clientHeight);
+  bindPointer(cv);
+  paint();
+}
+function sizeCanvas(cv){
+  var dpr = window.devicePixelRatio || 1;
+  var w = cv.clientWidth || 320, h = cv.clientHeight || 400;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+}
+function paint(){
+  if (raf) return;
+  raf = requestAnimationFrame(function(){ raf = 0; paintFloor(); });
+}
+
+/* Everything on screen is drawn from scratch each frame, but as five batched
+   paths rather than a path per tile, which is what keeps a pan smooth with
+   fourteen thousand cells in view. Grout is the floor's background showing
+   between tiles drawn at nine tenths. */
+function paintFloor(){
+  var cv = document.getElementById("floor");
+  if (!cv || !view) return;
+  var ctx = cv.getContext("2d"), dpr = window.devicePixelRatio || 1;
+  var w = cv.clientWidth || 320, h = cv.clientHeight || 400;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "#0b0f14"; ctx.fillRect(0, 0, w, h);
+  drawCells(ctx, view, w, h, state.draft, {labels: true, rings: true, grout: true});
+  var el = document.getElementById("counts");
+  if (el) el.innerHTML = countsText(counts(state.draft));
+}
+
+function drawCells(ctx, v, w, h, L, opts){
+  var s = v.scale, user = {}, i, k, cr, p;
+  for (i = 0; i < L.cells.length; i++) user[L.cells[i]] = 1;
+  var r0 = Math.floor((0 - v.ty) / s / HEX_H) - 1, r1 = Math.ceil((h - v.ty) / s / HEX_H) + 1;
+  var c0 = Math.floor((0 - v.tx) / s) - 1, c1 = Math.ceil((w - v.tx) / s) + 1;
+  var grout = opts.grout && s > 3.5, tile = grout ? 0.9 : 1.0;
+  var groutPath = [], white = [], black = [], fix = [];
+  for (var r = r0; r <= r1; r++){
+    for (var c = c0; c <= c1; c++){
+      k = key(c, r);
+      if (!floor[k]) continue;
+      p = hexCenter(c, r);
+      var x = p.x * s + v.tx, y = p.y * s + v.ty;
+      if (grout) groutPath.push(x, y);
+      if (fixed[k]) fix.push(x, y);
+      else if (user[k]) black.push(x, y);
+      else white.push(x, y);
+    }
+  }
+  if (grout){ ctx.fillStyle = "#6b6f73"; fillHexes(ctx, groutPath, s); }
+  ctx.fillStyle = "#f4f4f2"; fillHexes(ctx, white, s * tile);
+  ctx.fillStyle = "#151515"; fillHexes(ctx, black, s * tile);
+  ctx.fillStyle = "#151515"; fillHexes(ctx, fix, s * tile);
+  if (opts.rings && s >= 7){
+    ctx.strokeStyle = "#f5c542"; ctx.lineWidth = Math.max(1, s * 0.07);
+    ctx.beginPath();
+    for (i = 0; i < fix.length; i += 2){ ctx.moveTo(fix[i] + s * 0.22, fix[i + 1]); ctx.arc(fix[i], fix[i + 1], s * 0.22, 0, Math.PI * 2); }
+    ctx.stroke();
+  }
+  if (opts.labels && s >= 2.2){
+    ctx.fillStyle = "rgba(20,24,30,0.45)";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    for (i = 0; i < LABELS.length; i++){
+      var lb = LABELS[i], q = hexCenter(lb.c, lb.r);
+      var fs = Math.max(10, Math.min(18, s * (lb.small ? 1.4 : 2.2)));
+      ctx.font = "800 " + fs + "px -apple-system,system-ui,sans-serif";
+      var lx = q.x * s + v.tx, ly = q.y * s + v.ty;
+      if (lb.rot){ ctx.save(); ctx.translate(lx, ly); ctx.rotate(-Math.PI / 2); ctx.fillText(lb.t, 0, 0); ctx.restore(); }
+      else ctx.fillText(lb.t, lx, ly);
+    }
+  }
+}
+function fillHexes(ctx, pts, w){
+  if (!pts.length) return;
+  ctx.beginPath();
+  for (var i = 0; i < pts.length; i += 2){
+    var k = hexCorners(pts[i], pts[i + 1], w);
+    ctx.moveTo(k[0], k[1]);
+    for (var j = 2; j < 12; j += 2) ctx.lineTo(k[j], k[j + 1]);
+    ctx.closePath();
+  }
+  ctx.fill();
+}
+
+/* Thumbnails on the Layouts tab: the whole floor squeezed into a card, walls
+   dark, no grout, no rings. */
+function paintPreviews(){
+  var cvs = document.querySelectorAll("canvas[data-pv]");
+  for (var i = 0; i < cvs.length; i++){
+    var cv = cvs[i], id = cv.dataset.pv, L = null;
+    for (var j = 0; j < state.layouts.length; j++) if (state.layouts[j].id === id) L = state.layouts[j];
+    if (!L) continue;
+    var ctx = cv.getContext("2d"), w = cv.width, h = cv.height;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = "#0b0f14"; ctx.fillRect(0, 0, w, h);
+    drawCells(ctx, fitView(w, h), w, h, L, {labels: false, rings: false, grout: false});
+  }
+}
+
+/* A PNG of the whole plan at a fixed size, for sending to whoever lays it. */
+function exportImage(){
+  try {
+    var cv = document.createElement("canvas");
+    var s = 14, bw = BOUNDS.maxx - BOUNDS.minx, bh = BOUNDS.maxy - BOUNDS.miny;
+    cv.width = Math.ceil(bw * s + 40); cv.height = Math.ceil(bh * s + 40);
+    var ctx = cv.getContext("2d");
+    ctx.fillStyle = "#0b0f14"; ctx.fillRect(0, 0, cv.width, cv.height);
+    var v = {scale: s, tx: 20 - BOUNDS.minx * s, ty: 20 - BOUNDS.miny * s};
+    drawCells(ctx, v, cv.width, cv.height, state.draft, {labels: true, rings: true, grout: true});
+    var a = document.createElement("a");
+    a.href = cv.toDataURL("image/png");
+    a.download = ((state.draft.name || "hex-floor").replace(/[^\w\- ]+/g, "") || "hex-floor") + ".png";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  } catch (e) {}
+}
+
+/* ============================== ACTIONS ============================== */
+
+document.addEventListener("click", function(e){
+  var t = e.target.closest ? e.target.closest("[data-a]") : null;
+  if (!t) return;
+  var a = t.dataset.a, id = t.dataset.id, now = Date.now();
+  if (a === "tab"){ tab = t.dataset.t; renaming = null; confirmDel = null; render(); return; }
+  if (a === "save"){ commitDraft(false, now); render(); return; }
+  if (a === "saveas"){ commitDraft(true, now); render(); return; }
+  if (a === "new"){ state.draft = blankLayout(); saveState(); render(); return; }
+  if (a === "tap"){ brush = false; render(); return; }
+  if (a === "brush"){ brush = true; render(); return; }
+  if (a === "black"){ paintBlack = true; render(); return; }
+  if (a === "white"){ paintBlack = false; render(); return; }
+  if (a === "undo"){ state.draft = undo(state.draft); saveState(); render(); return; }
+  if (a === "fit"){ var cv = document.getElementById("floor"); view = fitView(cv ? cv.clientWidth : 320, cv ? cv.clientHeight : 400); paint(); return; }
+  if (a === "image"){ exportImage(); return; }
+  if (a === "open"){ openLayout(id); tab = "design"; render(); return; }
+  if (a === "dup"){
+    var src = null;
+    for (var i = 0; i < state.layouts.length; i++) if (state.layouts[i].id === id) src = state.layouts[i];
+    if (src){
+      state.layouts.push({id: newId(now), name: src.name + " copy", created: now, updated: now, cells: src.cells.slice()});
+      saveState();
+    }
+    render(); return;
+  }
+  if (a === "rename"){ renaming = id; confirmDel = null; render(); return; }
+  if (a === "renameok"){
+    var val = renameVal;
+    for (var j = 0; j < state.layouts.length; j++) if (state.layouts[j].id === id && val != null && val.trim()){
+      state.layouts[j].name = val.trim();
+      if (state.draft.id === id) state.draft.name = val.trim();
+    }
+    renaming = null; renameVal = null; saveState(); render(); return;
+  }
+  if (a === "del"){ confirmDel = id; renaming = null; render(); return; }
+  if (a === "delno"){ confirmDel = null; render(); return; }
+  if (a === "delok"){
+    state.layouts = state.layouts.filter(function(L){ return L.id !== id; });
+    if (state.draft.id === id) state.draft.id = null;
+    confirmDel = null; saveState(); render(); return;
+  }
+  if (a === "install" && deferredPrompt){ deferredPrompt.prompt(); deferredPrompt = null; return; }
+});
+
+/* Typing never re-renders: the name field is written straight into the draft
+   and saved, and the rename box is read back when OK is tapped. */
+var renameVal = null;
+document.addEventListener("input", function(e){
+  var t = e.target, f = t && t.dataset ? t.dataset.f : null;
+  if (f === "name"){
+    state.draft.name = t.value; saveState();
+    var hs = document.getElementById("hsub");
+    if (hs) hs.innerHTML = (t.value ? esc(t.value) : "<span>Untitled</span>") + (isDirty() ? ' <span class="dirty">•</span>' : "");
+  }
+  if (f === "rename"){ renameVal = t.value; }
+});
+
+/* --- the canvas ---------------------------------------------------------- */
+
+/* One finger: a tap flips a tile, a drag moves the view, or paints in brush
+   mode. Two fingers pinch. A tap is a press that never travelled, so a shaky
+   finger that moved a few pixels still flips its tile. */
+function bindPointer(cv){
+  var TAP = 8;
+  function pt(e){
+    var r = cv.getBoundingClientRect();
+    return {x: e.clientX - r.left, y: e.clientY - r.top};
+  }
+  function ids(){ return Object.keys(pointers); }
+  function paintAt(p, cont){
+    var cr = toHex(view, p.x, p.y);
+    var next = paintCell(state.draft, cr[0], cr[1], paintBlack, cont);
+    if (next !== state.draft){ state.draft = next; saveState(); paint(); }
+  }
+  cv.addEventListener("pointerdown", function(e){
+    if (e.button != null && e.button !== 0) return;
+    e.preventDefault();
+    try { cv.setPointerCapture(e.pointerId); } catch (x) {}
+    var p = pt(e);
+    pointers[e.pointerId] = {x: p.x, y: p.y, x0: p.x, y0: p.y};
+    var n = ids().length;
+    if (n === 1){
+      gesture = brush ? {type: "paint", moved: false, first: true} : {type: "tap", moved: false};
+      if (brush){ paintAt(p, false); gesture.first = false; }
+    } else if (n === 2){
+      var a = pointers[ids()[0]], b = pointers[ids()[1]];
+      gesture = {type: "pinch", d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, v0: view,
+        cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2};
+    }
+  });
+  cv.addEventListener("pointermove", function(e){
+    var q = pointers[e.pointerId];
+    if (!q || !gesture) return;
+    e.preventDefault();
+    var p = pt(e), dx = p.x - q.x, dy = p.y - q.y;
+    q.x = p.x; q.y = p.y;
+    if (gesture.type === "pinch"){
+      var a = pointers[ids()[0]], b = pointers[ids()[1]];
+      if (!a || !b) return;
+      var d = Math.hypot(a.x - b.x, a.y - b.y) || 1, cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
+      var z = zoomAt(gesture.v0, d / gesture.d0, gesture.cx, gesture.cy, cv.clientWidth, cv.clientHeight);
+      view = panBy(z, cx - gesture.cx, cy - gesture.cy);
+      paint(); return;
+    }
+    if (gesture.type === "paint"){ paintAt(p, true); return; }
+    if (!gesture.moved && Math.hypot(p.x - q.x0, p.y - q.y0) > TAP) gesture.moved = true;
+    if (gesture.moved){ view = panBy(view, dx, dy); paint(); }
+  });
+  function up(e){
+    var q = pointers[e.pointerId];
+    if (!q) return;
+    if (gesture && gesture.type === "tap" && !gesture.moved && ids().length === 1){
+      var cr = toHex(view, q.x, q.y);
+      var next = toggleCell(state.draft, cr[0], cr[1]);
+      if (next !== state.draft){ state.draft = next; saveState(); paint(); syncUndo(); }
+    }
+    delete pointers[e.pointerId];
+    if (!ids().length) gesture = null;
+    else if (gesture && gesture.type === "pinch") gesture = {type: "tap", moved: true};
+    try { cv.releasePointerCapture(e.pointerId); } catch (x) {}
+  }
+  cv.addEventListener("pointerup", up);
+  cv.addEventListener("pointercancel", up);
+  cv.addEventListener("wheel", function(e){
+    e.preventDefault();
+    var p = pt(e), f = Math.pow(1.0015, -e.deltaY);
+    view = zoomAt(view, f, p.x, p.y, cv.clientWidth, cv.clientHeight);
+    paint();
+  }, {passive: false});
+}
+/* The Undo button's enabled state is painted by hand after a tap, the same
+   way the counts are: a full render would rebuild the canvas under the finger. */
+function syncUndo(){
+  var b = document.querySelector('[data-a="undo"]');
+  if (b) b.disabled = !state.draft.past.length;
+}
+
+window.addEventListener("resize", function(){
+  var cv = document.getElementById("floor");
+  if (!cv) return;
+  sizeCanvas(cv); paint();
+});
+
+/* ============================== PWA ============================== */
+
+var deferredPrompt = null;
+window.addEventListener("beforeinstallprompt", function(e){
+  e.preventDefault(); deferredPrompt = e;
+  var box = document.getElementById("install");
+  if (box) box.style.display = "block";
+});
+
+var ONDISK = (typeof location === "undefined") || location.protocol === "file:";
+
+(function installManifest(){
+  if (!ONDISK) return;
+  var icon192 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAIAAADdvvtQAAAE70lEQVR42u3dPXbbRhSG4eucdCnSZFPuXHoHLtTYldfgSmlYcAcu3WV7KZjoSBQIzB9m8PO8lY6PhrgzfAmBmIvPH/74868ASvnNEoBAIBAIBAIBBAKBQCAQCCAQCAQCgUAAgUAgEAgEAloI9Hy57nf4Furf+wL+Xnnsz58+Rlwj4tvTl4Lh378+3X7oPHwj9X/+9DEiRhdQuIA3PhT0RL+d/H/8/PVPYh0vM3/9jz/+vvQZvpH6744+vID0o1cJ9GjyiXVMzjx9FSqHb6T+maMPL6BAo1SBUiY/U8fizOdXoXL4RupPPPrwArI0ShLo+XJNn/zrOm5FPF+uiTO/W4XK4S+rMLz+gqMPL+Dl6Cf9Gl+w4nAfCAQCgUAggEAgEAgEAgEEAoH2ym136ZAccDM1VthNPNVubvvN1PQ67o79fLlmrcLkzF+/2uIi3r3CZAFZ/QxZBczX338B66ffWKCZOt7P/PY7iR+mmQ/N5Cu/X8T3azdfwGJHVVYB6fX3WcD66a8oUEqJiW/P969Pj07471/h0SJOvnnzw8uWuGH9BQs4OXyygPT1nzx6J4EKTpKTq5B+rfBoFRILmFypyQJm6p//C1VfwHrDE9e/t0CJS594qkx8hfWGp1xprlpAh+E155u1BGrVsln5JaXP8EPWP1KgJi2blS2n/YcfqX43EjEMAoFAIBAIBAIBBAKBQCAQCFjEXpj6NyBQ1jS2vJsdduM7CzS2n6Z5O07/+qNpP1P/fqD2IZvfnr7c/iWxo+9uEf//Iakj8cHRl4e3qr+4gEchm5X1zwx/bOpWQzZX6imuPHqr+tsOj/ye6MqW6t2EbDZ8qqHy6K3qX294pD2VUflQx3lDNmsea/ItL84csll29GgXsnnmjseT3kgse8+QizvRIBAIBAKBQACBQCAQCAQCCLQJhGwe5H/8G7gZuaPd3IOHbPZsh4jR/STHaedY1KhzyObaDVkxuqPtmA1lkxoNDNm8/U5NSGVlyOajkMpuIZuV6y9kU8imkM38V/BYz0rrP0wgD+Z5sHDdE8/8h0nLqZBNnBQCgUAgEAgEAgEEAoFAIBAIWMRemPo3IFDWNIRs2o1/U7SQzZr6Q8imkM0Qsln/p0rIZgjZrL/KEbIZQjbrv2cJ2Qwhm7mX9zOXbEI2hWzuDyGbfXAnGgQCgUAgEAggEAgEAoFAAIE2gZBNIZtCNusESqxDyGYI2SzTSMhmCNks00jIZgjZLEbIppBNIZt5V5oe62kvkAfzPFi47oln/sOk5VTIJk4KgUAgEAgEAoEAAoFAIBAIBCxiL0z9GxAoaxpCNu3GvylayGZN/SFkU8hmCNms/1MlZDOEbNZf5QjZDCGb9d+zhGyGkM3cy/uZSzYhm0I294eQzT64Ew0CgUAgEAgEEAgEAoFAIIBAm0DIppBNIZt1AiXWIWQzhGyWaSRkM4RslmkkZDOEbBYjZFPIppDNvCtNj/W0F8iDeR4sXPfEM/9h0nIqZBMnhUAgEAgEAoFAAIFAIBAIBAIWsRem/g0IlDUNIZt24xc0Su+nyXoXOwzfe/25/UBbFCjSOvpy38XOw/def6uO1TEC3b0NZdWPHb73+lt1rI4U6GUmNdWPHb73+uunP14guA8EEAgEAoFAIIBAIBAIBAKBQACBQCAQCAQCCAQCgUAgEEAgEAgEwiH5F2UhUEvm+EGQAAAAAElFTkSuQmCC";
+  var icon512 = "data:image/png;base64,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";
+  var manifest = {
+    name: "Hex Floor", short_name: "Hex Floor", start_url: ".", scope: ".",
+    display: "standalone", background_color: "#0b0f14", theme_color: "#0b0f14",
+    orientation: "any",
+    icons: [
+      {src: icon192, sizes: "192x192", type: "image/png", purpose: "any"},
+      {src: icon512, sizes: "512x512", type: "image/png", purpose: "any maskable"}
+    ]
+  };
+  try {
+    var url = URL.createObjectURL(new Blob([JSON.stringify(manifest)], {type:"application/manifest+json"}));
+    var link = document.createElement("link");
+    link.rel = "manifest"; link.href = url;
+    document.head.appendChild(link);
+  } catch (e) {}
+})();
+
+if (!ONDISK && "serviceWorker" in navigator){
+  try { navigator.serviceWorker.register("sw.js").catch(function(){}); } catch (e) {}
+}
+
+render();
+</script>
+</body>
+</html>

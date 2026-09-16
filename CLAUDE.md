@@ -1,12 +1,14 @@
 # periodization
 
-Two single-file workout trackers, deployed together to GitHub Pages from the repo root.
+Four single-file apps, deployed together to GitHub Pages from the repo root: three workout
+trackers and a floor planner.
 
 | App | File | Program |
 | --- | --- | --- |
 | **PPL Block** | `indie.html` | 4-day Push / Pull / Legs / Full Body split on five-week blocks, RP-style autoregulation. |
 | **Rolling Five** | `victor.html` | 5-slot rolling cycle — push, pull, legs, and two skill days for the handstand pushup and front lever. |
 | **Prove It** | `meep.html` | 4-day upper/lower hypertrophy. Every exercise ends in a proof set, and the effort rating is audited against the log. |
+| **Hex Floor** | `hex.html` | Bathroom floor planner on a hex mosaic grid. The grouted-in dotted border is fixed data; every other tile toggles black or white, and layouts save to the device. |
 
 They share nothing at runtime: separate files, separate `localStorage` keys, separate manifests,
 separate home-screen installs. `meep.html` carries a copy of `victor.html`'s rest timer and alarm;
@@ -19,21 +21,24 @@ that is a copy on purpose, because a shared file would be a second file. They sh
 | `indie.html` | PPL Block, entire. No dependencies, no build step. |
 | `victor.html` | Rolling Five, entire. Same rules. |
 | `meep.html` | Prove It, entire. Same rules. |
-| `index.html` | Site root. Offers both apps; installs go straight to the app files. |
-| `sw.js` | Service worker for the hosted copies. Network first, cache fallback, both apps in the shell. |
+| `hex.html` | Hex Floor, entire. Same rules. |
+| `index.html` | Site root. Offers all four apps; installs go straight to the app files. |
+| `sw.js` | Service worker for the hosted copies. Network first, cache fallback, every app in the shell. |
 | `manifest.webmanifest` | PWA manifest for PPL Block. Icons are inline data URIs. |
 | `victor.webmanifest` | PWA manifest for Rolling Five. |
 | `meep.webmanifest` | PWA manifest for Prove It. |
+| `hex.webmanifest` | PWA manifest for Hex Floor. |
 | `.nojekyll` | Keeps Pages from running the files through Jekyll. |
-| `.github/workflows/test.yml` | All three suites on pushes and pull requests. |
+| `.github/workflows/test.yml` | All four suites on pushes and pull requests. |
 | `test.mjs` | PPL Block regression suite. No test framework. |
 | `test-victor.mjs` | Rolling Five regression suite. Same harness, same style. |
 | `test-meep.mjs` | Prove It regression suite. Same again. |
+| `test-hex.mjs` | Hex Floor regression suite. Same again, with a canvas stub. |
 | `CLAUDE.md` | This file. |
 
 ## Hard constraints
 
-These are not preferences, and they apply to both apps. Breaking any of them breaks the
+These are not preferences, and they apply to every app. Breaking any of them breaks the
 deployment model.
 
 1. **One file.** Each app ships as a single artifact: inline CSS, inline JS, base64 icons.
@@ -41,11 +46,11 @@ deployment model.
    test for whether a change belongs in the file or beside it. The service worker and the two
    manifests are the only siblings, they exist purely for the hosted copies, and each app degrades
    cleanly to its inline fallbacks when they are missing. Do not grow that list, and do not start
-   sharing code between the two apps — a shared file is a second file.
+   sharing code between the apps — a shared file is a second file.
 2. **No framework.** Vanilla ES5-flavoured JS, `var` and `function`, so it parses on old
    WebKit without transpilation. Do not introduce React, JSX, or module syntax.
-3. **Pounds only.** 45 lb bar, plates down to 2.5. Every prescribed load passes through
-   `roundLoad()` so it is always something you can actually build on a US rack.
+3. **Pounds only** in the training apps. 45 lb bar, plates down to 2.5. Every prescribed load
+   passes through `roundLoad()` so it is always something you can actually build on a US rack.
 4. **The engine is pure.** Everything in the `ENGINE` banner takes arguments and returns values.
    It touches no DOM, no globals, no clock — anything time-dependent takes `now` as an argument.
    This is what makes the test suites possible — keep new logic on that side of the line.
@@ -408,7 +413,7 @@ program nor log:
   after the render, guarded, because a note you must tap twice to write is a note you do not
   write.
 - Note text is the only user-authored string the app puts on screen, so it goes through `esc()`
-  in both the display and the textarea. It is the only place in any of the three apps that needs
+  in both the display and the textarea. It is the only place in any of the training apps that needs
   it — everything else rendered is program text or a number.
 
 ## The past-sessions log
@@ -633,7 +638,82 @@ the demo; rebuilding `#app` inside the handler would pull the anchor out from un
 `state.draft.watched` holds the answers, so they last the session and are gone by the next one —
 a movement that is still new asks again next week, which is the point.
 
-# All three apps
+# Hex Floor (`hex.html`)
+
+A planner for the black-and-white pattern of one specific bathroom floor: hex mosaic, white field,
+with a dotted black border already grouted in. It is not a training app, but it is built to the
+same rules, and its engine is the floor's geometry rather than a progression.
+
+## The grid
+
+Pointy-top hexagons in horizontal rows. A cell is `(c, r)`; odd rows sit half a cell east. Centres
+in units of one hex width are `x = c + (r odd ? 0.5 : 0)`, `y = r * HEX_H` with `HEX_H = 0.866`.
+North is row decreasing, east is column increasing, so the plan draws with the bay window at the
+top, the entry door at the bottom, the vanity wall on the right and the shower and toilet room on
+the left. Cell `(0, 0)` is the north-west corner dot of the main border. Keys are the string
+`"c,r"`, and the same key is used in storage.
+
+The border pattern is one black, one white, one black. Along a row that is every other column; down
+a column it is every other row, which is a straight line because rows two apart share an offset.
+Every fixed run is therefore on an even row and steps by two, and the tests check that.
+
+## Layout of `hex.html`
+
+- `PROGRAM` — `FLOOR` (the cells that exist, as inclusive rectangles plus the chamfered bay),
+  `SEGMENTS` (the fixed border, one entry per straight run with the dot count read off the photos
+  and which photos it was counted in), `LABELS` (room names painted on the canvas). `floor` and
+  `fixed` are built from these once at load. **The border is data.** If the site disagrees with a
+  count, change the run here and the test that pins it; nothing else knows the numbers.
+- `ENGINE` — pure. `hexCenter` / `hexAt` (nearest centre wins, which is exactly the hexagon the
+  point is in), `hexCorners`, the layout reducers `toggleCell` / `paintCell` / `undo`, `counts`,
+  `serialize` / `deserialize`, and the view transform `fitView` / `zoomAt` / `panBy`.
+- `STORAGE` — `localStorage` under `hex-floor-v1`, in-memory fallback. Holds `layouts` and the
+  `draft`, which is the open design and is saved on every change so a reload keeps unsaved work.
+- `STATE` — `state`, `tab`, the `view` transform, `brush` and `paintBlack`, the rename and delete
+  confirmations, and the pointer bookkeeping.
+- `VIEWS`, `RENDER`, `ACTIONS`, `PWA` — as the others.
+
+## What a layout is
+
+A layout is a name and the list of tiles the user turned black. The border is in the program, so
+it is never stored; `deserialize` drops any cell that is not a paintable floor tile, so a layout
+saved against an older reading of the floor cannot paint a wall or unpaint a fixed dot. `past` is
+the undo stack and is not persisted.
+
+Two reducers because two gestures: `toggleCell` flips, for a tap; `paintCell` sets, for a brush,
+so a stroke crossing a tile twice leaves it the colour asked for, and `cont` continues a stroke
+without opening a new undo step.
+
+## Render discipline
+
+The canvas is rebuilt by every `render()`, so `mountCanvas` sizes it, wires the pointer handlers
+and paints. **Nothing on the canvas re-renders.** A tap, a stroke, a pan or a pinch changes `state`
+or `view` and calls `paint()`, which redraws the canvas on the next animation frame and pokes the
+counts box and the Undo button by hand. The name field is on the same no-render path, the same
+reason as the set fields in the training apps: rebuilding `#app` under a finger loses the gesture,
+and under a keyboard loses the keyboard.
+
+`drawCells` draws the visible cells as five batched paths (grout, white, black, fixed, rings) rather
+than a path per tile; that is what keeps a pan smooth with fourteen thousand cells in view. The
+same function draws the Layouts thumbnails and the exported PNG, at other scales.
+
+## What was inferred
+
+The Plan tab says it in full. The dot counts are the deliverable and were each read in at least two
+photos except the threshold row (one) and the toilet room (one, but 10 × 17 is unambiguous there).
+Two runs are continued straight through parts no photo shows: the west column behind the shower's
+south wall (rows 44–60) and the passage row west of column −33. The white margins between each
+border and its wall, the bay's chamfer and the door recess beyond the threshold row are read to
+about a cell; they decide which tiles exist to paint, not where any black dot sits.
+
+## Backlog
+
+- Mirror painting (left–right, top–bottom) for symmetric medallions.
+- Export / import of layouts as JSON, and the state as a whole. Same gap as the other apps.
+- A tile count per colour that accounts for sheets (mosaic comes on 12 × 12 sheets), for ordering.
+- Let the floor extents be edited in the app rather than in `FLOOR`.
+
+# All four apps
 
 ## Testing
 
@@ -641,24 +721,26 @@ a movement that is still new asks again next week, which is the point.
 node test.mjs          # PPL Block, 31 checks
 node test-victor.mjs   # Rolling Five, 66 checks
 node test-meep.mjs     # Prove It, 47 checks
+node test-hex.mjs      # Hex Floor, 20 checks
 ```
 
 Each suite extracts the `<script>` body from its HTML file, stubs the handful of browser APIs the
-app touches, and drives it by firing the same synthetic `click` and `input` events the real UI
-fires. They run whole simulated blocks and cycles, so they cover the engines, the reducers, and
-the fact that every screen renders without throwing. All passing at handoff.
+app touches, and drives it by firing the same synthetic `click`, `input` and pointer events the
+real UI fires. The training suites run whole simulated blocks and cycles; the floor suite pins
+every border run's dot count. They cover the engines, the reducers, and the fact that every screen
+renders without throwing. All passing at handoff.
 
-Add a check for any progression rule you change. Both suites are fast enough to run on every
-edit, and CI runs both.
+Add a check for any progression rule or border run you change. The suites are fast enough to run
+on every edit, and CI runs all of them.
 
 ## Deploying
 
 GitHub Pages, source **Deploy from a branch** — `main`, `/ (root)`. A push to `main` is a
 deploy: GitHub's own `pages-build-deployment` run copies the repo root to the site. There is no
 deploy workflow, and `.github/workflows/test.yml` only runs the suite — **it cannot block a
-publish**, so run both suites before you push. The apps land at
+publish**, so run every suite before you push. The apps land at
 `https://<owner>.github.io/periodization/indie.html`,
-`.../victor.html` and `.../meep.html`; `/` offers all three.
+`.../victor.html`, `.../meep.html` and `.../hex.html`; `/` offers all four.
 
 Do not add an `actions/deploy-pages` workflow back. With a branch source it cannot work:
 `configure-pages` wants the site's build type to be `workflow`, and switching that is an
