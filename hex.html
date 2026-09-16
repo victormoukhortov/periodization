@@ -135,21 +135,20 @@ var HEX_H = 0.8660254;
    and its wall are read off the photos to about a cell. */
 var FLOOR = {
   rects: [
-    [-3, 61, -2, 70],   /* main room out to its walls */
-    [-8, -4, 7, 70],    /* strip between the shower mouth and the main border */
+    [-2, 61, -2, 70],   /* main room out to its walls */
+    [-8, -3, 7, 43],    /* the shower mouth, between its east column and the main border */
     [-42, -9, 7, 43],   /* shower */
-    [-9, -4, 44, 47],   /* past the east end of the shower's south wall */
-    [-42, -9, 48, 70],  /* passage south of the shower, north of the toilet room */
-    [8, 42, 71, 84],    /* door neck out to the threshold */
-    [-30, -7, 71, 113]  /* toilet room */
+    [-42, -8, 48, 70],  /* toilet room, directly south of the shower through the niche wall */
+    [-7, -3, 51, 66],   /* the toilet room's door, in its east wall */
+    [8, 42, 71, 84]     /* door neck out to the threshold */
   ],
   bay: {top: -14, bottom: -3, c0: 2, c1: 56}
 };
 
 /* Solid walls drawn inside the floor's bounding box, for orientation only. */
 var LABELS = [
-  {t:"BAY WINDOW", c:29, r:-9}, {t:"VANITY", c:63.5, r:34, rot:1}, {t:"DOOR", c:25, r:88},
-  {t:"SHOWER", c:-25, r:25}, {t:"WC", c:-18.5, r:94}, {t:"NICHE WALL", c:-26, r:45.6, small:1}
+  {t:"BAY WINDOW", c:29, r:-9}, {t:"VANITY", c:63.5, r:34, rot:1, light:1}, {t:"DOOR", c:25, r:88, light:1},
+  {t:"SHOWER", c:-25, r:25}, {t:"WC", c:-25, r:59}, {t:"NICHE WALL", c:-23, r:45.6, small:1, light:1}
 ];
 
 /* The fixed border. Each run is a straight dotted line from one dot to another,
@@ -169,12 +168,11 @@ var SEGMENTS = [
   {id:"shower-north", name:"Shower, north row", from:[-41,8], to:[-9,8], dots:17, seen:"A, B"},
   {id:"shower-south", name:"Shower, south row, along the niche wall", from:[-41,42], to:[-9,42], dots:17, seen:"A, C"},
   {id:"shower-west", name:"Shower, west column, back wall", from:[-41,8], to:[-41,42], dots:18, seen:"A"},
-  {id:"west-run", name:"West column: shower mouth, then on to the passage", from:[-9,8], to:[-9,68], dots:31, seen:"A, B, C, D", inferred:"rows 44 to 60 are behind the niche wall in every photo"},
-  {id:"passage-south", name:"Passage, south row, across the toilet room door", from:[-41,68], to:[-9,68], dots:17, seen:"C, D", inferred:"west of column -33 is out of frame"},
-  {id:"wc-north", name:"Toilet room, north row", from:[-27,78], to:[-9,78], dots:10, seen:"D"},
-  {id:"wc-south", name:"Toilet room, south row", from:[-27,110], to:[-9,110], dots:10, seen:"D"},
-  {id:"wc-east", name:"Toilet room, east column", from:[-9,78], to:[-9,110], dots:17, seen:"D"},
-  {id:"wc-west", name:"Toilet room, west column", from:[-27,78], to:[-27,110], dots:17, seen:"D"}
+  {id:"shower-east", name:"Shower, east column, at the door", from:[-9,8], to:[-9,42], dots:18, seen:"A, B, C"},
+  {id:"wc-north", name:"Toilet room, north row, along the niche wall", from:[-41,50], to:[-9,50], dots:17, seen:"D"},
+  {id:"wc-south", name:"Toilet room, south row", from:[-41,68], to:[-9,68], dots:17, seen:"C, D"},
+  {id:"wc-east", name:"Toilet room, east column, at the door", from:[-9,50], to:[-9,68], dots:10, seen:"C, D"},
+  {id:"wc-west", name:"Toilet room, west column, behind the toilet", from:[-41,50], to:[-41,68], dots:10, seen:"D"}
 ];
 
 function segmentCells(seg){
@@ -490,8 +488,8 @@ function viewLayouts(){
 function viewPlan(){
   var h = '<main class="scroll"><div class="wrap plan">';
   h += '<h2>The floor</h2>' +
-    '<p>Pointy-top hex mosaic in horizontal rows. The plan is drawn with the <b>bay window at the top</b>, the <b>entry door at the bottom</b>, the <b>vanity wall on the right</b> and the <b>shower and toilet room on the left</b>. Cell (0, 0) is the north-west corner dot of the main border; columns count east, rows count south, and odd rows sit half a cell east.</p>' +
-    '<p>The dotted border is grouted in and cannot be changed here. Along a row it puts a black on every other tile; down a column it puts one on every other row, which lands in a straight line. Every run below was counted dot by dot in the photos it names: A looks west into the shower, B looks north from the door, C looks south from the bay, D looks into the toilet room.</p>' +
+    '<p>Pointy-top hex mosaic in horizontal rows. The plan is drawn with the <b>bay window at the top</b>, the <b>entry door at the bottom</b>, the <b>vanity wall on the right</b> and the <b>shower on the left with the toilet room below it</b>. Cell (0, 0) is the north-west corner dot of the main border; columns count east, rows count south, and odd rows sit half a cell east.</p>' +
+    '<p>The dotted border is grouted in and cannot be changed here. Along a row it puts a black on every other tile; down a column it puts one on every other row, which lands in a straight line. Every run below was counted dot by dot in the photos it names: A looks west into the shower, B looks north from the door, C looks south from the bay, D looks west into the toilet room from the main room.</p>' +
     '<div class="legend"><span><i style="background:#f4f4f2"></i>tile</span><span><i style="background:#111;box-shadow:inset 0 0 0 2px #f5c542"></i>fixed dot</span><span><i style="background:#111"></i>your tile</span><span><i style="background:#0b0f14;border:1px solid #444"></i>wall</span></div>';
   h += '<table><tr><th>Run</th><th>From → to</th><th style="text-align:right">Dots</th><th>Photos</th></tr>';
   for (var i = 0; i < SEGMENTS.length; i++){
@@ -504,9 +502,9 @@ function viewPlan(){
   h += '<p style="margin-top:10px"><b class="num">' + FIXED_N + '</b> fixed dots in all, corners counted once. <b class="num">' + FLOOR_N + '</b> tiles on the floor, so <b class="num">' + (FLOOR_N - FIXED_N) + '</b> can be painted.</p>';
   h += '<h2>What checks out</h2>' +
     '<p>The main border is 30 dots across at the bay and 35 down each side. Its south side is stepped around the door: 10 dots east of the door, 8 down the recess, 16 across the threshold, 8 back up and 6 to the west corner. 9 + 15 + 5 intervals is the same 29 as the north row, so the shape closes.</p>' +
-    '<p>The shower rectangle is 17 dots east–west by 18 north–south in both photos that show it. The toilet room is 10 by 17. Both hang off the same column, nine cells west of the main border, which runs from the shower mouth south to the toilet room door.</p>';
+    '<p>The shower rectangle is 17 dots east–west by 18 north–south in both photos that show it. The toilet room sits directly south of it through the niche wall, the same 17 dots wide and 10 deep, its east column on the same line as the shower’s, nine cells west of the main border. Its door opens east into the main room; photo D is taken from there, with the main border’s west column across the bottom of the frame.</p>';
   h += '<h2>What is estimated</h2>' +
-    '<p>The white margins between each border and its wall, the bay window’s chamfered shape, and the depth of the door recess beyond the threshold row are read to about one cell. They decide which tiles exist to paint, not where any black dot sits. The two greyed runs above are partly hidden or out of frame; their visible ends fix them, the middle is continued straight.</p>' +
+    '<p>The white margins between each border and its wall, the bay window’s chamfered shape, the toilet room door’s position in its east wall, and the depth of the entry recess beyond the threshold row are read to about one cell. They decide which tiles exist to paint, not where any black dot sits. The offset of the shower and toilet room from the main border read as nine cells in one photo and just under in another; nine is used.</p>' +
     '<p>Edit the rectangles in <span class="num">FLOOR</span> and the runs in <span class="num">SEGMENTS</span> at the top of the file if the site says otherwise. The tests count every run.</p>';
   h += '<h2>Using it</h2>' +
     '<p>Tap a tile to flip it. Drag to move around, pinch or scroll to zoom, Fit to see the whole floor. Brush paints along a drag in the chosen colour; two fingers still move the view. Undo steps back one tap or one stroke. Save keeps the design on this device under its name; Save as keeps a copy. Image downloads the plan as a PNG for the tile setter.</p>';
@@ -596,10 +594,10 @@ function drawCells(ctx, v, w, h, L, opts){
     ctx.stroke();
   }
   if (opts.labels && s >= 2.2){
-    ctx.fillStyle = "rgba(20,24,30,0.45)";
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     for (i = 0; i < LABELS.length; i++){
       var lb = LABELS[i], q = hexCenter(lb.c, lb.r);
+      ctx.fillStyle = lb.light ? "rgba(255,255,255,0.5)" : "rgba(20,24,30,0.45)";
       var fs = Math.max(10, Math.min(18, s * (lb.small ? 1.4 : 2.2)));
       ctx.font = "800 " + fs + "px -apple-system,system-ui,sans-serif";
       var lx = q.x * s + v.tx, ly = q.y * s + v.ty;

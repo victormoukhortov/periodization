@@ -94,9 +94,8 @@ const S = app.S;
 const EXPECT = {
   "main-north": 30, "main-east": 35, "main-west": 35,
   "step-east": 10, "neck-east": 8, "threshold": 16, "neck-west": 8, "step-west": 6,
-  "shower-north": 17, "shower-south": 17, "shower-west": 18, "west-run": 31,
-  "passage-south": 17,
-  "wc-north": 10, "wc-south": 10, "wc-east": 17, "wc-west": 17
+  "shower-north": 17, "shower-south": 17, "shower-west": 18, "shower-east": 18,
+  "wc-north": 17, "wc-south": 17, "wc-east": 10, "wc-west": 10
 };
 
 check("every border segment has the dot count read off the photos", () => {
@@ -120,11 +119,14 @@ check("the main border closes: north row spans the same width as the stepped sou
   eq(Math.min(...west), 0); eq(Math.max(...west), Math.min(...thr));
 });
 
-check("the shower run is 18 dots down its east side, then 13 more to the passage", () => {
-  const run = S.segmentCells(S.SEGMENTS.find(s => s.id === "west-run"));
-  eq(run.filter(c => c[1] <= 42).length, 18);
-  eq(run.filter(c => c[1] > 42).length, 13);
-  eq(run.every(c => c[0] === -9), true);
+check("the toilet room sits directly under the shower: same width, same east and west columns", () => {
+  const cells = id => S.segmentCells(S.SEGMENTS.find(s => s.id === id));
+  const sw = cells("shower-west"), se = cells("shower-east"), ww = cells("wc-west"), we = cells("wc-east");
+  eq(sw[0][0], ww[0][0]); eq(se[0][0], we[0][0]);
+  eq(se[0][0] - sw[0][0], 32);
+  ok(ww[0][1] > sw[sw.length - 1][1], "toilet room starts south of the shower's last row");
+  ok(!S.floor["-20,45"] && !S.floor["-20,47"], "the niche wall is not floor");
+  ok(S.floor["-20,43"] && S.floor["-20,48"], "tile on both sides of it");
 });
 
 check("row-lines step two columns, column-lines step two rows, all on even rows", () => {
@@ -144,9 +146,9 @@ check("every fixed dot sits on the floor, and corners are shared not doubled", (
   const fixedN = Object.keys(S.fixed).length;
   ok(fixedN < n, "corners should merge");
   Object.keys(S.fixed).forEach(k => ok(S.floor[k], "fixed cell off floor " + k));
-  /* 17 shared corners: main NW, NE, SE, SW; neck top/bottom on each side (4); shower NW, NE,
-     SW, SE; where the west run meets the passage row; the toilet room's four. */
-  eq(fixedN, n - 17);
+  /* 16 shared corners: four each on the main border, the door recess, the shower and the
+     toilet room. */
+  eq(fixedN, n - 16);
 });
 
 check("the floor is one connected region", () => {
@@ -194,7 +196,7 @@ check("a white floor tile toggles black and back; fixed and off-floor tiles neve
   eq(L.cells.join("|"), before.join("|"));
   L = S.toggleCell(L, 200, 200);      // nowhere
   eq(L.cells.join("|"), before.join("|"));
-  L = S.toggleCell(L, -20, 45);       // inside the niche wall
+  L = S.toggleCell(L, -20, 46);       // inside the niche wall
   eq(L.cells.join("|"), before.join("|"));
 });
 
@@ -229,7 +231,7 @@ check("serialize round-trips and drops anything that is not a paintable floor ti
   let L = S.blankLayout(); L = S.toggleCell(L, 20, 20); L.name = "Test";
   const back = S.deserialize(JSON.parse(JSON.stringify(S.serialize(L))));
   eq(back.name, "Test"); eq(back.cells.join(), "20,20");
-  const junk = S.deserialize({name:"J", cells:["20,20", "0,0", "999,999", "x", "-20,45"]});
+  const junk = S.deserialize({name:"J", cells:["20,20", "0,0", "999,999", "x", "-20,46"]});
   eq(junk.cells.join(), "20,20");
 });
 

@@ -125,13 +125,13 @@ dangerous to fail alone, so there is no barbell bench and no back squat.
 
 The floor is hex mosaic, white field with a dotted black border already grouted in: one
 black, one white, one black along every run. The app draws the plan on that grid with the bay
-window at the top, the entry door at the bottom, the vanity wall on the right and the shower and
-toilet room on the left.
+window at the top, the entry door at the bottom, the vanity wall on the right, and the shower on
+the left with the toilet room directly below it.
 
 - **The border is fixed.** Every run was counted dot by dot in the site photos and is data at the
   top of the file; the Plan tab lists each run with its count and the photos it was read from, and
   the test suite checks the geometry produces exactly those counts. Main border 30 × 35 dots with a
-  stepped door recess (10, 8, 16, 8, 6); shower 17 × 18; toilet room 10 × 17.
+  stepped door recess (10, 8, 16, 8, 6); shower 17 × 18; toilet room 17 × 10 on the same columns.
 - **Everything else is yours.** Tap a tile to flip it; drag to move, pinch to zoom. Brush mode paints
   along a drag. Undo steps back a tap or a stroke.
 - **Layouts live on the device.** Save under a name, Save as for a copy, and the Layouts tab shows

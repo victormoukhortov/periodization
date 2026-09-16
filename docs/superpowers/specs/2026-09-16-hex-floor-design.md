@@ -45,29 +45,32 @@ included, and each was counted from at least two photos.
 | Shower north row | `(-41..-9 step 2, 8)` | 17 |
 | Shower south row | `(-41..-9 step 2, 42)` | 17 |
 | Shower west column | `(-41, 8..42 step 2)` | 18 |
-| West column, shower through passage | `(-9, 8..68 step 2)` | 31 (18 shower + 13 more) |
-| Passage south row | `(-41..-9 step 2, 68)` | 17 |
-| Toilet room north row | `(-27..-9 step 2, 78)` | 10 |
-| Toilet room south row | `(-27..-9 step 2, 110)` | 10 |
-| Toilet room east column | `(-9, 78..110 step 2)` | 17 |
-| Toilet room west column | `(-27, 78..110 step 2)` | 17 |
+| Shower east column | `(-9, 8..42 step 2)` | 18 |
+| Toilet room north row | `(-41..-9 step 2, 50)` | 17 |
+| Toilet room south row | `(-41..-9 step 2, 68)` | 17 |
+| Toilet room east column | `(-9, 50..68 step 2)` | 10 |
+| Toilet room west column | `(-41, 50..68 step 2)` | 10 |
 
 Consistency checks that hold: north row 29 intervals = 9 + 15 + 5 across the south side; east and
-west columns both 35; shower rows both 17 and columns both 18; toilet rows both 10 and columns 17.
+west columns both 35; shower rows both 17 and columns both 18; toilet room rows both 17 and columns
+both 10, on the same two column lines as the shower. The toilet room is directly south of the
+shower through the niche wall; its door is in its east wall, and photo D is taken from the main
+room looking west through it, which is why the main border's west column crosses the bottom of
+that frame.
 
 What is inferred rather than counted, and stated as such in the app's Plan tab:
 
-- The west column continues behind the shower's south wall from row 44 to row 60 (dots at rows
-  62–68 and 8–42 are visible; the run between is hidden by the wall).
-- The passage south row west of the toilet room door (beyond column −33) and the toilet room
-  rectangle's exact east-west position (±1 column).
-- Every white margin between a border and a wall, and the bay window's shape. These only decide
-  which cells exist to be painted; they do not move a single black dot.
+- The offset of the shower and toilet room columns from the main border (nine cells, read as 9.4
+  in one photo and 8.8 in another).
+- Every white margin between a border and a wall, the bay window's shape, and where the toilet
+  room's door sits in its east wall. These only decide which cells exist to be painted; they do
+  not move a single black dot.
 
-Floor extent (cells that exist), built from rectangles: main room `(-3..61, -2..70)` plus the
-strip `(-8..-4, 7..70)`; shower `(-42..-9, 7..43)`; passage `(-42..-9, 48..70)` and the gap east of
-the niche wall `(-9..-4, 44..47)`; door neck `(8..42, 71..84)`; toilet room `(-30..-7, 71..113)`;
-bay `rows -14..-3`, spanning `(2+k .. 56-k)` at row `-3-k`.
+Floor extent (cells that exist), built from rectangles: main room `(-2..61, -2..70)`; shower
+`(-42..-9, 7..43)` plus its mouth `(-8..-3, 7..43)`; toilet room `(-42..-8, 48..70)` with its door
+`(-7..-3, 51..66)`; door neck `(8..42, 71..84)`; bay `rows -14..-3`, spanning `(2+k .. 56-k)` at
+row `-3-k`. The niche wall `(-42..-3, 44..47)` and the toilet room's east wall `(-7..-3)` are
+not floor.
 
 ## Architecture
 

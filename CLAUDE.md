@@ -649,8 +649,9 @@ same rules, and its engine is the floor's geometry rather than a progression.
 Pointy-top hexagons in horizontal rows. A cell is `(c, r)`; odd rows sit half a cell east. Centres
 in units of one hex width are `x = c + (r odd ? 0.5 : 0)`, `y = r * HEX_H` with `HEX_H = 0.866`.
 North is row decreasing, east is column increasing, so the plan draws with the bay window at the
-top, the entry door at the bottom, the vanity wall on the right and the shower and toilet room on
-the left. Cell `(0, 0)` is the north-west corner dot of the main border. Keys are the string
+top, the entry door at the bottom, the vanity wall on the right, and on the left the shower with
+the toilet room directly south of it through the niche wall. Cell `(0, 0)` is the north-west
+corner dot of the main border. Keys are the string
 `"c,r"`, and the same key is used in storage.
 
 The border pattern is one black, one white, one black. Along a row that is every other column; down
@@ -700,11 +701,11 @@ same function draws the Layouts thumbnails and the exported PNG, at other scales
 ## What was inferred
 
 The Plan tab says it in full. The dot counts are the deliverable and were each read in at least two
-photos except the threshold row (one) and the toilet room (one, but 10 × 17 is unambiguous there).
-Two runs are continued straight through parts no photo shows: the west column behind the shower's
-south wall (rows 44–60) and the passage row west of column −33. The white margins between each
-border and its wall, the bay's chamfer and the door recess beyond the threshold row are read to
-about a cell; they decide which tiles exist to paint, not where any black dot sits.
+photos except the threshold row and the toilet room's west column. The shower and toilet room share
+two column lines nine cells west of the main border; that offset read as 9.4 in one photo and 8.8
+in another. The white margins between each border and its wall, the bay's chamfer, the toilet room
+door's place in its east wall and the entry recess beyond the threshold row are read to about a
+cell; they decide which tiles exist to paint, not where any black dot sits.
 
 ## Backlog
 
