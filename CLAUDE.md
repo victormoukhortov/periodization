@@ -711,6 +711,16 @@ lift or after a moment of stillness, so a long stroke is not a JSON serialisatio
 toggled from the toolbar. The main room's upright is the centre of the door, column 25, not the
 centre of its walls: a pattern symmetric about that line reads as centred from the doorway.
 
+## Starting points
+
+`PRESETS` holds ready-made layouts the Layouts tab offers under "Starting points": the guest
+bathroom's water-over-rock motif, transcribed tile for tile from a photo by fitting the hex
+lattice to its black tiles, then turned so the long axis runs north-south with the narrow end at
+the door, at 1.5x and 2x. Starting one opens it as an unsaved draft with the preset's name, so
+it costs nothing to try and is saved only when she says so. A preset is a cell list exactly like
+a saved layout, and the test suite checks every cell is paintable and the whole is mirror-symmetric
+about the door line and the cross line.
+
 ## What was inferred
 
 The Plan tab says it in full. The dot counts are the deliverable and were each read in at least two
@@ -735,7 +745,7 @@ cell; they decide which tiles exist to paint, not where any black dot sits.
 node test.mjs          # PPL Block, 31 checks
 node test-victor.mjs   # Rolling Five, 66 checks
 node test-meep.mjs     # Prove It, 47 checks
-node test-hex.mjs      # Hex Floor, 22 checks
+node test-hex.mjs      # Hex Floor, 23 checks
 ```
 
 Each suite extracts the `<script>` body from its HTML file, stubs the handful of browser APIs the

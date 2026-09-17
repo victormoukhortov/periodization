@@ -154,6 +154,15 @@ var GUIDES = [
   {v: -25, r0: 48, r1: 70, room: "wc"}, {h: 59, c0: -42.5, c1: -7.5, room: "wc"}
 ];
 
+/* Starting points: the guest bathroom's water-over-rock motif, transcribed
+   tile for tile from the photo, turned so its long axis runs north-south with
+   the narrow end at the door, at two sizes. Each is a list of cells exactly
+   like a saved layout, so opening one is opening a layout. */
+var PRESETS = [
+  {id: "wave-15", name: "Guest motif, 1.5x", cells: ["20,29", "20,30", "20,31", "20,37", "20,38", "20,39", "21,25", "21,27", "21,30", "21,38", "21,41", "21,43", "22,26", "22,42", "24,21", "24,33", "24,34", "24,35", "24,47", "25,14", "25,16", "25,18", "25,21", "25,22", "25,24", "25,26", "25,28", "25,30", "25,33", "25,34", "25,35", "25,38", "25,40", "25,42", "25,44", "25,46", "25,47", "25,50", "25,52", "25,54", "26,34", "28,25", "28,26", "28,27", "28,41", "28,42", "28,43", "29,29", "29,30", "29,31", "29,37", "29,38", "29,39", "30,30", "30,38"]},
+  {id: "wave-20", name: "Guest motif, 2x", cells: ["18,29", "18,30", "18,31", "18,37", "18,38", "18,39", "19,30", "19,38", "20,24", "20,25", "20,26", "20,42", "20,43", "20,44", "21,19", "21,21", "21,47", "21,49", "23,20", "23,48", "24,17", "24,33", "24,34", "24,35", "24,51", "25,10", "25,12", "25,14", "25,17", "25,18", "25,20", "25,22", "25,24", "25,26", "25,28", "25,30", "25,33", "25,34", "25,35", "25,38", "25,40", "25,42", "25,44", "25,46", "25,48", "25,50", "25,51", "25,54", "25,56", "25,58", "26,34", "27,20", "27,48", "28,19", "28,21", "28,47", "28,49", "29,25", "29,43", "30,24", "30,26", "30,42", "30,44", "31,29", "31,30", "31,31", "31,37", "31,38", "31,39", "32,30", "32,38"]}
+];
+
 /* Room names painted on the canvas, for orientation only. */
 var LABELS = [
   {t:"BAY WINDOW", c:29, r:-9}, {t:"VANITY", c:63.5, r:34, rot:1, light:1}, {t:"DOOR", c:25, r:88, light:1},
@@ -532,6 +541,14 @@ function viewLayouts(){
     }
     h += '</div>';
   }
+  h += '<div class="eyebrow" style="margin:22px 0 8px">Starting points</div><div class="grid">';
+  for (var j = 0; j < PRESETS.length; j++){
+    var P = PRESETS[j];
+    h += '<div class="card"><canvas class="pv" data-pv="preset:' + P.id + '" width="320" height="380"></canvas>' +
+      '<div class="body"><h3>' + esc(P.name) + '</h3><div class="meta"><span class="num">' + (FIXED_N + P.cells.length) + '</span> black</div>' +
+      '<div class="acts"><button class="btn go" data-a="preset" data-id="' + P.id + '">Start from this</button></div></div></div>';
+  }
+  h += '</div>';
   h += '<div class="install" id="install"><button class="btn" data-a="install">Add to home screen</button></div>';
   return h + '</div></main>';
 }
@@ -558,7 +575,7 @@ function viewPlan(){
     '<p>The white margins between each border and its wall, the bay window’s chamfered shape, the toilet room door’s position in its east wall, and the depth of the entry recess beyond the threshold row are read to about one cell. They decide which tiles exist to paint, not where any black dot sits. The offset of the shower and toilet room from the main border read as nine cells in one photo and just under in another; nine is used.</p>' +
     '<p>Edit the rectangles in <span class="num">FLOOR</span> and the runs in <span class="num">SEGMENTS</span> at the top of the file if the site says otherwise. The tests count every run.</p>';
   h += '<h2>Using it</h2>' +
-    '<p>Tap a tile to flip it. Drag to move around, pinch or scroll to zoom, Fit to see the whole floor. Brush paints along a drag in the chosen colour; two fingers still move the view. Undo steps back one tap or one stroke. Guides are the centre lines of each room, the main room’s upright being the centre of the door; a pattern that is symmetric about them reads as centred from the doorway. Save keeps the design on this device under its name; Save as keeps a copy. Image downloads the plan as a PNG for the tile setter.</p>';
+    '<p>Tap a tile to flip it. Drag to move around, pinch or scroll to zoom, Fit to see the whole floor. Brush paints along a drag in the chosen colour; two fingers still move the view. Undo steps back one tap or one stroke. Guides are the centre lines of each room, the main room’s upright being the centre of the door; a pattern that is symmetric about them reads as centred from the doorway. Save keeps the design on this device under its name; Save as keeps a copy. Image downloads the plan as a PNG for the tile setter. The Layouts tab also offers starting points: the guest bathroom’s water-over-rock motif, read tile for tile from a photo and turned to run toward the door.</p>';
   return h + '</div></main>';
 }
 
@@ -727,8 +744,12 @@ function drawLabels(ctx, v){
 function paintPreviews(){
   var cvs = document.querySelectorAll("canvas[data-pv]");
   for (var i = 0; i < cvs.length; i++){
-    var cv = cvs[i], id = cv.dataset.pv, L = null;
-    for (var j = 0; j < state.layouts.length; j++) if (state.layouts[j].id === id) L = state.layouts[j];
+    var cv = cvs[i], id = cv.dataset.pv, L = null, j;
+    if (id.indexOf("preset:") === 0){
+      for (j = 0; j < PRESETS.length; j++) if (PRESETS[j].id === id.slice(7)) L = PRESETS[j];
+    } else {
+      for (j = 0; j < state.layouts.length; j++) if (state.layouts[j].id === id) L = state.layouts[j];
+    }
     if (!L) continue;
     var ctx = cv.getContext("2d"), w = cv.width, h = cv.height;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -766,6 +787,12 @@ document.addEventListener("click", function(e){
   if (a === "save"){ commitDraft(false, now); render(); return; }
   if (a === "saveas"){ commitDraft(true, now); render(); return; }
   if (a === "new"){ state.draft = blankLayout(); saveState(); cache = null; render(); return; }
+  if (a === "preset"){
+    for (var p = 0; p < PRESETS.length; p++) if (PRESETS[p].id === id){
+      state.draft = deserialize({name: PRESETS[p].name, cells: PRESETS[p].cells});
+    }
+    saveState(); tab = "design"; cache = null; render(); return;
+  }
   if (a === "tap"){ brush = false; render(); return; }
   if (a === "brush"){ brush = true; render(); return; }
   if (a === "black"){ paintBlack = true; render(); return; }

@@ -185,7 +185,7 @@ python3 -m http.server 8000   # then open http://localhost:8000/
 node test.mjs          # PPL Block, 31 checks
 node test-victor.mjs   # Rolling Five, 66 checks
 node test-meep.mjs     # Prove It, 47 checks
-node test-hex.mjs      # Hex Floor, 22 checks
+node test-hex.mjs      # Hex Floor, 23 checks
 ```
 
 They cover the progression engines, the floor geometry, the reducers, and the fact that every

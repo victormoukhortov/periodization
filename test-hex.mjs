@@ -72,7 +72,7 @@ return { click:click, typeIn:typeIn, H:__handlers, els:__els, S:{
   deserialize:deserialize, blankLayout:blankLayout, state:function(){return state;}, render:render,
   saveState:saveState, loadState:loadState, viewFor:viewFor, tab:function(){return tab;},
   fitView:fitView, KEY:KEY, segmentCells:segmentCells, GUIDES:GUIDES, cacheRegion:cacheRegion,
-  cacheCovers:cacheCovers, BOUNDS:BOUNDS, guides:function(){return guides;}
+  cacheCovers:cacheCovers, BOUNDS:BOUNDS, guides:function(){return guides;}, PRESETS:PRESETS
 }};
 `)(store || mkStore());
 
@@ -189,6 +189,29 @@ check("the bitmap cache covers the view, stays under the pixel cap, and is inval
   ok(S.cacheCovers(q, {scale: fit.scale, tx: fit.tx - 500, ty: fit.ty}, 400, 600), "the whole floor cached: a pan never rebuilds");
 });
 
+check("presets are paintable cells, symmetric about the door line and the cross line, narrow end to the door", () => {
+  S.PRESETS.forEach(P => {
+    const set = {}; P.cells.forEach(k => set[k] = 1);
+    P.cells.forEach(k => {
+      const [c, r] = k.split(",").map(Number);
+      ok(S.floor[k] && !S.fixed[k], P.id + " " + k + " not paintable");
+      const mx = (r % 2 === 0 ? 50 - c : 49 - c) + "," + r, my = c + "," + (68 - r);
+      ok(set[mx], P.id + " no mirror of " + k + " about the door line");
+      ok(set[my], P.id + " no mirror of " + k + " about the cross line");
+    });
+    const rows = P.cells.map(k => +k.split(",")[1]), cols = P.cells.map(k => +k.split(",")[0]);
+    ok(Math.max(...rows) - Math.min(...rows) > 2 * (Math.max(...cols) - Math.min(...cols)), P.id + " should be elongated north-south");
+    ok(set["25,34"] && set["24,33"] && set["26,34"], P.id + " rosette at the centre");
+  });
+  const before = S.state().layouts.length;
+  app.click({a:"tab", t:"layouts"});
+  ok(app.els.app.innerHTML.indexOf('data-pv="preset:wave-15"') >= 0, "preset preview rendered");
+  app.click({a:"preset", id:"wave-20"});
+  eq(S.tab(), "design");
+  eq(S.state().draft.cells.length, S.PRESETS[1].cells.length);
+  eq(S.state().layouts.length, before, "starting a preset does not save on its own");
+});
+
 /* ---- hex maths --------------------------------------------------------- */
 
 check("hexAt inverts hexCenter, including odd and negative rows", () => {
@@ -291,7 +314,7 @@ check("save names a layout, save again overwrites, save-as makes a second one", 
 check("layouts tab lists every saved layout with a preview canvas, and open loads it", () => {
   app.click({a:"tab", t:"layouts"});
   const html = app.els.app.innerHTML;
-  eq((html.match(/<canvas/g) || []).length, 2);
+  eq((html.match(/<canvas/g) || []).length, 2 + S.PRESETS.length);
   ok(html.indexOf("Checker") >= 0);
   const st = S.state();
   app.click({a:"open", id: st.layouts[0].id});
