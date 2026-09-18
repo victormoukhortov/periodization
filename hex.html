@@ -770,6 +770,12 @@ var raf = 0;
    tile changes. While a pinch or a wheel is in flight the stale bitmap is
    simply drawn scaled, and rebuilt once the gesture stops. */
 var cache = null, zooming = false, settle = 0;
+/* Tiles changed since the bitmap was last touched. A canvas that changes has to
+   be re-uploaded to the GPU on the next frame, and this one is tens of
+   megabytes, so a stroke must not write to it on every move. Changed tiles are
+   drawn over the bitmap from here instead, and folded into it once, when the
+   finger lifts. */
+var dirty = {}, dirtyN = 0;
 
 function render(){
   var app = document.getElementById("app");
@@ -815,6 +821,7 @@ function paintFloor(){
       cache.x0 * s + view.tx, cache.y0 * s + view.ty, (cache.x1 - cache.x0) * s, (cache.y1 - cache.y0) * s);
   }
   if (guides) drawGuides(ctx, view);
+  if (dirtyN) drawDirty(ctx, view);
   if (capture) drawCapture(ctx, view);
   drawLabels(ctx, view);
   var el = document.getElementById("counts");
@@ -832,18 +839,42 @@ function buildCache(w, h, dpr){
   drawCells(ctx, {scale: q.scale, tx: -q.x0 * q.scale, ty: -q.y0 * q.scale}, (q.x1 - q.x0) * q.scale, (q.y1 - q.y0) * q.scale,
     state.draft, {rings: true, grout: true});
   cache = {cv: cv, ctx: ctx, x0: q.x0, y0: q.y0, x1: q.x1, y1: q.y1, scale: q.scale, dpr: q.dpr};
+  dirty = {}; dirtyN = 0;   /* drawn fresh from the draft, so nothing is outstanding */
 }
 
 /* One tile changed: paint that hexagon onto the bitmap in place. Its grout
    hexagon exactly tiles with its neighbours', so nothing beside it is touched. */
 function repaintCell(c, r, black){
-  var cell = CELL_AT[key(c, r)];
-  if (!cache || !cell || cell.f) return;
-  if (cell.x < cache.x0 - 1 || cell.x > cache.x1 + 1 || cell.y < cache.y0 - 1 || cell.y > cache.y1 + 1) return;
-  var ctx = cache.ctx, s = cache.scale, grout = s > 3.5;
-  var px = (cell.x - cache.x0) * s, py = (cell.y - cache.y0) * s;
-  ctx.fillStyle = grout ? "#6b6f73" : (black ? "#151515" : "#f4f4f2"); fillHexes(ctx, [px, py], s);
-  if (grout){ ctx.fillStyle = black ? "#151515" : "#f4f4f2"; fillHexes(ctx, [px, py], s * 0.9); }
+  var k = key(c, r), cell = CELL_AT[k];
+  if (!cell || cell.f) return;
+  if (!(k in dirty)) dirtyN++;
+  dirty[k] = black;
+}
+/* Draw one tile at a scale and offset: grout hexagon, then the tile inside it. */
+function drawTile(ctx, x, y, s, black){
+  var grout = s > 3.5;
+  ctx.fillStyle = grout ? "#6b6f73" : (black ? "#151515" : "#f4f4f2"); fillHexes(ctx, [x, y], s);
+  if (grout){ ctx.fillStyle = black ? "#151515" : "#f4f4f2"; fillHexes(ctx, [x, y], s * 0.9); }
+}
+/* The changed tiles, over the bitmap, in screen space. */
+function drawDirty(ctx, v){
+  for (var k in dirty){
+    var cell = CELL_AT[k];
+    drawTile(ctx, cell.x * v.scale + v.tx, cell.y * v.scale + v.ty, v.scale, dirty[k]);
+  }
+}
+/* Fold the changed tiles into the bitmap: one upload, at the end of a stroke. */
+function flushDirty(){
+  if (!dirtyN) return;
+  if (cache){
+    var ctx = cache.ctx, s = cache.scale;
+    for (var k in dirty){
+      var cell = CELL_AT[k];
+      if (cell.x < cache.x0 - 1 || cell.x > cache.x1 + 1 || cell.y < cache.y0 - 1 || cell.y > cache.y1 + 1) continue;
+      drawTile(ctx, (cell.x - cache.x0) * s, (cell.y - cache.y0) * s, s, dirty[k]);
+    }
+  }
+  dirty = {}; dirtyN = 0;
 }
 
 /* The cells inside the view, as four batched paths rather than a path per
@@ -1099,8 +1130,11 @@ function bindPointer(cv){
     }
     return out;
   }
+  var lastCell = null;
   function paintAt(p, cont){
-    var cr = toHex(view, p.x, p.y);
+    var cr = toHex(view, p.x, p.y), ck = key(cr[0], cr[1]);
+    if (cont && ck === lastCell) return;
+    lastCell = ck;
     var next = stampPaint(state.draft, curShape(), cr[0], cr[1], rot, paintBlack, cont, mirror);
     if (next !== state.draft){
       state.draft = next;
@@ -1118,7 +1152,7 @@ function bindPointer(cv){
     var n = ids().length;
     if (n === 1){
       gesture = (brush && !capture) ? {type: "paint", moved: false, first: true} : {type: "tap", moved: false};
-      if (brush && !capture){ paintAt(p, false); gesture.first = false; }
+      if (brush && !capture){ lastCell = null; paintAt(p, false); gesture.first = false; }
     } else if (n === 2){
       var a = pointers[ids()[0]], b = pointers[ids()[1]];
       gesture = {type: "pinch", d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, v0: view,
@@ -1167,7 +1201,7 @@ function bindPointer(cv){
       }
     }
     delete pointers[e.pointerId];
-    if (!ids().length){ gesture = null; if (zooming){ zooming = false; paint(); } saveState(); }
+    if (!ids().length){ gesture = null; flushDirty(); if (zooming){ zooming = false; } paint(); saveState(); }
     else if (gesture && gesture.type === "pinch") gesture = {type: "tap", moved: true};
     try { cv.releasePointerCapture(e.pointerId); } catch (x) {}
   }

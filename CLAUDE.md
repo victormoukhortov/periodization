@@ -698,7 +698,11 @@ and under a keyboard loses the keyboard.
 view plus a margin (`cacheRegion`, capped at twelve million pixels because phones refuse bigger
 canvases, dropping resolution before it drops coverage), and every frame after that is one
 `drawImage` plus the guides and labels. A pan never redraws a tile. A tap or a brush move
-patches its one hexagon onto the bitmap with `repaintCell`. A pinch or a wheel sets `zooming`,
+does **not** draw on the bitmap: a canvas that changes is re-uploaded to the GPU on the next frame,
+and this one is tens of megabytes, which is what made the brush lag. `repaintCell` puts the tile in
+`dirty` instead; `drawDirty` paints those few tiles over the bitmap each frame, and `flushDirty`
+folds them into the bitmap once when the finger lifts (`buildCache` starts them empty). A move
+that stays on the same tile as the last one is skipped before any reducer runs. A pinch or a wheel sets `zooming`,
 which draws the stale bitmap scaled until the gesture settles, then rebuilds once. Anything that
 replaces the whole draft (New, Open, Undo) drops the cache. `drawCells` itself walks `CELLS`, the
 floor as a flat array with precomputed centres, and fills four batched paths (grout, white,

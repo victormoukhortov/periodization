@@ -81,7 +81,8 @@ return { click:click, typeIn:typeIn, H:__handlers, els:__els, S:{
   ROOMS:ROOMS, roomOf:roomOf, mirrorCells:mirrorCells, toggleMirror:toggleMirror, paintMirror:paintMirror,
   mirror:function(){return mirror;}, SHAPES:SHAPES, toAxial:toAxial, fromAxial:fromAxial, rotAxial:rotAxial,
   shapeCells:shapeCells, stampToggle:stampToggle, stampPaint:stampPaint, shapeFromCells:shapeFromCells,
-  shapeById:shapeById, shapeId:function(){return shapeId;}, rot:function(){return rot;}, capture:function(){return capture;}
+  shapeById:shapeById, shapeId:function(){return shapeId;}, rot:function(){return rot;}, capture:function(){return capture;},
+  dirtyN:function(){return dirtyN;}
 }};
 `)(store || mkStore());
 
@@ -505,7 +506,7 @@ check("tap toggles a tile, a drag pans, and brush mode paints along the drag", (
   const v = a.S.fitView(400, 600);
   const p = a.S.hexCenter(20, 20);
   const px = { x: p.x * v.scale + v.tx, y: p.y * v.scale + v.ty };
-  const ev = (t, x, y, id) => ({ type:t, pointerId:id||1, clientX:x, clientY:y, pointerType:"touch",
+  let py0; const ev = (t, x, y, id) => ({ type:t, pointerId:id||1, clientX:x, clientY:y, pointerType:"touch",
     preventDefault:function(){}, button:0 });
   a.H["el:pointerdown"](ev("pointerdown", px.x, px.y));
   a.H["el:pointerup"](ev("pointerup", px.x, px.y));
@@ -523,9 +524,16 @@ check("tap toggles a tile, a drag pans, and brush mode paints along the drag", (
   a.H["el:pointermove"](ev("pointermove", qx.x, qx.y));
   a.H["el:pointerup"](ev("pointerup", qx.x, qx.y));
   ok(st.draft.cells.indexOf("21,20") >= 0 && st.draft.cells.indexOf("22,20") >= 0, "brush paints the path: " + st.draft.cells);
+  eq(a.S.dirtyN(), 0, "the stroke's tiles were folded into the bitmap on the lift");
+  /* mid-stroke, changed tiles wait in the overlay rather than touching the bitmap */
+  a.H["el:pointerdown"](ev("pointerdown", px.x, py0 = px.y + 60));
+  a.H["el:pointermove"](ev("pointermove", qx.x, py0));
+  ok(a.S.dirtyN() > 0, "dirty while the finger is down");
+  a.H["el:pointerup"](ev("pointerup", qx.x, py0));
+  eq(a.S.dirtyN(), 0);
   eq(st.draft.cells.indexOf("20,20") >= 0, true, "brush keeps the start black rather than flipping it");
-  a.click({a:"undo"});
-  ok(st.draft.cells.length < 3, "undo removed the brush stroke");
+  a.click({a:"undo"}); a.click({a:"undo"});
+  ok(st.draft.cells.length < 3, "undo removed the brush strokes");
   eq(a.S.guides(), true);
   a.click({a:"guides"});
   eq(a.S.guides(), false);
