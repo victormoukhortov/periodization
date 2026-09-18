@@ -82,7 +82,7 @@ return { click:click, typeIn:typeIn, H:__handlers, els:__els, S:{
   mirror:function(){return mirror;}, SHAPES:SHAPES, toAxial:toAxial, fromAxial:fromAxial, rotAxial:rotAxial,
   shapeCells:shapeCells, stampToggle:stampToggle, stampPaint:stampPaint, shapeFromCells:shapeFromCells,
   shapeById:shapeById, shapeId:function(){return shapeId;}, rot:function(){return rot;}, capture:function(){return capture;},
-  dirtyN:function(){return dirtyN;}
+  dirtyN:function(){return dirtyN;}, hover:function(){return hover;}, DIRTY_MAX:DIRTY_MAX
 }};
 `)(store || mkStore());
 
@@ -345,6 +345,20 @@ check("the palette: pick a brush, stamp it, rotate, make a shape from picked til
   a.click({a:"shapedel"});
   eq(st.shapes.length, 0); eq(a.S.shapeId(), "dot");
   a.click({a:"capstart"}); a.click({a:"capcancel"}); ok(!a.S.capture());
+  /* a mouse moving over the floor with nothing down ghosts the brush; a touch does not; a press clears it */
+  const mv = (c, r, type) => { const p = at(c, r); a.H["el:pointermove"]({ type:"pointermove", pointerId:9, clientX:p.x, clientY:p.y, pointerType:type, preventDefault:function(){} }); };
+  mv(30, 30, "mouse"); ok(a.S.hover() && a.S.hover()[0] === 30 && a.S.hover()[1] === 30, "hover set");
+  mv(31, 30, "touch"); eq(a.S.hover()[0], 30, "touch does not move the ghost");
+  a.H["el:pointerleave"]({}); ok(!a.S.hover(), "leave clears");
+  mv(32, 32, "pen"); ok(a.S.hover(), "pen hovers");
+  tap(32, 32); ok(!a.S.hover(), "a press clears the ghost");
+  /* a long flower stroke never lets the overlay grow past its cap */
+  a.click({a:"shape", id:"rosette"}); a.click({a:"brush"});
+  const p0 = at(2, 2); a.H["el:pointerdown"](ev("pointerdown", p0.x, p0.y));
+  let peak = 0;
+  for (let c = 3; c < 56; c += 1) for (let r = 2; r < 66; r += 8){ const p = at(c, r); a.H["el:pointermove"](ev("pointermove", p.x, p.y)); peak = Math.max(peak, a.S.dirtyN()); }
+  ok(peak <= a.S.DIRTY_MAX + 7 * 4, "overlay capped, peak " + peak);
+  const pe = at(55, 2); a.H["el:pointerup"](ev("pointerup", pe.x, pe.y)); eq(a.S.dirtyN(), 0);
 });
 
 /* ---- hex maths --------------------------------------------------------- */

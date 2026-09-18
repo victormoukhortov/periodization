@@ -700,9 +700,15 @@ canvases, dropping resolution before it drops coverage), and every frame after t
 `drawImage` plus the guides and labels. A pan never redraws a tile. A tap or a brush move
 does **not** draw on the bitmap: a canvas that changes is re-uploaded to the GPU on the next frame,
 and this one is tens of megabytes, which is what made the brush lag. `repaintCell` puts the tile in
-`dirty` instead; `drawDirty` paints those few tiles over the bitmap each frame, and `flushDirty`
-folds them into the bitmap once when the finger lifts (`buildCache` starts them empty). A move
-that stays on the same tile as the last one is skipped before any reducer runs. A pinch or a wheel sets `zooming`,
+`dirty` instead; `drawDirty` paints those tiles over the bitmap each frame as three batched fills
+(`drawTiles`: grout, white, black, however many tiles there are, because a path per tile is what
+made a long flower stroke lag), and `flushDirty` folds them into the bitmap once when the finger
+lifts, or mid-stroke once the overlay passes `DIRTY_MAX` (`buildCache` starts them empty). A move
+that stays on the same tile as the last one is skipped before any reducer runs.
+
+`hover` is the tile under a mouse or pen with nothing pressed; `drawHover` ghosts the brush there,
+mirror images included, in the go colour. Touch never sets it, a press or leaving the canvas
+clears it, and Rotate repaints it. A pinch or a wheel sets `zooming`,
 which draws the stale bitmap scaled until the gesture settles, then rebuilds once. Anything that
 replaces the whole draft (New, Open, Undo) drops the cache. `drawCells` itself walks `CELLS`, the
 floor as a flat array with precomputed centres, and fills four batched paths (grout, white,

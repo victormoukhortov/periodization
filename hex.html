@@ -822,6 +822,7 @@ function paintFloor(){
   }
   if (guides) drawGuides(ctx, view);
   if (dirtyN) drawDirty(ctx, view);
+  if (hover && !capture) drawHover(ctx, view);
   if (capture) drawCapture(ctx, view);
   drawLabels(ctx, view);
   var el = document.getElementById("counts");
@@ -850,31 +851,68 @@ function repaintCell(c, r, black){
   if (!(k in dirty)) dirtyN++;
   dirty[k] = black;
 }
-/* Draw one tile at a scale and offset: grout hexagon, then the tile inside it. */
-function drawTile(ctx, x, y, s, black){
-  var grout = s > 3.5;
-  ctx.fillStyle = grout ? "#6b6f73" : (black ? "#151515" : "#f4f4f2"); fillHexes(ctx, [x, y], s);
-  if (grout){ ctx.fillStyle = black ? "#151515" : "#f4f4f2"; fillHexes(ctx, [x, y], s * 0.9); }
+/* Draw a set of tiles as three batched fills (grout, white, black), however
+   many there are; a path per tile is what a long flower stroke cannot afford. */
+function drawTiles(ctx, entries, s, tx, ty){
+  var grout = s > 3.5, g = [], w = [], b = [];
+  for (var i = 0; i < entries.length; i++){
+    var e = entries[i], x = e[0] * s + tx, y = e[1] * s + ty;
+    if (grout) g.push(x, y);
+    (e[2] ? b : w).push(x, y);
+  }
+  if (grout){ ctx.fillStyle = "#6b6f73"; fillHexes(ctx, g, s); }
+  var tile = grout ? s * 0.9 : s;
+  ctx.fillStyle = "#f4f4f2"; fillHexes(ctx, w, tile);
+  ctx.fillStyle = "#151515"; fillHexes(ctx, b, tile);
+}
+function dirtyEntries(){
+  var out = [];
+  for (var k in dirty){ var cell = CELL_AT[k]; out.push([cell.x, cell.y, dirty[k]]); }
+  return out;
 }
 /* The changed tiles, over the bitmap, in screen space. */
 function drawDirty(ctx, v){
-  for (var k in dirty){
-    var cell = CELL_AT[k];
-    drawTile(ctx, cell.x * v.scale + v.tx, cell.y * v.scale + v.ty, v.scale, dirty[k]);
-  }
+  drawTiles(ctx, dirtyEntries(), v.scale, v.tx, v.ty);
 }
-/* Fold the changed tiles into the bitmap: one upload, at the end of a stroke. */
+/* Fold the changed tiles into the bitmap: one upload, at the end of a stroke,
+   or mid-stroke once the overlay has grown past DIRTY_MAX tiles. */
+var DIRTY_MAX = 300;
 function flushDirty(){
   if (!dirtyN) return;
   if (cache){
-    var ctx = cache.ctx, s = cache.scale;
-    for (var k in dirty){
-      var cell = CELL_AT[k];
-      if (cell.x < cache.x0 - 1 || cell.x > cache.x1 + 1 || cell.y < cache.y0 - 1 || cell.y > cache.y1 + 1) continue;
-      drawTile(ctx, (cell.x - cache.x0) * s, (cell.y - cache.y0) * s, s, dirty[k]);
-    }
+    var entries = dirtyEntries().filter(function(e){
+      return e[0] >= cache.x0 - 1 && e[0] <= cache.x1 + 1 && e[1] >= cache.y0 - 1 && e[1] <= cache.y1 + 1;
+    });
+    drawTiles(cache.ctx, entries, cache.scale, -cache.x0 * cache.scale, -cache.y0 * cache.scale);
   }
   dirty = {}; dirtyN = 0;
+}
+/* The brush, ghosted under a mouse or pen before it is put down. */
+var hover = null;
+function drawHover(ctx, v){
+  var cells = shapeCells(curShape(), hover[0], hover[1], rot), s = v.scale, pts = [];
+  for (var i = 0; i < cells.length; i++){
+    var g = mirror ? mirrorCells(cells[i][0], cells[i][1]) : [cells[i]];
+    for (var j = 0; j < g.length; j++){
+      if (!paintable(g[j][0], g[j][1])) continue;
+      var p = hexCenter(g[j][0], g[j][1]); pts.push(p.x * s + v.tx, p.y * s + v.ty);
+    }
+  }
+  ctx.fillStyle = "rgba(245,197,66,0.45)"; fillHexes(ctx, pts, s * 0.9);
+  ctx.strokeStyle = "rgba(245,197,66,0.9)"; ctx.lineWidth = Math.max(1, s * 0.08);
+  strokeHexes(ctx, pts, s * 0.9);
+}
+function strokeHexes(ctx, pts, w){
+  if (!pts.length) return;
+  var R = w / Math.sqrt(3);
+  ctx.beginPath();
+  for (var i = 0; i < pts.length; i += 2){
+    var x = pts[i], y = pts[i + 1];
+    ctx.moveTo(x + R * HEX_CX[0], y + R * HEX_CY[0]);
+    for (var j = 1; j < 6; j++) ctx.lineTo(x + R * HEX_CX[j], y + R * HEX_CY[j]);
+    ctx.closePath();
+  }
+  ctx.stroke();
 }
 
 /* The cells inside the view, as four batched paths rather than a path per
@@ -1049,7 +1087,7 @@ document.addEventListener("click", function(e){
     return;
   }
   if (a === "shape"){ if (id !== shapeId){ shapeId = id; rot = 0; } render(); return; }
-  if (a === "rotate"){ rot = (rot + 1) % 6; paintChips(); return; }
+  if (a === "rotate"){ rot = (rot + 1) % 6; paintChips(); paint(); return; }
   if (a === "capstart"){ capture = {cells: {}, name: ""}; render(); return; }
   if (a === "capcancel"){ capture = null; render(); return; }
   if (a === "capdone"){
@@ -1140,6 +1178,7 @@ function bindPointer(cv){
       state.draft = next;
       var group = reach(cr[0], cr[1]);
       for (var i = 0; i < group.length; i++) repaintCell(group[i][0], group[i][1], paintBlack);
+      if (dirtyN > DIRTY_MAX) flushDirty();
       saveSoon(); paint();
     }
   }
@@ -1148,6 +1187,7 @@ function bindPointer(cv){
     e.preventDefault();
     try { cv.setPointerCapture(e.pointerId); } catch (x) {}
     var p = pt(e);
+    if (hover){ hover = null; paint(); }
     pointers[e.pointerId] = {x: p.x, y: p.y, x0: p.x, y0: p.y};
     var n = ids().length;
     if (n === 1){
@@ -1162,7 +1202,12 @@ function bindPointer(cv){
   });
   cv.addEventListener("pointermove", function(e){
     var q = pointers[e.pointerId];
-    if (!q || !gesture) return;
+    if (!q || !gesture){
+      if (e.pointerType === "touch" || q) return;
+      var hc = toHex(view, pt(e).x, pt(e).y);
+      if (!hover || hover[0] !== hc[0] || hover[1] !== hc[1]){ hover = hc; paint(); }
+      return;
+    }
     e.preventDefault();
     var p = pt(e), dx = p.x - q.x, dy = p.y - q.y;
     q.x = p.x; q.y = p.y;
@@ -1207,6 +1252,7 @@ function bindPointer(cv){
   }
   cv.addEventListener("pointerup", up);
   cv.addEventListener("pointercancel", up);
+  cv.addEventListener("pointerleave", function(){ if (hover){ hover = null; paint(); } });
   cv.addEventListener("wheel", function(e){
     e.preventDefault();
     var p = pt(e), f = Math.pow(1.0015, -e.deltaY);
