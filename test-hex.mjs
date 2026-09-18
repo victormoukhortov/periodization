@@ -38,7 +38,12 @@ var document = {
   visibilityState: "visible",
   getElementById: function(id){ return __els[id] || (__els[id] = mkEl()); },
   querySelector: function(){ return null; },
-  querySelectorAll: function(sel){ if (sel.indexOf('data-pv') < 0) return []; var m = (__els.app.innerHTML.match(/data-pv="[^"]+"/g) || []); return m.map(function(x){ var el = mkEl(); el.dataset.pv = x.slice(9, -1); el.width = 320; el.height = 380; return el; }); },
+  querySelectorAll: function(sel){
+    var attr = sel.indexOf('data-pv') >= 0 ? 'data-pv' : (sel.indexOf('data-shape') >= 0 ? 'data-shape' : null);
+    if (!attr) return [];
+    var m = (__els.app.innerHTML.match(new RegExp(attr + '="[^"]+"', 'g')) || []);
+    return m.map(function(x){ var el = mkEl(); el.dataset[attr === 'data-pv' ? 'pv' : 'shape'] = x.slice(attr.length + 2, -1); el.width = 320; el.height = 380; return el; });
+  },
   addEventListener: function(t,f){ __handlers[t] = f; },
   createElement: function(){ return mkEl(); },
   body: { appendChild:function(){}, removeChild:function(){} },
@@ -74,7 +79,9 @@ return { click:click, typeIn:typeIn, H:__handlers, els:__els, S:{
   fitView:fitView, KEY:KEY, segmentCells:segmentCells, GUIDES:GUIDES, cacheRegion:cacheRegion,
   cacheCovers:cacheCovers, BOUNDS:BOUNDS, guides:function(){return guides;}, PRESETS:PRESETS,
   ROOMS:ROOMS, roomOf:roomOf, mirrorCells:mirrorCells, toggleMirror:toggleMirror, paintMirror:paintMirror,
-  mirror:function(){return mirror;}
+  mirror:function(){return mirror;}, SHAPES:SHAPES, toAxial:toAxial, fromAxial:fromAxial, rotAxial:rotAxial,
+  shapeCells:shapeCells, stampToggle:stampToggle, stampPaint:stampPaint, shapeFromCells:shapeFromCells,
+  shapeById:shapeById, shapeId:function(){return shapeId;}, rot:function(){return rot;}, capture:function(){return capture;}
 }};
 `)(store || mkStore());
 
@@ -256,6 +263,87 @@ check("mirrored toggle sets the whole group in one undo step, and a self-image d
   eq(B.cells.length, 8); eq(B.past.length, 1);
   B = S.paintMirror(B, 31, 30, false, false);
   eq(B.cells.length, 4); eq(B.past.length, 2);
+});
+
+check("shapes: axial offsets stamp the same shape on odd and even rows, and six turns come back", () => {
+  const ks = cells => cells.map(c => c.join(",")).sort().join(" ");
+  [[10,10],[10,11],[-20,21],[3,-4]].forEach(([c, r]) => {
+    const a = S.toAxial(c, r), b = S.fromAxial(a[0], a[1]);
+    eq(b[0], c); eq(b[1], r);
+  });
+  const ros = S.shapeById("rosette");
+  const even = S.shapeCells(ros, 20, 20, 0), odd = S.shapeCells(ros, 20, 21, 0);
+  eq(even.length, 7); eq(odd.length, 7);
+  /* every cell of a rosette is the centre or one of its six neighbours, whichever row it sits on */
+  [[20,20,even],[20,21,odd]].forEach(([c, r, cells]) => {
+    const o = ((r % 2) + 2) % 2;
+    const nb = [[c-1+o,r-1],[c+o,r-1],[c-1,r],[c+1,r],[c-1+o,r+1],[c+o,r+1],[c,r]].map(x => x.join(",")).sort().join(" ");
+    eq(ks(cells), nb);
+  });
+  const rh = S.shapeById("rhombus");
+  eq(ks(S.shapeCells(rh, 1, -4, 0)), ks([[1,-4],[2,-4],[1,-3],[2,-3]]));      // the guest rhombus, exactly
+  for (let k = 0; k < 6; k++) ok(S.shapeCells(rh, 10, 10, k).length === 4);
+  eq(ks(S.shapeCells(rh, 10, 10, 6)), ks(S.shapeCells(rh, 10, 10, 0)));
+  ok(ks(S.shapeCells(rh, 10, 10, 1)) !== ks(S.shapeCells(rh, 10, 10, 0)), "a turn changes a rhombus");
+  eq(ks(S.shapeCells(ros, 10, 10, 2)), ks(S.shapeCells(ros, 10, 10, 0)), "a rosette is the same at any turn");
+  eq(ks(S.shapeCells(S.shapeById("stack"), 10, 10, 0)), ks([[10,10],[10,12]]));
+  eq(ks(S.shapeCells(S.shapeById("stack"), 10, 11, 0)), ks([[10,11],[10,13]]));
+  eq(ks(S.shapeCells(S.shapeById("chevron"), 25, 22, 0)), ks([[25,22],[24,21],[25,21]]));
+});
+
+check("stamps flip like a tap, paint like a brush, mirror when asked, and skip walls and fixed dots", () => {
+  const ros = S.shapeById("rosette");
+  let L = S.blankLayout();
+  L = S.stampToggle(L, ros, 30, 30, 0, false);
+  eq(L.cells.length, 7); eq(L.past.length, 1);
+  L = S.stampToggle(L, ros, 30, 30, 0, false);
+  eq(L.cells.length, 0); eq(L.past.length, 2);
+  L = S.stampToggle(L, ros, 30, 30, 0, true);
+  eq(L.cells.length, 28); eq(L.past.length, 3);
+  L = S.stampToggle(L, ros, 25, 34, 0, true);           // on the centre: its own mirror, seven tiles once
+  eq(L.cells.length, 35);
+  const near = S.stampToggle(S.blankLayout(), ros, 1, 34, 0, false);   // beside the west border: the fixed dot at (0,34) is skipped
+  eq(near.cells.length, 6);
+  let B = S.blankLayout();
+  B = S.stampPaint(B, ros, 30, 30, 0, true, false, false); B = S.stampPaint(B, ros, 31, 30, 0, true, true, false);
+  ok(B.cells.length > 7 && B.cells.length <= 14); eq(B.past.length, 1);
+  const custom = S.shapeFromCells([[10,10],[11,10],[12,10],[11,11]], "Tee", "u1");
+  eq(custom.cells.length, 4);
+  ok(custom.cells.some(d => d[0] === 0 && d[1] === 0), "the anchor is one of its own cells");
+  const back = S.shapeCells(custom, 11, 10, 0).map(c => c.join(",")).sort().join(" ");
+  eq(back, "10,10 11,10 11,11 12,10");
+  eq(S.shapeCells(custom, 11, 11, 0).length, 4);
+});
+
+check("the palette: pick a brush, stamp it, rotate, make a shape from picked tiles, keep it across a reload, delete it", () => {
+  const st2 = mkStore(), a = suite(st2);
+  a.click({a:"tab", t:"design"}); a.click({a:"new"});
+  ok(a.els.app.innerHTML.indexOf('data-shape="rosette"') >= 0, "chips rendered");
+  a.click({a:"shape", id:"rhombus"}); eq(a.S.shapeId(), "rhombus");
+  const st = a.S.state(), v = a.S.fitView(400, 600);
+  const at = (c, r) => { const p = a.S.hexCenter(c, r); return { x: p.x * v.scale + v.tx, y: p.y * v.scale + v.ty }; };
+  const ev = (t, x, y) => ({ type:t, pointerId:1, clientX:x, clientY:y, pointerType:"touch", preventDefault:function(){}, button:0 });
+  const tap = (c, r) => { const p = at(c, r); a.H["el:pointerdown"](ev("pointerdown", p.x, p.y)); a.H["el:pointerup"](ev("pointerup", p.x, p.y)); };
+  tap(30, 30);
+  eq(st.draft.cells.length, 4, "a diamond stamped");
+  a.click({a:"rotate"}); eq(a.S.rot(), 1);
+  tap(40, 40); eq(st.draft.cells.length, 8);
+  a.click({a:"undo"}); eq(st.draft.cells.length, 4);
+  /* capture three tiles as a new shape */
+  a.click({a:"capstart"}); ok(a.S.capture(), "capturing");
+  tap(20, 50); tap(21, 50); tap(22, 50); tap(22, 50); tap(22, 50);
+  eq(Object.keys(a.S.capture().cells).length, 3);
+  eq(st.draft.cells.length, 4, "capturing does not paint");
+  a.typeIn("shapename", "Bar");
+  a.click({a:"capdone"});
+  eq(st.shapes.length, 1); eq(st.shapes[0].name, "Bar"); eq(st.shapes[0].cells.length, 3);
+  eq(a.S.shapeId(), st.shapes[0].id);
+  tap(30, 50); eq(st.draft.cells.length, 7, "the new brush stamps three");
+  const again = suite(st2);
+  eq(again.S.state().shapes.length, 1); eq(again.S.state().shapes[0].name, "Bar");
+  a.click({a:"shapedel"});
+  eq(st.shapes.length, 0); eq(a.S.shapeId(), "dot");
+  a.click({a:"capstart"}); a.click({a:"capcancel"}); ok(!a.S.capture());
 });
 
 /* ---- hex maths --------------------------------------------------------- */

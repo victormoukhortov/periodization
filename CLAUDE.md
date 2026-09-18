@@ -724,6 +724,28 @@ flip back. Images that fall on a wall or a fixed dot are skipped by `paintCell` 
 what happens when a tile in the door neck mirrors into the bay. Rooms never mix: a shower tile's
 images are all in the shower. The `Mirror` button toggles it and repaints the hint by hand.
 
+## The brush palette
+
+`SHAPES` are the built-in brushes: the single hex and the units the guest motifs are built from
+(pair, stack, chevron, diamond, ring, flower). A shape is a list of **axial** offsets from its
+anchor, because axial offsets do not depend on row parity: the same list stamps the same shape on
+an odd row and an even row, which offset columns would not. `toAxial` / `fromAxial` convert,
+`rotAxial` turns an offset a sixth of a turn (cube rotation), and `shapeCells` lays a shape down at
+an anchor and turn. The single hex is a shape too, so a tap is always a stamp.
+
+`stampToggle` flips like a tap (the anchor decides, the whole shape follows) and `stampPaint`
+sets, for the brush; both go through `paintMany`, which applies Mirror per cell when it is on, so
+a mirrored stamp is the mirror image of the shape. One undo step per stamp or stroke. Cells that
+land on a wall or a fixed dot are skipped as ever.
+
+`state.shapes` holds the shapes she makes, persisted with the layouts and validated on load by
+`validShape`. **New shape** puts the canvas into capture: taps pick tiles (ringed in the go
+colour by `drawCapture`, drawn over the bitmap like the guides) and change nothing in the draft;
+Done turns them into a shape with `shapeFromCells`, anchored on the tile nearest their middle so
+it stamps under the finger, and selects it. Custom ids start with `u`, which is what shows the
+Delete button. `shapeId` and `rot` are view state; the chips are painted by `paintChips` after
+each render, the selected one at its current turn.
+
 ## Starting points
 
 `PRESETS` holds ready-made layouts the Layouts tab offers under "Starting points": the guest
@@ -757,7 +779,7 @@ cell; they decide which tiles exist to paint, not where any black dot sits.
 node test.mjs          # PPL Block, 31 checks
 node test-victor.mjs   # Rolling Five, 66 checks
 node test-meep.mjs     # Prove It, 47 checks
-node test-hex.mjs      # Hex Floor, 25 checks
+node test-hex.mjs      # Hex Floor, 28 checks
 ```
 
 Each suite extracts the `<script>` body from its HTML file, stubs the handful of browser APIs the

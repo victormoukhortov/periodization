@@ -135,7 +135,9 @@ the left with the toilet room directly below it.
 - **Everything else is yours.** Tap a tile to flip it; drag to move, pinch to zoom. Brush mode paints
   along a drag. Undo steps back a tap or a stroke. Guides draw each room's centre lines, the main
   room's upright on the centre of the door. Mirror sets each tile you touch in all four quarters
-  of its room, so a symmetric medallion is drawn once.
+  of its room, so a symmetric medallion is drawn once. The palette holds brushes made of the units
+  the guest floors use, pair, stack, chevron, diamond, ring, flower, with Rotate for the six
+  orientations, and New shape turns tiles you tap on the floor into a brush of your own.
 - **Layouts live on the device.** Save under a name, Save as for a copy, and the Layouts tab shows
   each one as a thumbnail with Open, Duplicate, Rename and Delete. The open design is kept across
   reloads whether or not it has been saved. Image downloads the plan as a PNG.
@@ -186,7 +188,7 @@ python3 -m http.server 8000   # then open http://localhost:8000/
 node test.mjs          # PPL Block, 31 checks
 node test-victor.mjs   # Rolling Five, 66 checks
 node test-meep.mjs     # Prove It, 47 checks
-node test-hex.mjs      # Hex Floor, 25 checks
+node test-hex.mjs      # Hex Floor, 28 checks
 ```
 
 They cover the progression engines, the floor geometry, the reducers, and the fact that every

@@ -77,6 +77,11 @@
   .hint{position:absolute;left:10px;top:10px;background:rgba(11,15,20,.85);border:1px solid var(--line);
     border-radius:9px;padding:5px 9px;font-size:12px;color:var(--muted);pointer-events:none}
   .dirty{color:var(--go)}
+  .chip{flex:none;display:flex;align-items:center;gap:6px;padding:4px 8px 4px 4px;border-radius:9px;border:1px solid var(--line);
+    background:var(--card);font-size:12px;font-weight:700;color:var(--muted)}
+  .chip.on{border-color:var(--go);color:var(--go)}
+  .chip canvas{display:block;width:28px;height:28px}
+  .cap{background:var(--go-deep)}
 
   /* --- layouts ------------------------------------------------------------ */
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
@@ -169,6 +174,19 @@ var ROOMS = [
   {id: "main", v: 25, h: 34, c0: -3, c1: 62, r0: -14, r1: 84},
   {id: "shower", v: -25, h: 25, c0: -43, c1: -3, r0: 7, r1: 43},
   {id: "wc", v: -25, h: 59, c0: -43, c1: -3, r0: 48, r1: 70}
+];
+
+/* The brush palette: the units the guest motifs are built from, as axial
+   offsets from the anchor so a shape means the same on an odd row and an
+   even row. `SHAPES` are built in; shapes she makes live on `state.shapes`. */
+var SHAPES = [
+  {id: "dot", name: "Hex", cells: [[0,0]]},
+  {id: "pair", name: "Pair", cells: [[0,0],[1,0]]},
+  {id: "stack", name: "Stack", cells: [[0,0],[-1,2]]},
+  {id: "chevron", name: "Chevron", cells: [[0,0],[0,-1],[1,-1]]},
+  {id: "rhombus", name: "Diamond", cells: [[0,0],[1,0],[0,1],[1,1]]},
+  {id: "ring", name: "Ring", cells: [[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]]},
+  {id: "rosette", name: "Flower", cells: [[0,0],[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]]}
 ];
 
 /* Room names painted on the canvas, for orientation only. */
@@ -308,6 +326,84 @@ function paintCell(L, c, r, black, cont){
   var cells = black ? L.cells.concat([k]) : L.cells.slice(0, i).concat(L.cells.slice(i + 1));
   return withCells(L, cells, cont);
 }
+/* --- shapes and stamps ----------------------------------------------------- */
+
+/* Offset (c, r) to axial (q, r) and back. Axial offsets do not care about row
+   parity, which is what lets one shape be stamped anywhere. */
+function toAxial(c, r){ return [c - (r - (r & 1)) / 2, r]; }
+function fromAxial(q, r){ return [q + (r - (r & 1)) / 2, r]; }
+/* Rotate an axial offset by k sixths of a turn, clockwise on screen. */
+function rotAxial(d, k){
+  var x = d[0], z = d[1], y = -x - z, t;
+  for (var i = 0; i < ((k % 6) + 6) % 6; i++){ t = x; x = -z; z = -y; y = -t; }
+  return [x, z];
+}
+function shapeById(id, custom){
+  var i;
+  for (i = 0; i < SHAPES.length; i++) if (SHAPES[i].id === id) return SHAPES[i];
+  for (i = 0; custom && i < custom.length; i++) if (custom[i].id === id) return custom[i];
+  return SHAPES[0];
+}
+/* The cells a shape covers when stamped with its anchor at (c, r). */
+function shapeCells(shape, c, r, rot){
+  var a = toAxial(c, r), out = [];
+  for (var i = 0; i < shape.cells.length; i++){
+    var d = rotAxial(shape.cells[i], rot || 0);
+    out.push(fromAxial(a[0] + d[0], a[1] + d[1]));
+  }
+  return out;
+}
+/* Set a list of cells to one colour, optionally with each cell's mirror images,
+   as one undo step (or none, when continuing a stroke). */
+function paintMany(L, cells, black, cont, mirrored){
+  var out = L, started = cont;
+  for (var i = 0; i < cells.length; i++){
+    var next = mirrored ? paintMirror(out, cells[i][0], cells[i][1], black, started)
+                        : paintCell(out, cells[i][0], cells[i][1], black, started);
+    if (next !== out){ out = next; started = true; }
+  }
+  return out;
+}
+/* A stamp flips like a tap: the anchor decides, the whole shape follows. */
+function stampToggle(L, shape, c, r, rot, mirrored){
+  if (!paintable(c, r)) return L;
+  var black = L.cells.indexOf(key(c, r)) < 0;
+  return paintMany(L, shapeCells(shape, c, r, rot), black, false, mirrored);
+}
+function stampPaint(L, shape, c, r, rot, black, cont, mirrored){
+  return paintMany(L, shapeCells(shape, c, r, rot), black, cont, mirrored);
+}
+/* A new shape from tiles picked on the floor: offsets from the tile nearest
+   their middle, so it stamps under the finger. */
+function shapeFromCells(cells, name, id){
+  if (!cells.length) return null;
+  var sx = 0, sy = 0, i, p;
+  for (i = 0; i < cells.length; i++){ p = hexCenter(cells[i][0], cells[i][1]); sx += p.x; sy += p.y; }
+  sx /= cells.length; sy /= cells.length;
+  var best = 0, bd = 1e9;
+  for (i = 0; i < cells.length; i++){
+    p = hexCenter(cells[i][0], cells[i][1]);
+    var d = (p.x - sx) * (p.x - sx) + (p.y - sy) * (p.y - sy);
+    if (d < bd){ bd = d; best = i; }
+  }
+  var a = toAxial(cells[best][0], cells[best][1]), off = [];
+  for (i = 0; i < cells.length; i++){
+    var q = toAxial(cells[i][0], cells[i][1]);
+    off.push([q[0] - a[0], q[1] - a[1]]);
+  }
+  return {id: id, name: name, cells: off};
+}
+function validShape(o){
+  if (!o || typeof o.id !== "string" || !Array.isArray(o.cells) || !o.cells.length) return null;
+  var cells = [];
+  for (var i = 0; i < o.cells.length; i++){
+    var d = o.cells[i];
+    if (!Array.isArray(d) || d.length !== 2 || d[0] !== Math.round(d[0]) || d[1] !== Math.round(d[1])) return null;
+    cells.push([d[0], d[1]]);
+  }
+  return {id: o.id, name: typeof o.name === "string" && o.name ? o.name : "Shape", cells: cells};
+}
+
 /* --- mirror mode ---------------------------------------------------------- */
 
 function roomOf(c, r){
@@ -446,7 +542,7 @@ function cacheCovers(q, v, w, h){
 var KEY = "hex-floor-v1";
 var memory = null;
 
-function blank(){ return {layouts:[], draft:blankLayout()}; }
+function blank(){ return {layouts:[], draft:blankLayout(), shapes:[]}; }
 function loadState(){
   try {
     var raw = localStorage.getItem(KEY);
@@ -458,6 +554,8 @@ function loadState(){
         if (L.id) out.layouts.push(serialize(L));
       }
       out.draft = deserialize(s.draft);
+      var sh = Array.isArray(s.shapes) ? s.shapes : [];
+      for (var j = 0; j < sh.length; j++){ var v = validShape(sh[j]); if (v) out.shapes.push(v); }
       return out;
     }
   } catch (e) { /* storage blocked — fall through */ }
@@ -466,7 +564,7 @@ function loadState(){
 function saveState(){
   memory = state;
   try {
-    localStorage.setItem(KEY, JSON.stringify({layouts: state.layouts, draft: serialize(state.draft)}));
+    localStorage.setItem(KEY, JSON.stringify({layouts: state.layouts, draft: serialize(state.draft), shapes: state.shapes}));
   } catch (e) {}
 }
 
@@ -476,6 +574,9 @@ var state = loadState();
 var tab = "design";
 var view = null;            /* {scale, tx, ty}, null until the canvas has a size */
 var brush = false, paintBlack = true, guides = true, mirror = false;
+var shapeId = "dot", rot = 0;      /* the brush in hand and its turn */
+var capture = null;                /* {cells:{}} while picking tiles for a new shape */
+function curShape(){ return shapeById(shapeId, state.shapes); }
 var renaming = null, confirmDel = null;
 var pointers = {}, gesture = null;
 
@@ -552,14 +653,37 @@ function viewDesign(){
       '<button class="btn' + (mirror ? " on" : "") + '" data-a="mirror">Mirror</button>' +
       '<button class="btn" data-a="image">Image</button>' +
     '</div>' +
+    viewPalette() +
     '<div class="stage"><canvas id="floor"></canvas>' +
       '<div class="counts" id="counts">' + countsText(n) + '</div>' +
       '<div class="hint" id="hint">' + hintText() + '</div>' +
     '</div>' +
   '</main>';
 }
+function viewPalette(){
+  if (capture){
+    var n = Object.keys(capture.cells).length;
+    return '<div class="bar cap">' +
+      '<span class="muted" style="font-size:13px;flex:none">Tap tiles for the new shape · <b class="num" id="capn">' + n + '</b> picked</span>' +
+      '<input data-f="shapename" placeholder="Name it" value="' + esc(capture.name || "") + '" />' +
+      '<button class="btn go" data-a="capdone">Done</button><button class="btn" data-a="capcancel">Cancel</button></div>';
+  }
+  var h = '<div class="bar">', all = SHAPES.concat(state.shapes), i;
+  for (i = 0; i < all.length; i++){
+    var S = all[i];
+    h += '<button class="chip' + (S.id === shapeId ? " on" : "") + '" data-a="shape" data-id="' + esc(S.id) + '">' +
+      '<canvas data-shape="' + esc(S.id) + '" width="56" height="56"></canvas>' + esc(S.name) + '</button>';
+  }
+  h += '<button class="btn" data-a="rotate">Rotate</button>';
+  h += '<button class="btn" data-a="capstart">New shape</button>';
+  if (shapeId.indexOf("u") === 0) h += '<button class="btn" data-a="shapedel">Delete shape</button>';
+  return h + '</div>';
+}
 function hintText(){
-  var t = brush ? "Drag to paint " + (paintBlack ? "black" : "white") + ". Two fingers move." : "Tap a tile to flip it. Drag to move, pinch to zoom.";
+  if (capture) return "Tap the tiles that make the shape, then Done. Drag to move.";
+  var sh = curShape(), what = sh.cells.length > 1 ? "stamp a " + sh.name.toLowerCase() : "flip a tile";
+  var t = brush ? "Drag to paint " + (paintBlack ? "black" : "white") + (sh.cells.length > 1 ? " with the " + sh.name.toLowerCase() : "") + ". Two fingers move."
+                : "Tap to " + what + ". Drag to move, pinch to zoom.";
   return mirror ? t + " Mirror is on: each tile is set in all four quarters of its room." : t;
 }
 function countsText(n){
@@ -630,7 +754,7 @@ function viewPlan(){
     '<p>The white margins between each border and its wall, the bay window’s chamfered shape, the toilet room door’s position in its east wall, and the depth of the entry recess beyond the threshold row are read to about one cell. They decide which tiles exist to paint, not where any black dot sits. The offset of the shower and toilet room from the main border read as nine cells in one photo and just under in another; nine is used.</p>' +
     '<p>Edit the rectangles in <span class="num">FLOOR</span> and the runs in <span class="num">SEGMENTS</span> at the top of the file if the site says otherwise. The tests count every run.</p>';
   h += '<h2>Using it</h2>' +
-    '<p>Tap a tile to flip it. Drag to move around, pinch or scroll to zoom, Fit to see the whole floor. Brush paints along a drag in the chosen colour; two fingers still move the view. Undo steps back one tap or one stroke. Guides are the centre lines of each room, the main room’s upright being the centre of the door; a pattern that is symmetric about them reads as centred from the doorway. Mirror sets each tile you touch in all four quarters of its room at once, across those same lines, so you draw one quarter and the rest follow. A tile on the cross row is its own image; on the door line, even rows have a tile on the line and odd rows have a pair either side of it. Save keeps the design on this device under its name; Save as keeps a copy. Image downloads the plan as a PNG for the tile setter. The Layouts tab also offers starting points: the guest bathroom’s water-over-rock motif, read tile for tile from a photo and turned to run toward the door.</p>';
+    '<p>Tap a tile to flip it. Drag to move around, pinch or scroll to zoom, Fit to see the whole floor. Brush paints along a drag in the chosen colour; two fingers still move the view. Undo steps back one tap or one stroke. Guides are the centre lines of each room, the main room’s upright being the centre of the door; a pattern that is symmetric about them reads as centred from the doorway. Mirror sets each tile you touch in all four quarters of its room at once, across those same lines, so you draw one quarter and the rest follow. The palette under the toolbar is the set of brushes: the single hex, and the units the guest floors are built from, pair, stack, chevron, diamond, ring and flower. A tap stamps the chosen shape where you touch, flipping it the way a tile flips; Rotate turns it a sixth of a turn. New shape lets you tap tiles on the floor, name them and keep them as a brush of your own. A tile on the cross row is its own image; on the door line, even rows have a tile on the line and odd rows have a pair either side of it. Save keeps the design on this device under its name; Save as keeps a copy. Image downloads the plan as a PNG for the tile setter. The Layouts tab also offers starting points: the guest bathroom’s water-over-rock motif, read tile for tile from a photo and turned to run toward the door.</p>';
   return h + '</div></main>';
 }
 
@@ -650,7 +774,7 @@ var cache = null, zooming = false, settle = 0;
 function render(){
   var app = document.getElementById("app");
   app.innerHTML = viewHeader() + viewFor(tab) + viewNav();
-  if (tab === "design") mountCanvas();
+  if (tab === "design"){ mountCanvas(); paintChips(); }
   else if (tab === "layouts") paintPreviews();
   var box = document.getElementById("install");
   if (box && deferredPrompt) box.style.display = "block";
@@ -691,6 +815,7 @@ function paintFloor(){
       cache.x0 * s + view.tx, cache.y0 * s + view.ty, (cache.x1 - cache.x0) * s, (cache.y1 - cache.y0) * s);
   }
   if (guides) drawGuides(ctx, view);
+  if (capture) drawCapture(ctx, view);
   drawLabels(ctx, view);
   var el = document.getElementById("counts");
   if (el) el.innerHTML = countsText(counts(state.draft));
@@ -794,6 +919,39 @@ function drawLabels(ctx, v){
   }
 }
 
+/* Tiles picked for a new shape, ringed in the go colour over the bitmap. */
+function drawCapture(ctx, v){
+  var s = v.scale;
+  ctx.strokeStyle = "#f5c542"; ctx.lineWidth = Math.max(1.5, s * 0.12);
+  ctx.beginPath();
+  for (var k in capture.cells){
+    var cr = unkey(k), p = hexCenter(cr[0], cr[1]);
+    var x = p.x * s + v.tx, y = p.y * s + v.ty, R = s * 0.5 / Math.sqrt(3) * 0.8;
+    ctx.moveTo(x + R * HEX_CX[0], y + R * HEX_CY[0]);
+    for (var j = 1; j < 6; j++) ctx.lineTo(x + R * HEX_CX[j], y + R * HEX_CY[j]);
+    ctx.closePath();
+  }
+  ctx.stroke();
+}
+/* The palette chips: each shape drawn small, at its current turn. */
+function paintChips(){
+  var cvs = document.querySelectorAll("canvas[data-shape]");
+  for (var i = 0; i < cvs.length; i++){
+    var cv = cvs[i], sh = shapeById(cv.dataset.shape, state.shapes);
+    var ctx = cv.getContext("2d"), w = cv.width, h = cv.height;
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, w, h);
+    var cells = shapeCells(sh, 0, 0, sh.id === shapeId ? rot : 0), pts = [], j;
+    var minx = 1e9, maxx = -1e9, miny = 1e9, maxy = -1e9;
+    for (j = 0; j < cells.length; j++){
+      var p = hexCenter(cells[j][0], cells[j][1]); pts.push(p);
+      minx = Math.min(minx, p.x); maxx = Math.max(maxx, p.x); miny = Math.min(miny, p.y); maxy = Math.max(maxy, p.y);
+    }
+    var s = Math.min(w / (maxx - minx + 1.4), h / (maxy - miny + 1.4), w / 3.2), flat = [];
+    for (j = 0; j < pts.length; j++) flat.push((pts[j].x - (minx + maxx) / 2) * s + w / 2, (pts[j].y - (miny + maxy) / 2) * s + h / 2);
+    ctx.fillStyle = sh.id === shapeId ? "#f5c542" : "#c9d2da"; fillHexes(ctx, flat, s * 0.9);
+  }
+}
+
 /* Thumbnails on the Layouts tab: the whole floor squeezed into a card, walls
    dark, no grout, no rings. */
 function paintPreviews(){
@@ -859,6 +1017,22 @@ document.addEventListener("click", function(e){
     var hn = document.getElementById("hint"); if (hn) hn.innerHTML = hintText();
     return;
   }
+  if (a === "shape"){ if (id !== shapeId){ shapeId = id; rot = 0; } render(); return; }
+  if (a === "rotate"){ rot = (rot + 1) % 6; paintChips(); return; }
+  if (a === "capstart"){ capture = {cells: {}, name: ""}; render(); return; }
+  if (a === "capcancel"){ capture = null; render(); return; }
+  if (a === "capdone"){
+    var picked = Object.keys(capture.cells).map(unkey);
+    if (picked.length){
+      var sh = shapeFromCells(picked, (capture.name || "").trim() || ("Shape " + (state.shapes.length + 1)), "u" + newId(now));
+      state.shapes.push(sh); shapeId = sh.id; rot = 0; saveState();
+    }
+    capture = null; render(); return;
+  }
+  if (a === "shapedel"){
+    state.shapes = state.shapes.filter(function(S){ return S.id !== shapeId; });
+    shapeId = "dot"; rot = 0; saveState(); render(); return;
+  }
   if (a === "undo"){ state.draft = undo(state.draft); saveState(); cache = null; render(); return; }
   if (a === "image"){ exportImage(); return; }
   if (a === "open"){ openLayout(id); tab = "design"; cache = null; render(); return; }
@@ -901,6 +1075,7 @@ document.addEventListener("input", function(e){
     if (hs) hs.innerHTML = (t.value ? esc(t.value) : "<span>Untitled</span>") + (isDirty() ? ' <span class="dirty">•</span>' : "");
   }
   if (f === "rename"){ renameVal = t.value; }
+  if (f === "shapename" && capture){ capture.name = t.value; }
 });
 
 /* --- the canvas ---------------------------------------------------------- */
@@ -915,12 +1090,21 @@ function bindPointer(cv){
     return {x: e.clientX - r.left, y: e.clientY - r.top};
   }
   function ids(){ return Object.keys(pointers); }
+  /* Every cell a stamp at (c, r) reaches, with mirror images when Mirror is on. */
+  function reach(c, r){
+    var cells = shapeCells(curShape(), c, r, rot), out = [];
+    for (var i = 0; i < cells.length; i++){
+      var g = mirror ? mirrorCells(cells[i][0], cells[i][1]) : [cells[i]];
+      for (var j = 0; j < g.length; j++) out.push(g[j]);
+    }
+    return out;
+  }
   function paintAt(p, cont){
     var cr = toHex(view, p.x, p.y);
-    var next = mirror ? paintMirror(state.draft, cr[0], cr[1], paintBlack, cont) : paintCell(state.draft, cr[0], cr[1], paintBlack, cont);
+    var next = stampPaint(state.draft, curShape(), cr[0], cr[1], rot, paintBlack, cont, mirror);
     if (next !== state.draft){
       state.draft = next;
-      var group = mirror ? mirrorCells(cr[0], cr[1]) : [cr];
+      var group = reach(cr[0], cr[1]);
       for (var i = 0; i < group.length; i++) repaintCell(group[i][0], group[i][1], paintBlack);
       saveSoon(); paint();
     }
@@ -933,8 +1117,8 @@ function bindPointer(cv){
     pointers[e.pointerId] = {x: p.x, y: p.y, x0: p.x, y0: p.y};
     var n = ids().length;
     if (n === 1){
-      gesture = brush ? {type: "paint", moved: false, first: true} : {type: "tap", moved: false};
-      if (brush){ paintAt(p, false); gesture.first = false; }
+      gesture = (brush && !capture) ? {type: "paint", moved: false, first: true} : {type: "tap", moved: false};
+      if (brush && !capture){ paintAt(p, false); gesture.first = false; }
     } else if (n === 2){
       var a = pointers[ids()[0]], b = pointers[ids()[1]];
       gesture = {type: "pinch", d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, v0: view,
@@ -965,12 +1149,21 @@ function bindPointer(cv){
     if (!q) return;
     if (gesture && gesture.type === "tap" && !gesture.moved && ids().length === 1){
       var cr = toHex(view, q.x, q.y);
-      var next = mirror ? toggleMirror(state.draft, cr[0], cr[1]) : toggleCell(state.draft, cr[0], cr[1]);
-      if (next !== state.draft){
-        state.draft = next;
-        var black = next.cells.indexOf(key(cr[0], cr[1])) >= 0, group = mirror ? mirrorCells(cr[0], cr[1]) : [cr];
-        for (var i = 0; i < group.length; i++) repaintCell(group[i][0], group[i][1], black);
-        saveState(); paint(); syncUndo();
+      if (capture){
+        var ck = key(cr[0], cr[1]);
+        if (paintable(cr[0], cr[1])){
+          if (capture.cells[ck]) delete capture.cells[ck]; else capture.cells[ck] = 1;
+          var cn = document.getElementById("capn"); if (cn) cn.innerHTML = Object.keys(capture.cells).length;
+          paint();
+        }
+      } else {
+        var next = stampToggle(state.draft, curShape(), cr[0], cr[1], rot, mirror);
+        if (next !== state.draft){
+          state.draft = next;
+          var black = next.cells.indexOf(key(cr[0], cr[1])) >= 0, group = reach(cr[0], cr[1]);
+          for (var i = 0; i < group.length; i++) repaintCell(group[i][0], group[i][1], black);
+          saveState(); paint(); syncUndo();
+        }
       }
     }
     delete pointers[e.pointerId];
