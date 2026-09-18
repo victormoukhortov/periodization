@@ -711,6 +711,19 @@ lift or after a moment of stillness, so a long stroke is not a JSON serialisatio
 toggled from the toolbar. The main room's upright is the centre of the door, column 25, not the
 centre of its walls: a pattern symmetric about that line reads as centred from the doorway.
 
+## Mirror mode
+
+`ROOMS` lists the three rooms as boxes with the two centre lines their guides draw. `roomOf`
+finds a cell's room, `mirrorCells` returns the cell and its images across that room's lines with
+no repeats, and `toggleMirror` / `paintMirror` apply one change to the whole group as a single
+undo step. The centre lines are handled on the lattice, not by rounding: across the cross row a
+cell on that row is its own image; across the upright, an even row has a cell on the line, which
+is its own image, while an odd row has the line between two cells, which pair up. A mirrored
+toggle reads the colour from the tapped cell and *sets* every image to it, so a self-image cannot
+flip back. Images that fall on a wall or a fixed dot are skipped by `paintCell` as usual, which is
+what happens when a tile in the door neck mirrors into the bay. Rooms never mix: a shower tile's
+images are all in the shower. The `Mirror` button toggles it and repaints the hint by hand.
+
 ## Starting points
 
 `PRESETS` holds ready-made layouts the Layouts tab offers under "Starting points": the guest
@@ -732,7 +745,6 @@ cell; they decide which tiles exist to paint, not where any black dot sits.
 
 ## Backlog
 
-- Mirror painting (left–right, top–bottom) for symmetric medallions.
 - Export / import of layouts as JSON, and the state as a whole. Same gap as the other apps.
 - A tile count per colour that accounts for sheets (mosaic comes on 12 × 12 sheets), for ordering.
 - Let the floor extents be edited in the app rather than in `FLOOR`.
@@ -745,7 +757,7 @@ cell; they decide which tiles exist to paint, not where any black dot sits.
 node test.mjs          # PPL Block, 31 checks
 node test-victor.mjs   # Rolling Five, 66 checks
 node test-meep.mjs     # Prove It, 47 checks
-node test-hex.mjs      # Hex Floor, 23 checks
+node test-hex.mjs      # Hex Floor, 25 checks
 ```
 
 Each suite extracts the `<script>` body from its HTML file, stubs the handful of browser APIs the

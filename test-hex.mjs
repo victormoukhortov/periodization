@@ -72,7 +72,9 @@ return { click:click, typeIn:typeIn, H:__handlers, els:__els, S:{
   deserialize:deserialize, blankLayout:blankLayout, state:function(){return state;}, render:render,
   saveState:saveState, loadState:loadState, viewFor:viewFor, tab:function(){return tab;},
   fitView:fitView, KEY:KEY, segmentCells:segmentCells, GUIDES:GUIDES, cacheRegion:cacheRegion,
-  cacheCovers:cacheCovers, BOUNDS:BOUNDS, guides:function(){return guides;}, PRESETS:PRESETS
+  cacheCovers:cacheCovers, BOUNDS:BOUNDS, guides:function(){return guides;}, PRESETS:PRESETS,
+  ROOMS:ROOMS, roomOf:roomOf, mirrorCells:mirrorCells, toggleMirror:toggleMirror, paintMirror:paintMirror,
+  mirror:function(){return mirror;}
 }};
 `)(store || mkStore());
 
@@ -210,6 +212,50 @@ check("presets are paintable cells, symmetric about the door line and the cross 
   eq(S.tab(), "design");
   eq(S.state().draft.cells.length, S.PRESETS[1].cells.length);
   eq(S.state().layouts.length, before, "starting a preset does not save on its own");
+});
+
+check("mirror images: four in a quarter, two on a line, one at the centre, pairs across the odd-row door line", () => {
+  const ks = cells => cells.map(c => c.join(",")).sort().join(" ");
+  eq(ks(S.mirrorCells(30, 30)), ks([[30,30],[20,30],[30,38],[20,38]]));
+  eq(ks(S.mirrorCells(25, 34)), "25,34");                       // the centre tile
+  eq(ks(S.mirrorCells(25, 30)), ks([[25,30],[25,38]]));         // on the door line, even row
+  eq(ks(S.mirrorCells(30, 34)), ks([[30,34],[20,34]]));         // on the cross row
+  eq(ks(S.mirrorCells(25, 33)), ks([[25,33],[24,33],[25,35],[24,35]]));   // odd row: the line runs between 24 and 25
+  eq(ks(S.mirrorCells(24, 33)), ks(S.mirrorCells(25, 33)));
+  /* every image mirrors back to the same group, in every room */
+  [[30,30],[25,33],[-20,20],[-30,21],[-20,55],[-24,59],[20,76],[10,-5]].forEach(([c, r]) => {
+    const g = ks(S.mirrorCells(c, r));
+    S.mirrorCells(c, r).forEach(q => eq(ks(S.mirrorCells(q[0], q[1])), g, "closure of " + c + "," + r));
+    S.mirrorCells(c, r).forEach(q => {
+      const x = S.hexCenter(q[0], q[1]).x, m = S.roomOf(c, r);
+      ok(Math.abs(Math.abs(x - m.v) - Math.abs(S.hexCenter(c, r).x - m.v)) < 1e-9, "same distance from the upright");
+      eq(Math.abs(q[1] - m.h), Math.abs(r - m.h), "same distance from the cross row");
+    });
+  });
+  eq(S.roomOf(-20, 20).id, "shower"); eq(S.roomOf(-20, 55).id, "wc"); eq(S.roomOf(20, 76).id, "main");
+});
+
+check("mirrored toggle sets the whole group in one undo step, and a self-image does not flip back", () => {
+  let L = S.blankLayout();
+  L = S.toggleMirror(L, 30, 30);
+  eq(L.cells.length, 4); eq(L.past.length, 1);
+  L = S.toggleMirror(L, 20, 38);                       // any image toggles the group off
+  eq(L.cells.length, 0); eq(L.past.length, 2);
+  L = S.toggleMirror(L, 25, 34);
+  eq(L.cells.join(), "25,34");
+  L = S.toggleMirror(L, 25, 30);
+  eq(L.cells.length, 3); eq(L.past.length, 4);
+  L = S.undo(L); eq(L.cells.join(), "25,34");
+  /* a group whose images include a fixed dot or a wall paints what it can */
+  L = S.toggleMirror(S.blankLayout(), 20, 76);         // door neck: its cross-line image is up in the bay
+  ok(L.cells.indexOf("20,76") >= 0 && L.cells.indexOf("30,76") >= 0, "the neck pair");
+  ok(L.cells.length >= 2 && L.cells.length <= 4);
+  /* brush: a continued stroke adds no undo steps */
+  let B = S.blankLayout();
+  B = S.paintMirror(B, 30, 30, true, false); B = S.paintMirror(B, 31, 30, true, true); B = S.paintMirror(B, 31, 30, true, true);
+  eq(B.cells.length, 8); eq(B.past.length, 1);
+  B = S.paintMirror(B, 31, 30, false, false);
+  eq(B.cells.length, 4); eq(B.past.length, 2);
 });
 
 /* ---- hex maths --------------------------------------------------------- */
@@ -395,6 +441,21 @@ check("tap toggles a tile, a drag pans, and brush mode paints along the drag", (
   eq(a.S.guides(), true);
   a.click({a:"guides"});
   eq(a.S.guides(), false);
+  /* mirror mode from the toolbar: a tap fills all four quarters, a brush stroke too */
+  a.click({a:"new"}); a.click({a:"tap"});
+  a.click({a:"mirror"}); eq(a.S.mirror(), true);
+  const s2 = a.S.state();
+  const m = a.S.hexCenter(30, 30), mp = { x: m.x * v.scale + v.tx, y: m.y * v.scale + v.ty };
+  a.H["el:pointerdown"](ev("pointerdown", mp.x, mp.y));
+  a.H["el:pointerup"](ev("pointerup", mp.x, mp.y));
+  eq(s2.draft.cells.slice().sort().join(" "), "20,30 20,38 30,30 30,38");
+  a.click({a:"brush"});
+  const n2 = a.S.hexCenter(32, 30), np = { x: n2.x * v.scale + v.tx, y: n2.y * v.scale + v.ty };
+  a.H["el:pointerdown"](ev("pointerdown", mp.x, mp.y));
+  a.H["el:pointermove"](ev("pointermove", np.x, np.y));
+  a.H["el:pointerup"](ev("pointerup", np.x, np.y));
+  ok(s2.draft.cells.indexOf("18,38") >= 0 && s2.draft.cells.indexOf("32,30") >= 0, "brush mirrored: " + s2.draft.cells);
+  a.click({a:"mirror"}); eq(a.S.mirror(), false);
 });
 
 console.log("\n" + passed + " passed, " + failed + " failed");

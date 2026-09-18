@@ -163,6 +163,14 @@ var PRESETS = [
   {id: "wave-20", name: "Guest motif, 2x", cells: ["18,29", "18,30", "18,31", "18,37", "18,38", "18,39", "19,30", "19,38", "20,24", "20,25", "20,26", "20,42", "20,43", "20,44", "21,19", "21,21", "21,47", "21,49", "23,20", "23,48", "24,17", "24,33", "24,34", "24,35", "24,51", "25,10", "25,12", "25,14", "25,17", "25,18", "25,20", "25,22", "25,24", "25,26", "25,28", "25,30", "25,33", "25,34", "25,35", "25,38", "25,40", "25,42", "25,44", "25,46", "25,48", "25,50", "25,51", "25,54", "25,56", "25,58", "26,34", "27,20", "27,48", "28,19", "28,21", "28,47", "28,49", "29,25", "29,43", "30,24", "30,26", "30,42", "30,44", "31,29", "31,30", "31,31", "31,37", "31,38", "31,39", "32,30", "32,38"]}
 ];
 
+/* The rooms, for Mirror mode: each is a box and the two centre lines the
+   guides draw. A cell belongs to the first room whose box holds it. */
+var ROOMS = [
+  {id: "main", v: 25, h: 34, c0: -3, c1: 62, r0: -14, r1: 84},
+  {id: "shower", v: -25, h: 25, c0: -43, c1: -3, r0: 7, r1: 43},
+  {id: "wc", v: -25, h: 59, c0: -43, c1: -3, r0: 48, r1: 70}
+];
+
 /* Room names painted on the canvas, for orientation only. */
 var LABELS = [
   {t:"BAY WINDOW", c:29, r:-9}, {t:"VANITY", c:63.5, r:34, rot:1, light:1}, {t:"DOOR", c:25, r:88, light:1},
@@ -300,6 +308,48 @@ function paintCell(L, c, r, black, cont){
   var cells = black ? L.cells.concat([k]) : L.cells.slice(0, i).concat(L.cells.slice(i + 1));
   return withCells(L, cells, cont);
 }
+/* --- mirror mode ---------------------------------------------------------- */
+
+function roomOf(c, r){
+  var x = hexCenter(c, r).x;
+  for (var i = 0; i < ROOMS.length; i++){
+    var m = ROOMS[i];
+    if (x >= m.c0 && x <= m.c1 && r >= m.r0 && r <= m.r1) return m;
+  }
+  return null;
+}
+/* A cell and its images across its room's two centre lines, without repeats.
+   Across the upright: on an even row the line runs through the cell at column
+   `v`, which is its own image; on an odd row it runs between two cells, so
+   they pair up. Across the cross line, row `h` is its own image. The lines
+   are where the guides draw them, so what the eye sees mirrored is what is. */
+function mirrorCells(c, r){
+  var m = roomOf(c, r);
+  if (!m) return [[c, r]];
+  var cx = isOdd(r) ? 2 * m.v - c - 1 : 2 * m.v - c, ry = 2 * m.h - r;
+  var out = [[c, r]], seen = {}; seen[key(c, r)] = 1;
+  [[cx, r], [c, ry], [cx, ry]].forEach(function(q){
+    var k = key(q[0], q[1]);
+    if (!seen[k]){ seen[k] = 1; out.push(q); }
+  });
+  return out;
+}
+/* Mirrored toggle: the tapped cell decides the colour, and every image is set
+   to it rather than flipped, so a cell that is its own image does not undo
+   itself. One undo step for the group. */
+function toggleMirror(L, c, r){
+  if (!paintable(c, r)) return L;
+  var black = L.cells.indexOf(key(c, r)) < 0;
+  return paintMirror(L, c, r, black, false);
+}
+function paintMirror(L, c, r, black, cont){
+  var cells = mirrorCells(c, r), out = L, started = cont;
+  for (var i = 0; i < cells.length; i++){
+    var next = paintCell(out, cells[i][0], cells[i][1], black, started);
+    if (next !== out){ out = next; started = true; }
+  }
+  return out;
+}
 function undo(L){
   if (!L.past.length) return L;
   return {id:L.id, name:L.name, created:L.created, updated:L.updated,
@@ -425,7 +475,7 @@ function saveState(){
 var state = loadState();
 var tab = "design";
 var view = null;            /* {scale, tx, ty}, null until the canvas has a size */
-var brush = false, paintBlack = true, guides = true;
+var brush = false, paintBlack = true, guides = true, mirror = false;
 var renaming = null, confirmDel = null;
 var pointers = {}, gesture = null;
 
@@ -499,13 +549,18 @@ function viewDesign(){
       '<button class="btn" data-a="undo"' + (L.past.length ? "" : " disabled") + '>Undo</button>' +
       '<button class="btn" data-a="fit">Fit</button>' +
       '<button class="btn' + (guides ? " on" : "") + '" data-a="guides">Guides</button>' +
+      '<button class="btn' + (mirror ? " on" : "") + '" data-a="mirror">Mirror</button>' +
       '<button class="btn" data-a="image">Image</button>' +
     '</div>' +
     '<div class="stage"><canvas id="floor"></canvas>' +
       '<div class="counts" id="counts">' + countsText(n) + '</div>' +
-      '<div class="hint">' + (brush ? "Drag to paint " + (paintBlack ? "black" : "white") + ". Two fingers move." : "Tap a tile to flip it. Drag to move, pinch to zoom.") + '</div>' +
+      '<div class="hint" id="hint">' + hintText() + '</div>' +
     '</div>' +
   '</main>';
+}
+function hintText(){
+  var t = brush ? "Drag to paint " + (paintBlack ? "black" : "white") + ". Two fingers move." : "Tap a tile to flip it. Drag to move, pinch to zoom.";
+  return mirror ? t + " Mirror is on: each tile is set in all four quarters of its room." : t;
 }
 function countsText(n){
   return '<b class="num">' + n.black + '</b> black <span class="dim">(' + n.fixed + ' fixed)</span> &nbsp; <b class="num">' + n.white + '</b> white';
@@ -575,7 +630,7 @@ function viewPlan(){
     '<p>The white margins between each border and its wall, the bay window’s chamfered shape, the toilet room door’s position in its east wall, and the depth of the entry recess beyond the threshold row are read to about one cell. They decide which tiles exist to paint, not where any black dot sits. The offset of the shower and toilet room from the main border read as nine cells in one photo and just under in another; nine is used.</p>' +
     '<p>Edit the rectangles in <span class="num">FLOOR</span> and the runs in <span class="num">SEGMENTS</span> at the top of the file if the site says otherwise. The tests count every run.</p>';
   h += '<h2>Using it</h2>' +
-    '<p>Tap a tile to flip it. Drag to move around, pinch or scroll to zoom, Fit to see the whole floor. Brush paints along a drag in the chosen colour; two fingers still move the view. Undo steps back one tap or one stroke. Guides are the centre lines of each room, the main room’s upright being the centre of the door; a pattern that is symmetric about them reads as centred from the doorway. Save keeps the design on this device under its name; Save as keeps a copy. Image downloads the plan as a PNG for the tile setter. The Layouts tab also offers starting points: the guest bathroom’s water-over-rock motif, read tile for tile from a photo and turned to run toward the door.</p>';
+    '<p>Tap a tile to flip it. Drag to move around, pinch or scroll to zoom, Fit to see the whole floor. Brush paints along a drag in the chosen colour; two fingers still move the view. Undo steps back one tap or one stroke. Guides are the centre lines of each room, the main room’s upright being the centre of the door; a pattern that is symmetric about them reads as centred from the doorway. Mirror sets each tile you touch in all four quarters of its room at once, across those same lines, so you draw one quarter and the rest follow. A tile on the cross row is its own image; on the door line, even rows have a tile on the line and odd rows have a pair either side of it. Save keeps the design on this device under its name; Save as keeps a copy. Image downloads the plan as a PNG for the tile setter. The Layouts tab also offers starting points: the guest bathroom’s water-over-rock motif, read tile for tile from a photo and turned to run toward the door.</p>';
   return h + '</div></main>';
 }
 
@@ -799,6 +854,11 @@ document.addEventListener("click", function(e){
   if (a === "white"){ paintBlack = false; render(); return; }
   if (a === "fit"){ var cv = document.getElementById("floor"); view = fitView(cv ? cv.clientWidth : 320, cv ? cv.clientHeight : 400); paint(); return; }
   if (a === "guides"){ guides = !guides; t.className = "btn" + (guides ? " on" : ""); paint(); return; }
+  if (a === "mirror"){
+    mirror = !mirror; t.className = "btn" + (mirror ? " on" : "");
+    var hn = document.getElementById("hint"); if (hn) hn.innerHTML = hintText();
+    return;
+  }
   if (a === "undo"){ state.draft = undo(state.draft); saveState(); cache = null; render(); return; }
   if (a === "image"){ exportImage(); return; }
   if (a === "open"){ openLayout(id); tab = "design"; cache = null; render(); return; }
@@ -857,8 +917,13 @@ function bindPointer(cv){
   function ids(){ return Object.keys(pointers); }
   function paintAt(p, cont){
     var cr = toHex(view, p.x, p.y);
-    var next = paintCell(state.draft, cr[0], cr[1], paintBlack, cont);
-    if (next !== state.draft){ state.draft = next; repaintCell(cr[0], cr[1], paintBlack); saveSoon(); paint(); }
+    var next = mirror ? paintMirror(state.draft, cr[0], cr[1], paintBlack, cont) : paintCell(state.draft, cr[0], cr[1], paintBlack, cont);
+    if (next !== state.draft){
+      state.draft = next;
+      var group = mirror ? mirrorCells(cr[0], cr[1]) : [cr];
+      for (var i = 0; i < group.length; i++) repaintCell(group[i][0], group[i][1], paintBlack);
+      saveSoon(); paint();
+    }
   }
   cv.addEventListener("pointerdown", function(e){
     if (e.button != null && e.button !== 0) return;
@@ -900,9 +965,11 @@ function bindPointer(cv){
     if (!q) return;
     if (gesture && gesture.type === "tap" && !gesture.moved && ids().length === 1){
       var cr = toHex(view, q.x, q.y);
-      var next = toggleCell(state.draft, cr[0], cr[1]);
+      var next = mirror ? toggleMirror(state.draft, cr[0], cr[1]) : toggleCell(state.draft, cr[0], cr[1]);
       if (next !== state.draft){
-        state.draft = next; repaintCell(cr[0], cr[1], next.cells.indexOf(key(cr[0], cr[1])) >= 0);
+        state.draft = next;
+        var black = next.cells.indexOf(key(cr[0], cr[1])) >= 0, group = mirror ? mirrorCells(cr[0], cr[1]) : [cr];
+        for (var i = 0; i < group.length; i++) repaintCell(group[i][0], group[i][1], black);
         saveState(); paint(); syncUndo();
       }
     }

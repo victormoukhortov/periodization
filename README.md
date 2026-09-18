@@ -134,7 +134,8 @@ the left with the toilet room directly below it.
   stepped door recess (10, 8, 16, 8, 6); shower 17 × 18; toilet room 17 × 10 on the same columns.
 - **Everything else is yours.** Tap a tile to flip it; drag to move, pinch to zoom. Brush mode paints
   along a drag. Undo steps back a tap or a stroke. Guides draw each room's centre lines, the main
-  room's upright on the centre of the door.
+  room's upright on the centre of the door. Mirror sets each tile you touch in all four quarters
+  of its room, so a symmetric medallion is drawn once.
 - **Layouts live on the device.** Save under a name, Save as for a copy, and the Layouts tab shows
   each one as a thumbnail with Open, Duplicate, Rename and Delete. The open design is kept across
   reloads whether or not it has been saved. Image downloads the plan as a PNG.
@@ -185,7 +186,7 @@ python3 -m http.server 8000   # then open http://localhost:8000/
 node test.mjs          # PPL Block, 31 checks
 node test-victor.mjs   # Rolling Five, 66 checks
 node test-meep.mjs     # Prove It, 47 checks
-node test-hex.mjs      # Hex Floor, 23 checks
+node test-hex.mjs      # Hex Floor, 25 checks
 ```
 
 They cover the progression engines, the floor geometry, the reducers, and the fact that every
