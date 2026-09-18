@@ -329,6 +329,8 @@ var SLOT_COUNT = SLOTS.length;
 var BAR = 45, EZ = 25, PLATES = [45,35,25,10,5,2.5];
 var DEFAULT_PLATES = 300;      /* total plate poundage owned; settings can move it */
 var CEILING_GAP = 40;          /* stop chasing load this close to loading everything */
+var DEFAULT_DB_MAX = 90;       /* heaviest dumbbell in the rack; settings can move it */
+var DB_SETS_MAX = 3;           /* sets a maxed dumbbell exercise may earn before tempo */
 var ELBOW_DAYS = 7;            /* how long a grumpy elbow halves the straight-arm work */
 var CYCLE_FLOOR = 4;           /* cycles a month below which Skill B gets cut back */
 var DAY_MS = 86400000;
@@ -428,6 +430,35 @@ function ceilingFor(ex, plateLb){ return onBar(ex) ? barOf(ex) + plateLb : null;
 function nearCeiling(ex, w, plateLb){
   var c = ceilingFor(ex, plateLb);
   return c != null && w != null && w >= c - CEILING_GAP;
+}
+
+/* A rack has no gap to leave: the bar takes 2.5s forever, the dumbbells stop
+   dead at the heaviest pair. So this is an equality, not the CEILING_GAP
+   approach the plates get. */
+function atDbMax(ex, w, dbMax){
+  return ex.gear === "Dumbbell" && w != null && w >= (dbMax || DEFAULT_DB_MAX);
+}
+
+/* Sets earned at the top of the rack. When the load cannot go up, the volume
+   does: every session that tops the rep range on every set with the heaviest
+   pair in your hands buys one more set, up to DB_SETS_MAX. Replayed from
+   history rather than stored — same rule as every other number here — and a
+   session back under the top pair puts it to zero, because that is a different
+   exercise now. */
+function earnedSets(ex, history, dbMax){
+  if (ex.gear !== "Dumbbell") return 0;
+  var n = 0;
+  for (var i = 0; i < history.length; i++){
+    var rows = (history[i].sets || {})[ex.id];
+    if (!rows) continue;
+    var done = rows.filter(function(r){ return r.done && Number(r.r) > 0; });
+    if (!done.length) continue;
+    var w = Math.max.apply(null, done.map(function(r){ return Number(r.w) || 0; }));
+    if (!atDbMax(ex, w, dbMax)){ n = 0; continue; }
+    var atTop = done.filter(function(r){ return (Number(r.w) || 0) === w; });
+    if (atTop.every(function(r){ return Number(r.r) >= ex.hi; })) n++;
+  }
+  return Math.min(n, DB_SETS_MAX);
 }
 
 /* The last time this exercise was trained: the working load, and every rep
@@ -530,6 +561,7 @@ function critHits(skillId, history, from){
 function prescribe(ex, history, opts){
   opts = opts || {};
   var plateLb = opts.plateLb || DEFAULT_PLATES;
+  var dbMax = opts.dbMax || DEFAULT_DB_MAX;
   var u = unitOf(ex);
 
   /* Accumulated wall time. The total is the target; what improves is the size
@@ -589,7 +621,32 @@ function prescribe(ex, history, opts){
       why:"Within " + CEILING_GAP + " lb of loading every plate you own. Stop chasing the number — same " + fmt(last.weight) +
         " lb with a 3-second eccentric and a pause at the bottom."};
   }
-  if (last.reps.length && last.reps.every(function(r){ return r >= ex.hi; })){
+  var topped = last.reps.length && last.reps.every(function(r){ return r >= ex.hi; });
+
+  /* At the top of the rack there is no next dumbbell, so the progression turns
+     sideways: sets instead of pounds, until that runs out too and all that is
+     left to add is difficulty. */
+  if (atDbMax(ex, last.weight, dbMax)){
+    var got = opts.earned == null ? earnedSets(ex, history, dbMax) : opts.earned;
+    /* Tempo only once the last set he earned has itself been worked up the
+       range. Firing on the session that earns the cap would hand him six sets
+       and take the rep progression away in the same breath. */
+    if (got >= DB_SETS_MAX && topped && last.reps.length >= ex.sets + DB_SETS_MAX){
+      return {weight:last.weight, reps:ex.hi, tempo:true, dbCap:true, earned:got,
+        why:"The " + fmt(dbMax) + " lb pair is the heaviest you own, and this is already " + DB_SETS_MAX +
+          " sets past where it started. Nothing left to add but difficulty — same load, 3-second eccentric, pause at the bottom."};
+    }
+    if (topped){
+      return {weight:last.weight, reps:ex.lo, dbCap:true, earned:got,
+        why:"Top of the range on every set (" + list + ") with the heaviest dumbbells you own. The load cannot go up, so the volume does — one more set, back to " +
+          ex.lo + " reps."};
+    }
+    return {weight:last.weight, reps:ex.hi, lastReps:last.reps, dbCap:true, earned:got,
+      why:"The " + fmt(dbMax) + " lb pair, which is the heaviest you own. Every set to " + ex.hi +
+        " and you earn a set rather than a plate. Last time: " + list + "."};
+  }
+
+  if (topped){
     return {weight: roundLoad(ex, last.weight + step), reps: ex.lo,
       why:"Top of the range on every set (" + list + ") — add " + step + " lb and drop back to " + ex.lo + "."};
   }
@@ -745,7 +802,7 @@ var KEY = "rolling-five-v1";
 var memory = null;
 
 function blank(){
-  return {index:0, history:[], draft:null, tests:{}, plates:DEFAULT_PLATES,
+  return {index:0, history:[], draft:null, tests:{}, plates:DEFAULT_PLATES, dbMax:DEFAULT_DB_MAX,
     notes:{}, timer:timerBlank()};
 }
 
@@ -756,6 +813,7 @@ function loadState(){
       var s = JSON.parse(raw);
       if (!s.tests) s.tests = {};
       if (!s.plates) s.plates = DEFAULT_PLATES;
+      if (!s.dbMax) s.dbMax = DEFAULT_DB_MAX;
       if (!s.notes) s.notes = {};
       if (s.draft && !s.draft.fb) s.draft.fb = {};
       if (s.draft && !s.draft.exs) s.draft.exs = Object.keys(s.draft.sets);
@@ -819,11 +877,17 @@ function ctx(absIndex){
 
   var counts = {}, targets = {};
   exercises.forEach(function(ex){
+    /* Sets earned at the top of the rack are part of the program's count, so
+       grumpy elbows halve them along with everything else rather than around
+       them. */
+    var earned = earnedSets(ex, hist, state.dbMax);
+    var base = ex.sets + earned;
     counts[ex.id] = live ? state.draft.sets[ex.id].length
-      : (cut && ex.straightArm) ? Math.max(1, Math.ceil(ex.sets / 2)) : ex.sets;
+      : (cut && ex.straightArm) ? Math.max(1, Math.ceil(base / 2)) : base;
     var lv = ex.skill ? levels[ex.skill] : null;
     targets[ex.id] = prescribe(ex, hist, {
-      plateLb: state.plates, level: lv ? lv.level : null, levelFrom: lv ? lv.from : 0
+      plateLb: state.plates, dbMax: state.dbMax, earned: earned,
+      level: lv ? lv.level : null, levelFrom: lv ? lv.from : 0
     });
   });
 
@@ -1460,6 +1524,8 @@ function viewPlan(c){
     '<li style="margin-bottom:6px">Barbell and dumbbell work is double progression: the load holds until <b>every</b> set reaches the top of the range, then it goes up 5 lb upper, 10 lb lower, and the reps drop back to the bottom.</li>' +
     '<li style="margin-bottom:6px">Every set short of the bottom of the range takes the load back down one step.</li>' +
     '<li style="margin-bottom:6px">Within ' + CEILING_GAP + ' lb of loading every plate you own, the load stops climbing and the sets pick up a 3-second eccentric and a pause instead.</li>' +
+    '<li style="margin-bottom:6px">At the heaviest dumbbells you own there is no next pair, so topping the range buys a <b>set</b> rather than a load — ' +
+      DB_SETS_MAX + ' of them, and then that exercise goes to tempo too.</li>' +
     '<li style="margin-bottom:6px">Skill work progresses by position. Clean sets at the criterion move you up a step; a session that broke down moves you back one.</li>' +
     '<li style="margin-bottom:6px">Bodyweight and band accessories climb to the top of their range and hold there — past that it is a thicker band or a harder position, not another rep.</li>' +
     '<li>Everything is derived from what you logged. There is no stored plan to drift.</li></ul>';
@@ -1492,6 +1558,14 @@ function viewSettings(c){
     '<button class="chip" data-a="plates" data-v="25">+ 25</button></div>' +
     '<p class="dim num" style="font-size:12px;margin-top:8px">Ceiling: ' + (BAR + state.plates) + ' lb on the bar, ' +
     (BAR + state.plates - CEILING_GAP) + ' lb where it stops climbing.</p></div>';
+
+  h += '<div class="card" style="padding:14px;margin-top:12px"><p style="font-size:14px;font-weight:700">Heaviest dumbbell</p>' +
+    '<p class="muted" style="font-size:14px;margin-top:6px">The top of the rack, per hand. There is no next pair above it, so a dumbbell exercise that tops its rep range here earns a set instead of a load — up to ' +
+    DB_SETS_MAX + ' of them, and then it goes to tempo like the bar does.</p>' +
+    '<div style="display:flex;gap:8px;margin-top:12px;align-items:center">' +
+    '<button class="chip" data-a="dbmax" data-v="-5">− 5</button>' +
+    '<span class="num" style="flex:1;text-align:center;font-size:20px;font-weight:900">' + state.dbMax + ' lb</span>' +
+    '<button class="chip" data-a="dbmax" data-v="5">+ 5</button></div></div>';
 
   h += '<div class="card" style="padding:14px;margin-top:12px"><p style="font-size:14px;font-weight:700">Weights</p>' +
     '<p class="muted" style="font-size:14px;margin-top:6px">Pounds throughout. 45 lb bar, 25 lb EZ bar, plates down to 2.5.</p>' +
@@ -1981,6 +2055,10 @@ document.addEventListener("click", function(e){
   }
   if (a === "plates"){
     state.plates = clamp(state.plates + Number(el.dataset.v), 100, 800);
+    saveState(); render(true); return;
+  }
+  if (a === "dbmax"){
+    state.dbMax = clamp(state.dbMax + Number(el.dataset.v), 25, 200);
     saveState(); render(true); return;
   }
 

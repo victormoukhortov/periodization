@@ -36,6 +36,10 @@ program actually cares about, and tells you where the rest days want to go.
   deficit → freestanding negatives, advancing at 3 × 8 clean. Front lever: tuck → advanced tuck →
   one leg → straddle → full, advancing at 3 × 15s clean. Rate a session as having broken down and
   it hands the position back rather than letting you grind a degraded hold.
+- **When the load runs out, the volume takes over.** At the heaviest dumbbells you own there is no
+  next pair, so topping the rep range buys a set rather than five pounds — three of them, and then
+  that exercise goes to 3-second eccentrics and paused reps, the same place the barbell work ends
+  up at the plate ceiling. The top of your rack is a setting.
 - **The program cuts itself back.** Grumpy elbows halve the straight-arm volume for a week rather
   than stopping it. A heavy-feeling handstand day takes the seated dumbbell press off your next
   Push. Legs going to mush, or dropping under four cycles a month, cuts Skill B to fifteen minutes
@@ -162,7 +166,7 @@ python3 -m http.server 8000   # then open http://localhost:8000/
 
 ```
 node test.mjs          # PPL Block, 31 checks
-node test-victor.mjs   # Rolling Five, 66 checks
+node test-victor.mjs   # Rolling Five, 73 checks
 node test-meep.mjs     # Prove It, 47 checks
 ```
 
