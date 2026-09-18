@@ -24,3 +24,4 @@ jobs:
       - run: node test.mjs
       - run: node test-victor.mjs
       - run: node test-meep.mjs
+      - run: node test-hex.mjs

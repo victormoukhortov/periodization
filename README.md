@@ -1,25 +1,27 @@
 # periodization
 
-Three single-file workout trackers, hosted on GitHub Pages. No dependencies, no build step, no
-server. Each one keeps its whole training log in the browser it is installed in.
+Four single-file apps, hosted on GitHub Pages: three workout trackers and a bathroom floor planner.
+No dependencies, no build step, no server. Each one keeps its whole data in the browser it is
+installed in.
 
 | App | File | What it runs |
 | --- | --- | --- |
 | **PPL Block** | [`indie.html`](indie.html) | A 4-day Push / Pull / Legs / Full Body split on five-week blocks. Logs sets, asks the RP-style soreness / pump / volume questions, and derives the next session's sets, weight and reps from the answers. Four weeks of work at 3, 2, 1 then 0 reps in reserve, then a deload. |
 | **Rolling Five** | [`victor.html`](victor.html) | A 5-slot rolling cycle — Push, Pull, Legs, Skill A, Skill B — for barbell strength alongside the handstand pushup and front lever. Double progression on the bar, position progression on the skills, and a program that cuts itself back when your elbows, your legs or your cycle rate say so. |
 | **Prove It** | [`meep.html`](meep.html) | Upper / lower, four days a week, for building muscle in a commercial gym. Every exercise ends in a proof set taken to failure; the load comes off that set, volume is a reward for intensity, and deloads are earned rather than scheduled. |
+| **Hex Floor** | [`hex.html`](hex.html) | A planner for the black-and-white pattern of a hex mosaic bathroom floor. The real floor plan, read off site photos, with the grouted-in dotted border fixed; tap any other tile black or white, save layouts, browse them by preview, reopen and edit. |
 
 Everything else in this repo is deployment plumbing or tests.
 
 | File | Role |
 | --- | --- |
-| `indie.html`, `victor.html`, `meep.html` | The applications, entire. |
-| `index.html` | Site root; offers all three apps. |
+| `indie.html`, `victor.html`, `meep.html`, `hex.html` | The applications, entire. |
+| `index.html` | Site root; offers all four apps. |
 | `sw.js` | Service worker: network first, cache fallback, so any of them opens offline. |
-| `manifest.webmanifest`, `victor.webmanifest`, `meep.webmanifest` | PWA manifests for home-screen install. Icons are inline data URIs. |
+| `manifest.webmanifest`, `victor.webmanifest`, `meep.webmanifest`, `hex.webmanifest` | PWA manifests for home-screen install. Icons are inline data URIs. |
 | `.nojekyll` | Serve the files verbatim; no Jekyll processing. |
-| `.github/workflows/test.yml` | Runs all three suites on every push and pull request. |
-| `test.mjs`, `test-victor.mjs`, `test-meep.mjs` | Headless regression suites. No test framework. |
+| `.github/workflows/test.yml` | Runs all four suites on every push and pull request. |
+| `test.mjs`, `test-victor.mjs`, `test-meep.mjs`, `test-hex.mjs` | Headless regression suites. No test framework. |
 | `CLAUDE.md` | Architecture and the constraints that hold it together. |
 
 ## Rolling Five, in one screen
@@ -123,6 +125,27 @@ dangerous to fail alone, so there is no barbell bench and no back squat.
 - **One number on the front of Progress:** the share of proof sets you took to one-more-or-nothing
   over the last four weeks. Target is 80%.
 
+## Hex Floor, in one screen
+
+The floor is hex mosaic, white field with a dotted black border already grouted in: one
+black, one white, one black along every run. The app draws the plan on that grid with the bay
+window at the top, the entry door at the bottom, the vanity wall on the right, and the shower on
+the left with the toilet room directly below it.
+
+- **The border is fixed.** Every run was counted dot by dot in the site photos and is data at the
+  top of the file; the Plan tab lists each run with its count and the photos it was read from, and
+  the test suite checks the geometry produces exactly those counts. Main border 30 × 35 dots with a
+  stepped door recess (10, 8, 16, 8, 6); shower 17 × 18; toilet room 17 × 10 on the same columns.
+- **Everything else is yours.** Tap a tile to flip it; drag to move, pinch to zoom. Brush mode paints
+  along a drag. Undo steps back a tap or a stroke. Guides draw each room's centre lines, the main
+  room's upright on the centre of the door. Mirror sets each tile you touch in all four quarters
+  of its room, so a symmetric medallion is drawn once. The palette holds brushes made of the units
+  the guest floors use, pair, stack, chevron, diamond, ring, flower, with Rotate for the six
+  orientations, and New shape turns tiles you tap on the floor into a brush of your own.
+- **Layouts live on the device.** Save under a name, Save as for a copy, and the Layouts tab shows
+  each one as a thumbnail with Open, Duplicate, Rename and Delete. The open design is kept across
+  reloads whether or not it has been saved. Image downloads the plan as a PNG.
+
 ## Deploying
 
 Pages serves the branch directly — **Settings → Pages → Source: Deploy from a branch, `main`,
@@ -131,8 +154,9 @@ the repo root to the site a moment later. There is no build step and no deploy w
 
 The site is at <https://victormoukhortov.github.io/periodization/>, and the apps at
 <https://victormoukhortov.github.io/periodization/indie.html>,
-<https://victormoukhortov.github.io/periodization/victor.html> and
-<https://victormoukhortov.github.io/periodization/meep.html>.
+<https://victormoukhortov.github.io/periodization/victor.html>,
+<https://victormoukhortov.github.io/periodization/meep.html> and
+<https://victormoukhortov.github.io/periodization/hex.html>.
 
 Because publishing is GitHub's job and not a workflow's, **a red test does not stop a deploy.**
 `test.yml` tells you whether what you just shipped is sound; it cannot hold it back. Run the
@@ -168,8 +192,9 @@ python3 -m http.server 8000   # then open http://localhost:8000/
 node test.mjs          # PPL Block, 31 checks
 node test-victor.mjs   # Rolling Five, 73 checks
 node test-meep.mjs     # Prove It, 47 checks
+node test-hex.mjs      # Hex Floor, 28 checks
 ```
 
-They cover the progression engines, the reducers, and the fact that every screen renders. CI runs
-both on pushes and pull requests. It reports; it cannot hold back a deploy, so run them yourself
+They cover the progression engines, the floor geometry, the reducers, and the fact that every
+screen renders. CI runs all of them on pushes and pull requests. It reports; it cannot hold back a deploy, so run them yourself
 before pushing to `main`.
