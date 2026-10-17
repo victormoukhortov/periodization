@@ -107,6 +107,8 @@ return {
     restAdvice: restAdvice, nearCeiling: nearCeiling, plannedSets: plannedSets,
     noteFor: noteFor, pastSessions: pastSessions, setsLine: setsLine,
     exById: exById, slotOf: slotOf, cycleOf: cycleOf, loadless: loadless,
+    earnedSets: earnedSets, atDbMax: atDbMax, DB_SETS_MAX: DB_SETS_MAX,
+    DEFAULT_DB_MAX: DEFAULT_DB_MAX,
     SLOTS: SLOTS, SKILLS: SKILLS, SLOT_COUNT: SLOT_COUNT, DAY_MS: DAY_MS,
     CEILING_GAP: CEILING_GAP, ELBOW_DAYS: ELBOW_DAYS, CYCLE_FLOOR: CYCLE_FLOOR,
     timerLeft: timerLeft, timerPhase: timerPhase, timerStart: timerStart,
@@ -216,6 +218,126 @@ check("a session that misses the bottom of the range takes the load back down", 
   // a fixed prescription has no range to fall out of
   const flye = prescribe(exById("u4"), log("u4", 15, [14, 14, 14])); // 3 x 15
   eq(flye.weight, 15, "one rep short of a flat 15 repeats rather than backing off");
+});
+
+/* One session of `ex`, logged at `w` for `reps` on every set. */
+function logged(exId, w, reps, sets) {
+  const rows = [];
+  for (let i = 0; i < (sets || 3); i++) rows.push({ w: String(w), r: String(reps), done: true });
+  return { ts: Date.now(), cycle: 1, slot: "push", sets: { [exId]: rows }, fb: {} };
+}
+
+check("a maxed dumbbell buys a set instead of a plate", () => {
+  const { prescribe, exById, earnedSets, DEFAULT_DB_MAX } = boot().api();
+  const ex = exById("p2");                        // Incline Dumbbell Press, 3 × 8–12
+  const max = DEFAULT_DB_MAX;
+
+  /* below the rack's top, topping the range adds weight as it always did */
+  let t = prescribe(ex, [logged(ex.id, 60, ex.hi)], {});
+  eq(t.weight, 65, "under the top pair, the load goes up");
+  eq(!!t.dbCap, false, "and nothing is capped");
+
+  /* at the top pair, it does not */
+  const atMax = [logged(ex.id, max, ex.hi)];
+  t = prescribe(ex, atMax, {});
+  eq(t.weight, max, "at the top pair the load holds");
+  eq(t.reps, ex.lo, "and the reps drop back to the bottom");
+  eq(t.dbCap, true, "because the rack, not the program, is what stopped it");
+  ok(t.why.indexOf("volume does") >= 0, "and it says why");
+  eq(earnedSets(ex, atMax, max), 1, "one set earned");
+});
+
+check("earned sets accumulate, cap, and then go to tempo", () => {
+  const { prescribe, exById, earnedSets, DB_SETS_MAX, DEFAULT_DB_MAX } = boot().api();
+  const ex = exById("p2"), max = DEFAULT_DB_MAX;
+
+  const hist = [];
+  for (let i = 1; i <= DB_SETS_MAX; i++) {
+    hist.push(logged(ex.id, max, ex.hi, ex.sets + i - 1));
+    eq(earnedSets(ex, hist, max), i, `top of the range ${i} time(s) at the rack's top, ${i} set(s) earned`);
+  }
+
+  /* the session that earns the last set still gets to work it up the range —
+     handing him six sets and taking the reps away in the same breath is two
+     progressions spent on one session */
+  let t = prescribe(ex, hist, {});
+  eq(!!t.tempo, false, "the set just earned is worked from the bottom first");
+  eq(t.reps, ex.lo, "at the bottom of the range");
+
+  /* the cap holds, and once that last set tops out there is nothing left */
+  hist.push(logged(ex.id, max, ex.hi, ex.sets + DB_SETS_MAX));
+  eq(earnedSets(ex, hist, max), DB_SETS_MAX, "and the count stops there");
+  t = prescribe(ex, hist, {});
+  eq(t.tempo, true, "with nothing left to add, the sets get harder instead");
+  eq(t.weight, max, "at the same load");
+});
+
+check("dropping back under the top pair starts the earned sets again", () => {
+  const { exById, earnedSets, DEFAULT_DB_MAX } = boot().api();
+  const ex = exById("p2"), max = DEFAULT_DB_MAX;
+
+  const hist = [logged(ex.id, max, ex.hi), logged(ex.id, max, ex.hi)];
+  eq(earnedSets(ex, hist, max), 2, "two earned");
+  hist.push(logged(ex.id, 70, ex.hi));
+  eq(earnedSets(ex, hist, max), 0, "a lighter session is a different exercise now");
+  hist.push(logged(ex.id, max, ex.hi));
+  eq(earnedSets(ex, hist, max), 1, "and the count restarts from there");
+});
+
+check("a maxed dumbbell short of the range earns nothing", () => {
+  const { prescribe, exById, earnedSets, DEFAULT_DB_MAX } = boot().api();
+  const ex = exById("p2"), max = DEFAULT_DB_MAX;
+  const hist = [logged(ex.id, max, ex.hi - 1)];
+
+  eq(earnedSets(ex, hist, max), 0, "not every set at the top, so no set is owed");
+  const t = prescribe(ex, hist, {});
+  eq(t.weight, max, "the load holds");
+  eq(t.reps, ex.hi, "and the range is still the thing to finish");
+  eq(t.dbCap, true, "it is still at the rack's top, and says so");
+});
+
+check("only dumbbells have a rack to run out of", () => {
+  const { exById, earnedSets, atDbMax, DEFAULT_DB_MAX } = boot().api();
+  const bar = exById("p1"), band = exById("b4"), max = DEFAULT_DB_MAX;
+
+  eq(atDbMax(bar, 200, max), false, "a barbell at 200 is not at a dumbbell ceiling");
+  eq(earnedSets(bar, [logged(bar.id, 200, bar.hi)], max), 0, "and earns no sets for it");
+  eq(earnedSets(band, [logged(band.id, 0, band.hi)], max), 0, "nor does band work");
+});
+
+check("an earned set shows up in the session, and the elbow cut still halves", () => {
+  const app = boot();
+  const { state, ctx, exById, DEFAULT_DB_MAX } = app.api();
+  const ex = exById("p2"), max = DEFAULT_DB_MAX;
+  eq(ctx(0).counts[ex.id], ex.sets, "starts at the program's count");
+
+  state.history.push(logged(ex.id, max, ex.hi));
+  eq(ctx(0).counts[ex.id], ex.sets + 1, "a session at the rack's top adds one");
+  eq(ctx(0).exercises.filter((e) => e.id === ex.id).length, 1, "same exercise, more of it");
+
+  /* no dumbbell movement is straight-arm today, so the two rules cannot meet
+     in this program — but the cut now halves ex.sets + earned rather than
+     ex.sets, and this is what says the refactor left it working. */
+  const sa = exById("b4");
+  state.history.push({ ts: Date.now(), cycle: 1, slot: "skillb", sets: {}, fb: { elbow: 2 } });
+  eq(ctx(4).counts[sa.id], Math.max(1, Math.ceil(sa.sets / 2)), "halved while the elbows are grumpy");
+});
+
+check("the heaviest dumbbell is a setting", () => {
+  const app = boot();
+  const { state, ctx, exById } = app.api();
+  const ex = exById("p2");
+  app.click({ a: "nav", tab: "settings" });
+  const start = state.dbMax;
+  app.click({ a: "dbmax", v: "5" });
+  eq(state.dbMax, start + 5, "it moves");
+  app.click({ a: "dbmax", v: "-5" });
+  eq(state.dbMax, start, "and back");
+
+  /* and the engine reads it, not the constant */
+  state.dbMax = 50;
+  state.history.push(logged(ex.id, 50, ex.hi));
+  eq(ctx(0).counts[ex.id], ex.sets + 1, "a 50 lb rack tops out at 50");
 });
 
 check("the plate ceiling stops the load and switches to tempo", () => {

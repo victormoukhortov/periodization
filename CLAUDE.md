@@ -251,7 +251,7 @@ Same section banners as `indie.html`, and the same responsibilities:
   `now` as arguments.
 - `STORAGE` — `localStorage` under `rolling-five-v1`, in-memory fallback when storage is blocked.
   A different key from PPL Block, so the two apps cannot see each other.
-- `STATE` — `state` (`index`, `history`, `draft`, `tests`, `plates`, `notes`) plus `ctx(absIndex)`.
+- `STATE` — `state` (`index`, `history`, `draft`, `tests`, `plates`, `dbMax`, `notes`) plus `ctx(absIndex)`.
 - `ALARM` — the rest timer's side effects: the alarm file, the wake lock, the media-session
   transport, the notification, the tick, and `paintTimer`. Nothing in here may throw; a phone that
   will not play a sound must still log a set.
@@ -276,6 +276,7 @@ are already logged.
 - within `CEILING_GAP` (40 lb) of loading every plate you own → the load stops climbing for good
   and the sets pick up a 3-second eccentric and a pause. The plate total is a setting; the squat
   is what runs out of room first.
+- **at the heaviest dumbbell you own, the progression turns sideways into volume.** See below.
 - bodyweight and band accessories climb to the top of their range and **hold there**. Past that
   the progression is a thicker band or a harder position, not another rep. This is deliberately
   unlike PPL Block, where bodyweight reps climb forever.
@@ -296,6 +297,32 @@ are already logged.
 - The handstand pushup ladder starts at step 2 instead of step 1 when the baseline tests show 8+
   strict pike pushups **and** a 30s+ chest-to-wall hold. That is the program's entry test, and it
   is the only thing the test battery feeds into the engine.
+
+## The dumbbell ceiling
+
+A bar takes another 2.5 forever; a rack stops dead at the heaviest pair. So `atDbMax` is an
+equality rather than the `CEILING_GAP` approach the plates get — there is no gap to leave. When a
+dumbbell exercise tops its rep range on every set at that pair, it earns **a set** instead of a
+load, and `earnedSets` is the whole mechanism:
+
+- **Replayed from history, never stored.** It walks the log for that exercise and counts the
+  sessions that topped the range at the top pair. `ctx` adds it to `ex.sets` before the
+  straight-arm cut halves anything, so a halved count halves the earned sets with it rather than
+  around them. Constraint 5 applies here like everywhere else: do not cache this.
+- **A session under the top pair puts the count back to zero.** Lighter dumbbells make it a
+  different exercise, and carrying six sets into it would be carrying the wrong thing.
+- **`DB_SETS_MAX` (3) is where volume runs out**, and then the exercise goes to tempo exactly as
+  the bar does at its plate ceiling. So the full ladder is load → reps → sets → difficulty.
+- **Tempo waits for the last earned set to be worked up the range.** Firing it on the session that
+  earns the cap would hand him a sixth set and take the rep progression away in the same breath,
+  which spends two progressions on one session. Hence the `last.reps.length >= ex.sets +
+  DB_SETS_MAX` half of that condition — it is not redundant.
+- `state.dbMax` is a setting (default `DEFAULT_DB_MAX`, 90) next to the plate total, because a rack
+  is a property of the gym rather than of the program. The engine reads the setting; only the
+  default is a constant.
+
+Nothing in the program marks which exercises this can reach — it is `gear === "Dumbbell"` and the
+rack, so a movement swapped in later gets the rule for free.
 
 ## The three levers
 
@@ -797,7 +824,7 @@ cell; they decide which tiles exist to paint, not where any black dot sits.
 
 ```
 node test.mjs          # PPL Block, 31 checks
-node test-victor.mjs   # Rolling Five, 66 checks
+node test-victor.mjs   # Rolling Five, 73 checks
 node test-meep.mjs     # Prove It, 47 checks
 node test-hex.mjs      # Hex Floor, 28 checks
 ```
