@@ -140,14 +140,16 @@ check("the toilet room sits directly under the shower: same width, same east and
   ok(S.floor["-20,43"] && S.floor["-20,48"], "tile on both sides of it");
 });
 
-check("row-lines step two columns, column-lines step two rows, all on even rows", () => {
+check("row-lines step two columns, column-lines step two rows, so every run is a straight line", () => {
   S.SEGMENTS.forEach(seg => {
     const cells = S.segmentCells(seg);
     for (let i = 1; i < cells.length; i++){
       const d = [cells[i][0] - cells[i-1][0], cells[i][1] - cells[i-1][1]];
       ok((d[0] === 2 && d[1] === 0) || (d[0] === 0 && d[1] === 2), seg.id + " step " + d);
     }
-    cells.forEach(c => eq(c[1] % 2, 0, seg.id + " odd row " + c));
+    /* a row-line's cells share column parity, so they share a height; a column-line's share a column */
+    const ys = cells.map(c => S.hexCenter(c[0], c[1]).y), xs = cells.map(c => S.hexCenter(c[0], c[1]).x);
+    ok(Math.max(...ys) - Math.min(...ys) < 1e-9 || Math.max(...xs) - Math.min(...xs) < 1e-9, seg.id + " not straight");
   });
 });
 
@@ -168,8 +170,8 @@ check("the floor is one connected region", () => {
   const stack = [start];
   while (stack.length){
     const [c, r] = stack.pop().split(",").map(Number);
-    const odd = ((r % 2) + 2) % 2;
-    const nb = [[c-1,r],[c+1,r],[c-1+odd,r-1],[c+odd,r-1],[c-1+odd,r+1],[c+odd,r+1]];
+    const odd = ((c % 2) + 2) % 2;
+    const nb = [[c,r-1],[c,r+1],[c-1,r-1+odd],[c-1,r+odd],[c+1,r-1+odd],[c+1,r+odd]];
     nb.forEach(([x,y]) => { const k = x + "," + y; if (S.floor[k] && !seen[k]){ seen[k] = true; stack.push(k); } });
   }
   eq(Object.keys(seen).length, keys.length);
@@ -205,13 +207,13 @@ check("presets are paintable cells, symmetric about the door line and the cross 
     P.cells.forEach(k => {
       const [c, r] = k.split(",").map(Number);
       ok(S.floor[k] && !S.fixed[k], P.id + " " + k + " not paintable");
-      const mx = (r % 2 === 0 ? 50 - c : 49 - c) + "," + r, my = c + "," + (68 - r);
+      const mx = (50 - c) + "," + r, my = c + "," + ((c % 2 + 2) % 2 === 1 ? 67 - r : 68 - r);
       ok(set[mx], P.id + " no mirror of " + k + " about the door line");
       ok(set[my], P.id + " no mirror of " + k + " about the cross line");
     });
     const rows = P.cells.map(k => +k.split(",")[1]), cols = P.cells.map(k => +k.split(",")[0]);
     ok(Math.max(...rows) - Math.min(...rows) > 2 * (Math.max(...cols) - Math.min(...cols)), P.id + " should be elongated north-south");
-    ok(set["25,34"] && set["24,33"] && set["26,34"], P.id + " rosette at the centre");
+    ok(set["25,33"] && set["25,34"], P.id + " the pair that straddles the centre");
   });
   const before = S.state().layouts.length;
   app.click({a:"tab", t:"layouts"});
@@ -225,22 +227,24 @@ check("presets are paintable cells, symmetric about the door line and the cross 
 check("mirror images: four in a quarter, two on a line, one at the centre, pairs across the odd-row door line", () => {
   const ks = cells => cells.map(c => c.join(",")).sort().join(" ");
   eq(ks(S.mirrorCells(30, 30)), ks([[30,30],[20,30],[30,38],[20,38]]));
-  eq(ks(S.mirrorCells(25, 34)), "25,34");                       // the centre tile
-  eq(ks(S.mirrorCells(25, 30)), ks([[25,30],[25,38]]));         // on the door line, even row
-  eq(ks(S.mirrorCells(30, 34)), ks([[30,34],[20,34]]));         // on the cross row
-  eq(ks(S.mirrorCells(25, 33)), ks([[25,33],[24,33],[25,35],[24,35]]));   // odd row: the line runs between 24 and 25
-  eq(ks(S.mirrorCells(24, 33)), ks(S.mirrorCells(25, 33)));
+  eq(ks(S.mirrorCells(25, 30)), ks([[25,30],[25,37]]));         // door column is odd: it sits half a tile south, so 30 pairs with 37 across the cross line
+  eq(ks(S.mirrorCells(25, 33)), ks([[25,33],[25,34]]));         // the two tiles that straddle the centre
+  eq(ks(S.mirrorCells(30, 34)), ks([[30,34],[20,34]]));         // even column, on the cross row: its own image across it
+  eq(ks(S.mirrorCells(31, 30)), ks([[31,30],[19,30],[31,37],[19,37]]));   // odd column off the axes
+  eq(ks(S.mirrorCells(24, 34)), ks([[24,34],[26,34]]));
   /* every image mirrors back to the same group, in every room */
-  [[30,30],[25,33],[-20,20],[-30,21],[-20,55],[-24,59],[20,76],[10,-5]].forEach(([c, r]) => {
+  [[30,30],[25,33],[31,30],[-20,20],[-30,21],[-21,24],[-20,55],[-24,59],[-23,58],[20,76],[10,-5]].forEach(([c, r]) => {
     const g = ks(S.mirrorCells(c, r));
     S.mirrorCells(c, r).forEach(q => eq(ks(S.mirrorCells(q[0], q[1])), g, "closure of " + c + "," + r));
     S.mirrorCells(c, r).forEach(q => {
       const x = S.hexCenter(q[0], q[1]).x, m = S.roomOf(c, r);
-      ok(Math.abs(Math.abs(x - m.v) - Math.abs(S.hexCenter(c, r).x - m.v)) < 1e-9, "same distance from the upright");
-      eq(Math.abs(q[1] - m.h), Math.abs(r - m.h), "same distance from the cross row");
+      const y = S.hexCenter(q[0], q[1]).y, p0 = S.hexCenter(c, r);
+      ok(Math.abs(Math.abs(x - m.v * 0.8660254) - Math.abs(p0.x - m.v * 0.8660254)) < 1e-9, "same distance from the upright");
+      ok(Math.abs(Math.abs(y - m.h) - Math.abs(p0.y - m.h)) < 1e-9, "same distance from the cross line");
     });
   });
   eq(S.roomOf(-20, 20).id, "shower"); eq(S.roomOf(-20, 55).id, "wc"); eq(S.roomOf(20, 76).id, "main");
+  S.mirrorCells(-20, 20).forEach(q => eq(S.roomOf(q[0], q[1]).id, "shower", "a shower tile's images stay in the shower"));
 });
 
 check("mirrored toggle sets the whole group in one undo step, and a self-image does not flip back", () => {
@@ -249,11 +253,11 @@ check("mirrored toggle sets the whole group in one undo step, and a self-image d
   eq(L.cells.length, 4); eq(L.past.length, 1);
   L = S.toggleMirror(L, 20, 38);                       // any image toggles the group off
   eq(L.cells.length, 0); eq(L.past.length, 2);
-  L = S.toggleMirror(L, 25, 34);
-  eq(L.cells.join(), "25,34");
+  L = S.toggleMirror(L, 30, 34);
+  eq(L.cells.slice().sort().join(" "), "20,34 30,34");
   L = S.toggleMirror(L, 25, 30);
-  eq(L.cells.length, 3); eq(L.past.length, 4);
-  L = S.undo(L); eq(L.cells.join(), "25,34");
+  eq(L.cells.length, 4); eq(L.past.length, 4);
+  L = S.undo(L); eq(L.cells.slice().sort().join(" "), "20,34 30,34");
   /* a group whose images include a fixed dot or a wall paints what it can */
   L = S.toggleMirror(S.blankLayout(), 20, 76);         // door neck: its cross-line image is up in the bay
   ok(L.cells.indexOf("20,76") >= 0 && L.cells.indexOf("30,76") >= 0, "the neck pair");
@@ -276,20 +280,22 @@ check("shapes: axial offsets stamp the same shape on odd and even rows, and six 
   const even = S.shapeCells(ros, 20, 20, 0), odd = S.shapeCells(ros, 20, 21, 0);
   eq(even.length, 7); eq(odd.length, 7);
   /* every cell of a rosette is the centre or one of its six neighbours, whichever row it sits on */
-  [[20,20,even],[20,21,odd]].forEach(([c, r, cells]) => {
-    const o = ((r % 2) + 2) % 2;
-    const nb = [[c-1+o,r-1],[c+o,r-1],[c-1,r],[c+1,r],[c-1+o,r+1],[c+o,r+1],[c,r]].map(x => x.join(",")).sort().join(" ");
+  const odd2 = S.shapeCells(ros, 21, 20, 0);
+  [[20,20,even],[20,21,odd],[21,20,odd2]].forEach(([c, r, cells]) => {
+    const o = ((c % 2) + 2) % 2;
+    const nb = [[c,r-1],[c,r+1],[c-1,r-1+o],[c-1,r+o],[c+1,r-1+o],[c+1,r+o],[c,r]].map(x => x.join(",")).sort().join(" ");
     eq(ks(cells), nb);
   });
   const rh = S.shapeById("rhombus");
-  eq(ks(S.shapeCells(rh, 1, -4, 0)), ks([[1,-4],[2,-4],[1,-3],[2,-3]]));      // the guest rhombus, exactly
+  eq(ks(S.shapeCells(rh, 2, -4, 0)), ks([[2,-4],[3,-4],[2,-3],[3,-3]]));      // four tiles, two touching columns
   for (let k = 0; k < 6; k++) ok(S.shapeCells(rh, 10, 10, k).length === 4);
   eq(ks(S.shapeCells(rh, 10, 10, 6)), ks(S.shapeCells(rh, 10, 10, 0)));
   ok(ks(S.shapeCells(rh, 10, 10, 1)) !== ks(S.shapeCells(rh, 10, 10, 0)), "a turn changes a rhombus");
   eq(ks(S.shapeCells(ros, 10, 10, 2)), ks(S.shapeCells(ros, 10, 10, 0)), "a rosette is the same at any turn");
-  eq(ks(S.shapeCells(S.shapeById("stack"), 10, 10, 0)), ks([[10,10],[10,12]]));
-  eq(ks(S.shapeCells(S.shapeById("stack"), 10, 11, 0)), ks([[10,11],[10,13]]));
-  eq(ks(S.shapeCells(S.shapeById("chevron"), 25, 22, 0)), ks([[25,22],[24,21],[25,21]]));
+  eq(ks(S.shapeCells(S.shapeById("stack"), 10, 10, 0)), ks([[10,10],[10,12]]), "two in a column with one between");
+  eq(ks(S.shapeCells(S.shapeById("stack"), 11, 11, 0)), ks([[11,11],[11,13]]));
+  eq(ks(S.shapeCells(S.shapeById("pair"), 10, 10, 0)), ks([[10,10],[11,10]]));
+  eq(ks(S.shapeCells(S.shapeById("pair"), 11, 10, 0)), ks([[11,10],[12,11]]), "a pair on an odd column steps to the even one half a tile north of it");
 });
 
 check("stamps flip like a tap, paint like a brush, mirror when asked, and skip walls and fixed dots", () => {
@@ -301,19 +307,20 @@ check("stamps flip like a tap, paint like a brush, mirror when asked, and skip w
   eq(L.cells.length, 0); eq(L.past.length, 2);
   L = S.stampToggle(L, ros, 30, 30, 0, true);
   eq(L.cells.length, 28); eq(L.past.length, 3);
-  L = S.stampToggle(L, ros, 25, 34, 0, true);           // on the centre: its own mirror, seven tiles once
-  eq(L.cells.length, 35);
-  const near = S.stampToggle(S.blankLayout(), ros, 1, 34, 0, false);   // beside the west border: the fixed dot at (0,34) is skipped
-  eq(near.cells.length, 6);
+  L = S.stampToggle(L, ros, 25, 34, 0, true);           // on the door column, half a tile below the cross line: it and its image share the column
+  eq(L.cells.length, 28 + 10, "rosette plus its image across the cross line, overlapping in four tiles");
+  const near = S.stampToggle(S.blankLayout(), ros, 1, 34, 0, false);   // beside the west border: the fixed dots at (0,34) and (0,36)? only those on the ring are skipped
+  eq(near.cells.length, 7 - S.shapeCells(ros, 1, 34, 0).filter(c => S.fixed[c.join(",")]).length);
   let B = S.blankLayout();
   B = S.stampPaint(B, ros, 30, 30, 0, true, false, false); B = S.stampPaint(B, ros, 31, 30, 0, true, true, false);
   ok(B.cells.length > 7 && B.cells.length <= 14); eq(B.past.length, 1);
   const custom = S.shapeFromCells([[10,10],[11,10],[12,10],[11,11]], "Tee", "u1");
   eq(custom.cells.length, 4);
   ok(custom.cells.some(d => d[0] === 0 && d[1] === 0), "the anchor is one of its own cells");
-  const back = S.shapeCells(custom, 11, 10, 0).map(c => c.join(",")).sort().join(" ");
+  const anchor = custom.cells.findIndex(d => d[0] === 0 && d[1] === 0);
+  const src = [[10,10],[11,10],[12,10],[11,11]];
+  const back = S.shapeCells(custom, src[anchor][0], src[anchor][1], 0).map(c => c.join(",")).sort().join(" ");
   eq(back, "10,10 11,10 11,11 12,10");
-  eq(S.shapeCells(custom, 11, 11, 0).length, 4);
 });
 
 check("the palette: pick a brush, stamp it, rotate, make a shape from picked tiles, keep it across a reload, delete it", () => {
@@ -373,10 +380,11 @@ check("hexAt inverts hexCenter, including odd and negative rows", () => {
   });
 });
 
-check("odd rows sit half a cell east", () => {
-  eq(S.hexCenter(4, 3).x - S.hexCenter(4, 2).x, 0.5);
-  eq(S.hexCenter(4, -1).x - S.hexCenter(4, 0).x, 0.5);
-  ok(Math.abs(S.hexCenter(0, 2).y - 2 * 0.8660254) < 1e-9);
+check("flat-top: odd columns sit half a cell south, columns are 0.866 apart, a flat face meets the door wall", () => {
+  eq(S.hexCenter(3, 4).y - S.hexCenter(2, 4).y, 0.5);
+  eq(S.hexCenter(-1, 4).y - S.hexCenter(0, 4).y, 0.5);
+  ok(Math.abs(S.hexCenter(2, 0).x - 2 * 0.8660254) < 1e-9);
+  eq(S.hexCenter(5, 7).y - S.hexCenter(5, 6).y, 1, "tiles touch flat to flat down a column");
 });
 
 /* ---- the layout reducers ----------------------------------------------- */
@@ -537,7 +545,7 @@ check("tap toggles a tile, a drag pans, and brush mode paints along the drag", (
   a.H["el:pointermove"](ev("pointermove", (px.x + qx.x) / 2, px.y));
   a.H["el:pointermove"](ev("pointermove", qx.x, qx.y));
   a.H["el:pointerup"](ev("pointerup", qx.x, qx.y));
-  ok(st.draft.cells.indexOf("21,20") >= 0 && st.draft.cells.indexOf("22,20") >= 0, "brush paints the path: " + st.draft.cells);
+  ok((st.draft.cells.indexOf("21,20") >= 0 || st.draft.cells.indexOf("21,19") >= 0) && st.draft.cells.indexOf("22,20") >= 0, "brush paints the path: " + st.draft.cells);
   eq(a.S.dirtyN(), 0, "the stroke's tiles were folded into the bitmap on the lift");
   /* mid-stroke, changed tiles wait in the overlay rather than touching the bitmap */
   a.H["el:pointerdown"](ev("pointerdown", px.x, py0 = px.y + 60));

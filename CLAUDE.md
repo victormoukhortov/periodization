@@ -646,17 +646,25 @@ same rules, and its engine is the floor's geometry rather than a progression.
 
 ## The grid
 
-Pointy-top hexagons in horizontal rows. A cell is `(c, r)`; odd rows sit half a cell east. Centres
-in units of one hex width are `x = c + (r odd ? 0.5 : 0)`, `y = r * HEX_H` with `HEX_H = 0.866`.
-North is row decreasing, east is column increasing, so the plan draws with the bay window at the
-top, the entry door at the bottom, the vanity wall on the right, and on the left the shower with
-the toilet room directly south of it through the niche wall. Cell `(0, 0)` is the north-west
-corner dot of the main border. Keys are the string
-`"c,r"`, and the same key is used in storage.
+**Flat-top hexagons** (odd-q layout): a flat face meets the door wall, the straight runs of
+touching tiles go north–south, and the east–west runs zigzag. A cell is `(c, r)`; odd columns sit
+half a cell south. Centres, in units of one tile centre-to-centre down a column, are
+`x = c * HEX_H`, `y = r + (c odd ? 0.5 : 0)` with `HEX_H = 0.866`. North is row decreasing, east is
+column increasing, so the plan draws with the bay window at the top, the entry door at the bottom,
+the vanity wall on the right, and on the left the shower with the toilet room directly south of it
+through the niche wall. Cell `(0, 0)` is the north-west corner dot of the main border. Keys are the
+string `"c,r"`, and the same key is used in storage.
 
-The border pattern is one black, one white, one black. Along a row that is every other column; down
-a column it is every other row, which is a straight line because rows two apart share an offset.
-Every fixed run is therefore on an even row and steps by two, and the tests check that.
+The lattice was pointy-top until the site said otherwise; the turn is a change of `hexCenter`,
+`hexAt`, the corner angles, the axial conversion, the mirror parity and the guide scaling, and
+nothing in the border data, because the counts are counts either way. What the turn changes is the
+rooms' proportions: columns are 0.866 apart and rows 1 apart, so the main room is now about 50
+wide by 68 tall rather than 58 by 59.
+
+The border pattern is one black, one white, one black. Down a column that is every other row of a
+straight run; along a row it is every other column of the zigzag, and since cells two columns
+apart share parity they share a height, so that is a straight line too. Every fixed run steps by
+two, and the tests check each is straight.
 
 ## Layout of `hex.html`
 
@@ -726,9 +734,11 @@ centre of its walls: a pattern symmetric about that line reads as centred from t
 `ROOMS` lists the three rooms as boxes with the two centre lines their guides draw. `roomOf`
 finds a cell's room, `mirrorCells` returns the cell and its images across that room's lines with
 no repeats, and `toggleMirror` / `paintMirror` apply one change to the whole group as a single
-undo step. The centre lines are handled on the lattice, not by rounding: across the cross row a
-cell on that row is its own image; across the upright, an even row has a cell on the line, which
-is its own image, while an odd row has the line between two cells, which pair up. A mirrored
+undo step. The centre lines are handled on the lattice, not by rounding: across the upright, column `v`'s
+cells sit on the line and are their own images whatever the row; across the cross line, an even
+column has a cell on row `h`, which is its own image, while an odd column sits half a tile south,
+so the line runs between rows `h-1` and `h`, which pair up. The main room's door column (25) is odd,
+so there is no single centre tile: rows 33 and 34 of that column straddle the centre. A mirrored
 toggle reads the colour from the tapped cell and *sets* every image to it, so a self-image cannot
 flip back. Images that fall on a wall or a fixed dot are skipped by `paintCell` as usual, which is
 what happens when a tile in the door neck mirrors into the bay. Rooms never mix: a shower tile's
@@ -738,8 +748,8 @@ images are all in the shower. The `Mirror` button toggles it and repaints the hi
 
 `SHAPES` are the built-in brushes: the single hex and the units the guest motifs are built from
 (pair, stack, chevron, diamond, ring, flower). A shape is a list of **axial** offsets from its
-anchor, because axial offsets do not depend on row parity: the same list stamps the same shape on
-an odd row and an even row, which offset columns would not. `toAxial` / `fromAxial` convert,
+anchor, because axial offsets do not depend on column parity: the same list stamps the same shape
+on an odd column and an even column, which offset rows would not. `toAxial` / `fromAxial` convert,
 `rotAxial` turns an offset a sixth of a turn (cube rotation), and `shapeCells` lays a shape down at
 an anchor and turn. The single hex is a shape too, so a tap is always a stamp.
 
@@ -759,9 +769,9 @@ each render, the selected one at its current turn.
 ## Starting points
 
 `PRESETS` holds ready-made layouts the Layouts tab offers under "Starting points": the guest
-bathroom's water-over-rock motif, transcribed tile for tile from a photo by fitting the hex
-lattice to its black tiles, then turned so the long axis runs north-south with the narrow end at
-the door, at 1.5x and 2x. Starting one opens it as an unsaved draft with the preset's name, so
+bathroom's water-over-rock motif rebuilt from its units on this floor's lattice, long axis
+north-south with the narrow end at the door, at 1.5x and 2x. Because the door column is odd on a
+flat-top grid, the centre unit is a ringed vertical pair rather than a flower. Starting one opens it as an unsaved draft with the preset's name, so
 it costs nothing to try and is saved only when she says so. A preset is a cell list exactly like
 a saved layout, and the test suite checks every cell is paintable and the whole is mirror-symmetric
 about the door line and the cross line.

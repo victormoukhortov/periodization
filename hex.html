@@ -122,9 +122,11 @@
 
 /* ============================== PROGRAM ============================== */
 
-/* The floor is a hex mosaic, pointy-top hexagons in horizontal rows. A cell is
-   (c, r): column c, row r. Odd rows sit half a cell east. Units are one hex
-   width; a row is HEX_H of that. North is row decreasing, east is column
+/* The floor is a hex mosaic, flat-top hexagons: the straight runs of adjacent
+   tiles go north-south, the east-west runs zigzag, and a flat face meets the
+   door wall. A cell is (c, r): column c, row r. Odd columns sit half a cell
+   south. Units are one tile across (centre to centre down a column); a column
+   is HEX_H of that across. North is row decreasing, east is column
    increasing, so the plan reads with the bay window at the top, the entry door
    at the bottom, the vanity wall on the right and the shower on the left.
 
@@ -159,13 +161,14 @@ var GUIDES = [
   {v: -25, r0: 48, r1: 70, room: "wc"}, {h: 59, c0: -42.5, c1: -7.5, room: "wc"}
 ];
 
-/* Starting points: the guest bathroom's water-over-rock motif, transcribed
-   tile for tile from the photo, turned so its long axis runs north-south with
-   the narrow end at the door, at two sizes. Each is a list of cells exactly
+/* Starting points: the guest bathroom's water-over-rock motif rebuilt on this
+   floor's lattice, long axis north-south with the narrow end at the door, at
+   two sizes. The main room's centre on a flat-top grid sits between two tiles
+   of the door column, so the centre unit is a ringed pair rather than a flower. Each is a list of cells exactly
    like a saved layout, so opening one is opening a layout. */
 var PRESETS = [
-  {id: "wave-15", name: "Guest motif, 1.5x", cells: ["20,29", "20,30", "20,31", "20,37", "20,38", "20,39", "21,25", "21,27", "21,30", "21,38", "21,41", "21,43", "22,26", "22,42", "24,21", "24,33", "24,34", "24,35", "24,47", "25,14", "25,16", "25,18", "25,21", "25,22", "25,24", "25,26", "25,28", "25,30", "25,33", "25,34", "25,35", "25,38", "25,40", "25,42", "25,44", "25,46", "25,47", "25,50", "25,52", "25,54", "26,34", "28,25", "28,26", "28,27", "28,41", "28,42", "28,43", "29,29", "29,30", "29,31", "29,37", "29,38", "29,39", "30,30", "30,38"]},
-  {id: "wave-20", name: "Guest motif, 2x", cells: ["18,29", "18,30", "18,31", "18,37", "18,38", "18,39", "19,30", "19,38", "20,24", "20,25", "20,26", "20,42", "20,43", "20,44", "21,19", "21,21", "21,47", "21,49", "23,20", "23,48", "24,17", "24,33", "24,34", "24,35", "24,51", "25,10", "25,12", "25,14", "25,17", "25,18", "25,20", "25,22", "25,24", "25,26", "25,28", "25,30", "25,33", "25,34", "25,35", "25,38", "25,40", "25,42", "25,44", "25,46", "25,48", "25,50", "25,51", "25,54", "25,56", "25,58", "26,34", "27,20", "27,48", "28,19", "28,21", "28,47", "28,49", "29,25", "29,43", "30,24", "30,26", "30,42", "30,44", "31,29", "31,30", "31,31", "31,37", "31,38", "31,39", "32,30", "32,38"]}
+  {id: "wave-15", name: "Guest motif, 1.5x", cells: ["22,25", "22,29", "22,30", "22,38", "22,39", "22,43", "23,23", "23,29", "23,30", "23,37", "23,38", "23,44", "24,21", "24,33", "24,34", "24,35", "24,47", "25,13", "25,15", "25,17", "25,20", "25,21", "25,23", "25,25", "25,27", "25,29", "25,32", "25,33", "25,34", "25,35", "25,38", "25,40", "25,42", "25,44", "25,46", "25,47", "25,50", "25,52", "25,54", "26,21", "26,33", "26,34", "26,35", "26,47", "27,23", "27,29", "27,30", "27,37", "27,38", "27,44", "28,25", "28,29", "28,30", "28,38", "28,39", "28,43"]},
+  {id: "wave-20", name: "Guest motif, 2x", cells: ["20,25", "20,43", "21,23", "21,29", "21,30", "21,37", "21,38", "21,44", "22,20", "22,30", "22,31", "22,37", "22,38", "22,48", "23,18", "23,49", "24,17", "24,33", "24,34", "24,35", "24,51", "25,9", "25,11", "25,13", "25,16", "25,17", "25,19", "25,21", "25,23", "25,25", "25,27", "25,29", "25,32", "25,33", "25,34", "25,35", "25,38", "25,40", "25,42", "25,44", "25,46", "25,48", "25,50", "25,51", "25,54", "25,56", "25,58", "26,17", "26,33", "26,34", "26,35", "26,51", "27,18", "27,49", "28,20", "28,30", "28,31", "28,37", "28,38", "28,48", "29,23", "29,29", "29,30", "29,37", "29,38", "29,44", "30,25", "30,43"]}
 ];
 
 /* The rooms, for Mirror mode: each is a box and the two centre lines the
@@ -182,7 +185,7 @@ var ROOMS = [
 var SHAPES = [
   {id: "dot", name: "Hex", cells: [[0,0]]},
   {id: "pair", name: "Pair", cells: [[0,0],[1,0]]},
-  {id: "stack", name: "Stack", cells: [[0,0],[-1,2]]},
+  {id: "stack", name: "Stack", cells: [[0,0],[0,2]]},
   {id: "chevron", name: "Chevron", cells: [[0,0],[0,-1],[1,-1]]},
   {id: "rhombus", name: "Diamond", cells: [[0,0],[1,0],[0,1],[1,1]]},
   {id: "ring", name: "Ring", cells: [[1,0],[1,-1],[0,-1],[-1,0],[-1,1],[0,1]]},
@@ -191,7 +194,7 @@ var SHAPES = [
 
 /* Room names painted on the canvas, for orientation only. */
 var LABELS = [
-  {t:"BAY WINDOW", c:29, r:-9}, {t:"VANITY", c:63.5, r:34, rot:1, light:1}, {t:"DOOR", c:25, r:88, light:1},
+  {t:"BAY WINDOW", c:29, r:-9}, {t:"VANITY", c:64, r:34, rot:1, light:1}, {t:"DOOR", c:25, r:88, light:1},
   {t:"SHOWER", c:-25, r:25}, {t:"WC", c:-25, r:59}, {t:"NICHE WALL", c:-23, r:45.6, small:1, light:1}
 ];
 
@@ -235,25 +238,25 @@ function unkey(k){ var p = k.split(","); return [+p[0], +p[1]]; }
 function isOdd(r){ return ((r % 2) + 2) % 2 === 1; }
 
 function hexCenter(c, r){
-  return {x: c + (isOdd(r) ? 0.5 : 0), y: r * HEX_H};
+  return {x: c * HEX_H, y: r + (isOdd(c) ? 0.5 : 0)};
 }
 /* Nearest centre wins, which is exactly the hexagon the point is in. */
 function hexAt(x, y){
-  var r0 = Math.round(y / HEX_H), best = null, bd = 1e9;
-  for (var r = r0 - 1; r <= r0 + 1; r++){
-    var c0 = Math.round(x - (isOdd(r) ? 0.5 : 0));
-    for (var c = c0 - 1; c <= c0 + 1; c++){
+  var c0 = Math.round(x / HEX_H), best = null, bd = 1e9;
+  for (var c = c0 - 1; c <= c0 + 1; c++){
+    var r0 = Math.round(y - (isOdd(c) ? 0.5 : 0));
+    for (var r = r0 - 1; r <= r0 + 1; r++){
       var p = hexCenter(c, r), d = (p.x - x) * (p.x - x) + (p.y - y) * (p.y - y);
       if (d < bd){ bd = d; best = [c, r]; }
     }
   }
   return best;
 }
-/* Corners of a pointy-top hex of width w centred at (x, y), as a flat array. */
+/* Corners of a flat-top hex of width w (flat to flat) centred at (x, y). */
 function hexCorners(x, y, w){
   var R = w / Math.sqrt(3), out = [];
   for (var i = 0; i < 6; i++){
-    var a = Math.PI / 180 * (60 * i + 30);
+    var a = Math.PI / 180 * (60 * i);
     out.push(x + R * Math.cos(a), y + R * Math.sin(a));
   }
   return out;
@@ -290,7 +293,7 @@ var floor = {}, fixed = {}, CELLS = [], CELL_AT = {}, BOUNDS = null;
 })();
 /* Unit hexagon corners, so drawing never touches trigonometry. */
 var HEX_CX = [], HEX_CY = [];
-(function(){ for (var i = 0; i < 6; i++){ var a = Math.PI / 180 * (60 * i + 30); HEX_CX.push(Math.cos(a)); HEX_CY.push(Math.sin(a)); } })();
+(function(){ for (var i = 0; i < 6; i++){ var a = Math.PI / 180 * (60 * i); HEX_CX.push(Math.cos(a)); HEX_CY.push(Math.sin(a)); } })();
 var FLOOR_N = Object.keys(floor).length, FIXED_N = Object.keys(fixed).length;
 
 /* --- a layout, as a value ------------------------------------------------ */
@@ -330,8 +333,8 @@ function paintCell(L, c, r, black, cont){
 
 /* Offset (c, r) to axial (q, r) and back. Axial offsets do not care about row
    parity, which is what lets one shape be stamped anywhere. */
-function toAxial(c, r){ return [c - (r - (r & 1)) / 2, r]; }
-function fromAxial(q, r){ return [q + (r - (r & 1)) / 2, r]; }
+function toAxial(c, r){ return [c, r - (c - (c & 1)) / 2]; }
+function fromAxial(q, r){ return [q, r + (q - (q & 1)) / 2]; }
 /* Rotate an axial offset by k sixths of a turn, clockwise on screen. */
 function rotAxial(d, k){
   var x = d[0], z = d[1], y = -x - z, t;
@@ -407,22 +410,22 @@ function validShape(o){
 /* --- mirror mode ---------------------------------------------------------- */
 
 function roomOf(c, r){
-  var x = hexCenter(c, r).x;
   for (var i = 0; i < ROOMS.length; i++){
     var m = ROOMS[i];
-    if (x >= m.c0 && x <= m.c1 && r >= m.r0 && r <= m.r1) return m;
+    if (c >= m.c0 && c <= m.c1 && r >= m.r0 && r <= m.r1) return m;
   }
   return null;
 }
 /* A cell and its images across its room's two centre lines, without repeats.
-   Across the upright: on an even row the line runs through the cell at column
-   `v`, which is its own image; on an odd row it runs between two cells, so
-   they pair up. Across the cross line, row `h` is its own image. The lines
+   Across the upright, column `v`'s cells sit on the line and are their own
+   images, whatever the row. Across the cross line: in an even column the line
+   runs through row `h`, which is its own image; in an odd column, which sits
+   half a tile south, it runs between rows h-1 and h, so they pair up. The lines
    are where the guides draw them, so what the eye sees mirrored is what is. */
 function mirrorCells(c, r){
   var m = roomOf(c, r);
   if (!m) return [[c, r]];
-  var cx = isOdd(r) ? 2 * m.v - c - 1 : 2 * m.v - c, ry = 2 * m.h - r;
+  var cx = 2 * m.v - c, ry = isOdd(c) ? 2 * m.h - r - 1 : 2 * m.h - r;
   var out = [[c, r]], seen = {}; seen[key(c, r)] = 1;
   [[cx, r], [c, ry], [cx, ry]].forEach(function(q){
     var k = key(q[0], q[1]);
@@ -735,8 +738,8 @@ function viewLayouts(){
 function viewPlan(){
   var h = '<main class="scroll"><div class="wrap plan">';
   h += '<h2>The floor</h2>' +
-    '<p>Pointy-top hex mosaic in horizontal rows. The plan is drawn with the <b>bay window at the top</b>, the <b>entry door at the bottom</b>, the <b>vanity wall on the right</b> and the <b>shower on the left with the toilet room below it</b>. Cell (0, 0) is the north-west corner dot of the main border; columns count east, rows count south, and odd rows sit half a cell east.</p>' +
-    '<p>The dotted border is grouted in and cannot be changed here. Along a row it puts a black on every other tile; down a column it puts one on every other row, which lands in a straight line. Every run below was counted dot by dot in the photos it names: A looks west into the shower, B looks north from the door, C looks south from the bay, D looks west into the toilet room from the main room.</p>' +
+    '<p>Flat-top hex mosaic: a flat face meets the door wall, the straight runs of touching tiles go north–south and the east–west runs zigzag. The plan is drawn with the <b>bay window at the top</b>, the <b>entry door at the bottom</b>, the <b>vanity wall on the right</b> and the <b>shower on the left with the toilet room below it</b>. Cell (0, 0) is the north-west corner dot of the main border; columns count east, rows count south, and odd columns sit half a cell south.</p>' +
+    '<p>The dotted border is grouted in and cannot be changed here. Down a column it puts a black on every other tile of a straight run; along a row it puts one on every other tile of the zigzag, which are the tiles at the same height, so that lands in a straight line too. Every run below was counted dot by dot in the photos it names: A looks west into the shower, B looks north from the door, C looks south from the bay, D looks west into the toilet room from the main room.</p>' +
     '<div class="legend"><span><i style="background:#f4f4f2"></i>tile</span><span><i style="background:#111;box-shadow:inset 0 0 0 2px #f5c542"></i>fixed dot</span><span><i style="background:#111"></i>your tile</span><span><i style="background:#0b0f14;border:1px solid #444"></i>wall</span></div>';
   h += '<table><tr><th>Run</th><th>From → to</th><th style="text-align:right">Dots</th><th>Photos</th></tr>';
   for (var i = 0; i < SEGMENTS.length; i++){
@@ -754,7 +757,7 @@ function viewPlan(){
     '<p>The white margins between each border and its wall, the bay window’s chamfered shape, the toilet room door’s position in its east wall, and the depth of the entry recess beyond the threshold row are read to about one cell. They decide which tiles exist to paint, not where any black dot sits. The offset of the shower and toilet room from the main border read as nine cells in one photo and just under in another; nine is used.</p>' +
     '<p>Edit the rectangles in <span class="num">FLOOR</span> and the runs in <span class="num">SEGMENTS</span> at the top of the file if the site says otherwise. The tests count every run.</p>';
   h += '<h2>Using it</h2>' +
-    '<p>Tap a tile to flip it. Drag to move around, pinch or scroll to zoom, Fit to see the whole floor. Brush paints along a drag in the chosen colour; two fingers still move the view. Undo steps back one tap or one stroke. Guides are the centre lines of each room, the main room’s upright being the centre of the door; a pattern that is symmetric about them reads as centred from the doorway. Mirror sets each tile you touch in all four quarters of its room at once, across those same lines, so you draw one quarter and the rest follow. The palette under the toolbar is the set of brushes: the single hex, and the units the guest floors are built from, pair, stack, chevron, diamond, ring and flower. A tap stamps the chosen shape where you touch, flipping it the way a tile flips; Rotate turns it a sixth of a turn. New shape lets you tap tiles on the floor, name them and keep them as a brush of your own. A tile on the cross row is its own image; on the door line, even rows have a tile on the line and odd rows have a pair either side of it. Save keeps the design on this device under its name; Save as keeps a copy. Image downloads the plan as a PNG for the tile setter. The Layouts tab also offers starting points: the guest bathroom’s water-over-rock motif, read tile for tile from a photo and turned to run toward the door.</p>';
+    '<p>Tap a tile to flip it. Drag to move around, pinch or scroll to zoom, Fit to see the whole floor. Brush paints along a drag in the chosen colour; two fingers still move the view. Undo steps back one tap or one stroke. Guides are the centre lines of each room, the main room’s upright being the centre of the door; a pattern that is symmetric about them reads as centred from the doorway. Mirror sets each tile you touch in all four quarters of its room at once, across those same lines, so you draw one quarter and the rest follow. The palette under the toolbar is the set of brushes: the single hex, and the units the guest floors are built from, pair, stack, chevron, diamond, ring and flower. A tap stamps the chosen shape where you touch, flipping it the way a tile flips; Rotate turns it a sixth of a turn. New shape lets you tap tiles on the floor, name them and keep them as a brush of your own. A tile on the door column is its own image across it; across the cross line, even columns have a tile on the line and odd columns have a pair either side of it. Save keeps the design on this device under its name; Save as keeps a copy. Image downloads the plan as a PNG for the tile setter. The Layouts tab also offers starting points: the guest bathroom’s water-over-rock motif, read tile for tile from a photo and turned to run toward the door.</p>';
   return h + '</div></main>';
 }
 
@@ -964,11 +967,11 @@ function drawGuides(ctx, v){
   for (var i = 0; i < GUIDES.length; i++){
     var g = GUIDES[i];
     if (g.v != null){
-      var x = g.v * s + v.tx;
-      ctx.moveTo(x, g.r0 * HEX_H * s + v.ty); ctx.lineTo(x, g.r1 * HEX_H * s + v.ty);
+      var x = g.v * HEX_H * s + v.tx;
+      ctx.moveTo(x, g.r0 * s + v.ty); ctx.lineTo(x, g.r1 * s + v.ty);
     } else {
-      var y = g.h * HEX_H * s + v.ty;
-      ctx.moveTo(g.c0 * s + v.tx, y); ctx.lineTo(g.c1 * s + v.tx, y);
+      var y = g.h * s + v.ty;
+      ctx.moveTo(g.c0 * HEX_H * s + v.tx, y); ctx.lineTo(g.c1 * HEX_H * s + v.tx, y);
     }
   }
   ctx.stroke();
